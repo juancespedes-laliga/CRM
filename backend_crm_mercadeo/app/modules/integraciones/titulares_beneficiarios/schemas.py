@@ -1,7 +1,10 @@
+import re
 from datetime import date
 from typing import Any, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
+
+_PATRON_COLOR_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
 class EntradaMayusculas(BaseModel):
@@ -210,6 +213,59 @@ class ListadoTitularesPaginado(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class RenovacionMesItem(BaseModel):
+    """Una fila de GET /titulares-beneficiarios/renovaciones: un titular cuyo
+    FECHA_INGRESO cae en el mes consultado (se activo o reactivo ese mes)."""
+
+    ID: int
+    TIPO_DOCUMENTO: Optional[str] = None
+    DOCUMENTO: str
+    NOMBRE: str
+    CORREO: Optional[str] = None
+    TELEFONO: Optional[str] = None
+    EMPRESA: Optional[str] = None
+    TIPO_PLAN: Optional[str] = None
+    ESTADO: str
+    # 'S' = fue una renovacion (ya existia antes); 'N' = alta nueva ese mes.
+    RENOVADO: Optional[str] = None
+    FECHA_INGRESO: str
+    FECHA_FIN: str
+    ULTIMO_CONTACTO_FECHA: Optional[str] = None
+    ULTIMO_CONTACTO_DESC: Optional[str] = None
+    # Color que el equipo le asigna a mano a la fila (ver TitularColor);
+    # None = sin colorear.
+    COLOR: Optional[str] = None
+
+
+class ResumenRenovacionesMes(BaseModel):
+    anio: int
+    mes: int
+    total: int
+    renovados: int
+    altas_nuevas: int
+    activos: int
+    inactivos: int
+
+
+class ListadoRenovacionesMes(BaseModel):
+    resumen: ResumenRenovacionesMes
+    items: list[RenovacionMesItem]
+
+
+class TitularColorActualizar(BaseModel):
+    """PUT .../titulares-beneficiarios/{id}/color. COLOR=None quita el color
+    (la fila vuelve a mostrarse sin colorear)."""
+
+    COLOR: Optional[str] = None
+
+    @field_validator("COLOR")
+    @classmethod
+    def _validar_color(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is not None and not _PATRON_COLOR_HEX.match(valor):
+            raise ValueError("COLOR debe ser un hex de 6 digitos, ej. '#FCA5A5'")
+        return valor
 
 
 class BeneficiarioDetalle(BaseModel):

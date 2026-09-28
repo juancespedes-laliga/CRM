@@ -10,11 +10,12 @@ from sqlalchemy import (
     literal_column,
     or_,
     select,
+    text,
     update,
 )
 from sqlalchemy.orm import Session
 
-from app.models import PlanLiga, PlanLigaBeneficiario, PlanLigaTipoPlan, Usuario
+from app.models import PlanLiga, PlanLigaBeneficiario, PlanLigaTipoPlan, TitularColor, Usuario
 
 ESTADO_ACTIVO = "A"
 ESTADO_INACTIVO = "I"
@@ -116,6 +117,19 @@ CAMPOS_BENEFICIARIO_EDITABLES = {
     "EMPRESA": "empresa",
     "ESTADO": "estado",
 }
+
+
+def _fecha_iso(valor) -> str | None:
+    """Normaliza date/datetime (lo que trae oracledb para columnas DATE) a
+    'YYYY-MM-DD'; usado solo por las consultas con SQL crudo (text()) de esta
+    clase, ya que las armadas con select()/func.to_char() no lo necesitan."""
+    if valor is None:
+        return None
+    if isinstance(valor, datetime):
+        return valor.date().isoformat()
+    if isinstance(valor, date):
+        return valor.isoformat()
+    return str(valor)
 
 
 def _rango_fecha_nacimiento(edad: str, hoy: date) -> tuple[date | None, date | None]:
@@ -965,3 +979,88 @@ class TitularesBeneficiariosRepository:
         self.db.execute(stmt_update)
         self.db.commit()
         return beneficiarios
+
+    # ---------------------------------------------------------------------
+    # Renovaciones por mes: titulares cuyo FECHA_INGRESO cae en el mes
+    # consultado (se activaron o renovaron ese mes). RENOVADO distingue
+    # renovacion ('S', ya existian) de alta nueva ('N', primera vez).
+    # ---------------------------------------------------------------------
+    _SQL_RENOVACIONES_MES = """
+    SELECT
+        p.ID,
+        p.TIPO AS TIPO_DOCUMENTO,
+        p.DOCUMENTO,
+        REGEXP_REPLACE(
+            p.NOMBRE1 || ' ' || NVL(p.NOMBRE2, '') || ' ' || p.APELLIDO1 || ' ' || NVL(p.APELLIDO2, ''),
+            ' +', ' '
+        ) AS NOMBRE,
+        p.CORREO,
+        p.TELEFONO,
+        p.EMPRESA,
+        p.TIPO_PLAN,
+        p.ESTADO,
+        p.RENOVADO,
+        TRUNC(p.FECHA_INGRESO) AS FECHA_INGRESO,
+        TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12)) AS FECHA_FIN,
+        (
+            SELECT MAX(b.FECHA)
+            FROM MERCADEO_CRM_BITACORA b
+            WHERE b.TITULAR_ID = p.ID
+        ) AS ULTIMO_CONTACTO_FECHA,
+        (
+            SELECT b2.DESCRIPCION
+            FROM MERCADEO_CRM_BITACORA b2
+            WHERE b2.TITULAR_ID = p.ID
+            ORDER BY b2.FECHA DESC
+            FETCH FIRST 1 ROW ONLY
+        ) AS ULTIMO_CONTACTO_DESC,
+        tc.COLOR
+    FROM INTRANET_PLANLIGA p
+    LEFT JOIN MERCADEO_CRM_TITULAR_COLOR tc ON tc.TITULAR_ID = p.ID
+    WHERE p.FECHA_INGRESO IS NOT NULL
+      AND EXTRACT(YEAR FROM p.FECHA_INGRESO) = :anio
+      AND EXTRACT(MONTH FROM p.FECHA_INGRESO) = :mes
+    ORDER BY p.FECHA_INGRESO DESC, NOMBRE
+    """
+
+    def listar_renovaciones_mes(self, anio: int, mes: int) -> list[dict]:
+        filas = self.db.execute(
+            text(self._SQL_RENOVACIONES_MES), {"anio": anio, "mes": mes}
+        ).mappings().all()
+        resultado = []
+        for fila in filas:
+            datos = {clave.upper(): valor for clave, valor in fila.items()}
+            datos["FECHA_INGRESO"] = _fecha_iso(datos["FECHA_INGRESO"])
+            datos["FECHA_FIN"] = _fecha_iso(datos["FECHA_FIN"])
+            datos["ULTIMO_CONTACTO_FECHA"] = _fecha_iso(datos["ULTIMO_CONTACTO_FECHA"])
+            resultado.append(datos)
+        return resultado
+
+    def establecer_color_titular(
+        self, id_titular: int, color: str, usuario_id: int | None
+    ) -> bool:
+        """Upsert: 1 fila por titular como maximo (unique en titular_id, ver
+        modelo TitularColor). Retorna False si el titular no existe."""
+        if self.db.get(PlanLiga, id_titular) is None:
+            return False
+        fila = self.db.scalar(
+            select(TitularColor).where(TitularColor.titular_id == id_titular)
+        )
+        if fila is None:
+            fila = TitularColor(titular_id=id_titular, color=color, usuario_id=usuario_id)
+            self.db.add(fila)
+        else:
+            fila.color = color
+            fila.usuario_id = usuario_id
+        self.db.commit()
+        return True
+
+    def quitar_color_titular(self, id_titular: int) -> bool:
+        fila = self.db.scalar(
+            select(TitularColor).where(TitularColor.titular_id == id_titular)
+        )
+        if fila is None:
+            return False
+        self.db.delete(fila)
+        self.db.commit()
+        return True

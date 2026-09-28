@@ -25,6 +25,7 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     CreacionTitularResultado,
     DesactivacionBeneficiarioResultado,
     DesactivacionTitularResultado,
+    ListadoRenovacionesMes,
     ListadoTitularesPaginado,
     PlanItem,
     PlanNombre,
@@ -33,6 +34,7 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     ReemplazoTitularResultado,
     ResumenTitularesBeneficiarios,
     TitularActivar,
+    TitularColorActualizar,
     TitularCrear,
     TitularDetalle,
     TitularUpdate,
@@ -84,6 +86,40 @@ def get_listado(
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> ListadoTitularesPaginado:
     return service.listar_titulares(limit, offset, estado, tipo_plan_id, sexo, edad, busqueda)
+
+
+@router.get(
+    "/renovaciones",
+    response_model=ListadoRenovacionesMes,
+    summary=(
+        "Titulares cuyo FECHA_INGRESO cae en el mes/anio dado (se activaron o "
+        "renovaron ese mes), separando renovaciones (RENOVADO='S') de altas "
+        "nuevas (RENOVADO='N'), con el ultimo contacto de bitacora de cada uno."
+    ),
+)
+def get_renovaciones_mes(
+    anio: int = Query(..., ge=2000, le=2100),
+    mes: int = Query(..., ge=1, le=12),
+    service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
+) -> ListadoRenovacionesMes:
+    return service.listar_renovaciones_mes(anio, mes)
+
+
+@router.put(
+    "/{id_titular}/color",
+    summary="Fija (o quita, con COLOR=null) el color que el equipo le asigna a mano a un titular.",
+)
+def poner_color_titular(
+    id_titular: int,
+    data: TitularColorActualizar,
+    username: str = Depends(get_current_username),
+    service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
+) -> dict:
+    if data.COLOR is None:
+        service.quitar_color_titular(id_titular)
+    else:
+        service.establecer_color_titular(id_titular, data.COLOR, username)
+    return {"COLOR": data.COLOR}
 
 
 @router.get("/exportar")

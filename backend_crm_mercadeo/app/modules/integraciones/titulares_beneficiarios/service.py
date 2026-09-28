@@ -36,11 +36,14 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     DesactivacionTitularResultado,
     ListadoTitulares,
     ListadoTitularesPaginado,
+    ListadoRenovacionesMes,
     PlanItem,
     PlanNombre,
     ReemplazoBeneficiarioResultado,
     ReemplazoPersona,
     ReemplazoTitularResultado,
+    RenovacionMesItem,
+    ResumenRenovacionesMes,
     ResumenTitularesBeneficiarios,
     TitularCrear,
     TitularDetalle,
@@ -584,6 +587,34 @@ class TitularesBeneficiariosService:
             limit=limit,
             offset=offset,
         )
+
+    def listar_renovaciones_mes(self, anio: int, mes: int) -> ListadoRenovacionesMes:
+        filas = self.repository.listar_renovaciones_mes(anio, mes)
+        items = [RenovacionMesItem(**fila) for fila in filas]
+        renovados = sum(1 for i in items if i.RENOVADO == "S")
+        activos = sum(1 for i in items if i.ESTADO == ESTADO_ACTIVO)
+        resumen = ResumenRenovacionesMes(
+            anio=anio,
+            mes=mes,
+            total=len(items),
+            renovados=renovados,
+            altas_nuevas=len(items) - renovados,
+            activos=activos,
+            inactivos=len(items) - activos,
+        )
+        return ListadoRenovacionesMes(resumen=resumen, items=items)
+
+    def establecer_color_titular(self, id_titular: int, color: str, username: str | None) -> None:
+        usuario_id = self.repository.obtener_usuario_id(username) if username else None
+        if not self.repository.establecer_color_titular(id_titular, color, usuario_id):
+            raise TitularNotFoundError(id_titular)
+
+    def quitar_color_titular(self, id_titular: int) -> None:
+        # No es un error quitar un color que ya no estaba puesto (idempotente);
+        # solo falla si el titular en si no existe.
+        if self.repository.obtener_titular(id_titular) is None:
+            raise TitularNotFoundError(id_titular)
+        self.repository.quitar_color_titular(id_titular)
 
     def listar_planes(self) -> list[PlanItem]:
         return [

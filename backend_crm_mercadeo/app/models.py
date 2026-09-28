@@ -209,6 +209,28 @@ class PlanLigaBeneficiario(Base):
     renovado: Mapped[str | None] = mapped_column(String(1))
 
 
+class TitularColor(Base):
+    """Color que el equipo le asigna a mano a un titular (ej. en la pantalla
+    de Renovaciones por mes, para marcar visualmente su seguimiento -- "ya
+    renovo", "no contesta", etc., igual a como coloreaban filas en Excel).
+
+    Tabla propia del CRM (no se toca intranet_planliga, que es una tabla
+    externa/legacy): 1 fila por titular como maximo (unique en titular_id),
+    se hace upsert desde el repository en vez de guardar historial."""
+
+    __tablename__ = "mercadeo_crm_titular_color"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    titular_id: Mapped[int] = mapped_column(
+        ForeignKey("intranet_planliga.id"), nullable=False, unique=True
+    )
+    color: Mapped[str] = mapped_column(String(7), nullable=False)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("intranet_usuarios.id"))
+    fecha_actualizacion: Mapped[datetime | None] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+
 class Empresa(Base):
     __tablename__ = "mercadeo_crm_empresas"
 
