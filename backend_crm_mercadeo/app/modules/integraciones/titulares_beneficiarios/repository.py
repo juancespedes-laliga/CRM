@@ -213,6 +213,7 @@ class TitularesBeneficiariosRepository:
             PlanLiga.ciudad.label("CIUDAD"),
             PlanLiga.departamento.label("DEPARTAMENTO"),
             PlanLiga.tipo_plan.label("TIPO_PLAN"),
+            PlanLiga.tipo_plan_id.label("TIPO_PLAN_ID"),
             PlanLiga.tipo_afiliado.label("TIPO_AFILIADO"),
             PlanLiga.empresa.label("EMPRESA"),
             PlanLiga.eps.label("EPS"),
@@ -759,6 +760,20 @@ class TitularesBeneficiariosRepository:
         )
         return self.db.scalar(stmt) or 0
 
+    def cupo_de_plan(self, tipo_plan_id: int | None) -> int:
+        """Cupo de beneficiarios de un plan candidato (ej. el que se elige al
+        renovar), sin depender de que ya este asociado a un titular. Misma
+        formula que _cupo_plan(), pero evaluada en Python porque aqui no hay
+        una fila de PlanLiga contra la cual outer-joinear."""
+        if tipo_plan_id is None:
+            return BENEFICIARIOS_PLAN_ESTANDAR
+        tipo_plan = self.db.get(PlanLigaTipoPlan, tipo_plan_id)
+        if tipo_plan is None:
+            return BENEFICIARIOS_PLAN_ESTANDAR
+        if tipo_plan.beneficiarios_adicionales and tipo_plan.beneficiarios_adicionales > 0:
+            return BENEFICIARIOS_PLAN_ESTANDAR + tipo_plan.beneficiarios_adicionales
+        return tipo_plan.beneficiarios or 0
+
     def siguiente_orden_beneficiario(self, id_titular: int) -> int:
         """ORDEN a asignar al proximo beneficiario del titular: reutiliza el
         menor ORDEN de un beneficiario inactivo (ese cupo quedo libre) si
@@ -835,13 +850,23 @@ class TitularesBeneficiariosRepository:
         self.db.commit()
         return True
 
-    def activar_titular(self, id_titular: int, fecha_ingreso: date) -> bool:
+    def activar_titular(
+        self,
+        id_titular: int,
+        fecha_ingreso: date,
+        cambiar_plan: bool = False,
+        tipo_plan: str | None = None,
+        tipo_plan_id: int | None = None,
+    ) -> bool:
         titular = self.db.get(PlanLiga, id_titular)
         if titular is None:
             return False
         titular.estado = ESTADO_ACTIVO
         titular.fecha_ingreso = fecha_ingreso
         titular.renovado = "S"
+        if cambiar_plan:
+            titular.tipo_plan = tipo_plan
+            titular.tipo_plan_id = tipo_plan_id
         self.db.commit()
         return True
 

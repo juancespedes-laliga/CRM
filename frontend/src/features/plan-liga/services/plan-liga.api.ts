@@ -126,11 +126,25 @@ export async function activarTitular(
   idTitular: number,
   fechaIngreso: string,
   aplicarAGrupo = true,
+  // Cambio de plan al renovar (opcional): cambiarPlan es el toggle explícito, ver
+  // CAMBIAR_PLAN en schemas.py. tipoPlanId null es "Plan Estándar", una elección válida.
+  cambiarPlan = false,
+  tipoPlan?: string | null,
+  tipoPlanId?: number | null,
 ): Promise<void> {
+  const body: Record<string, unknown> = {
+    FECHA_INGRESO: fechaIngreso,
+    APLICAR_A_GRUPO: aplicarAGrupo,
+    CAMBIAR_PLAN: cambiarPlan,
+  }
+  if (cambiarPlan) {
+    body.TIPO_PLAN = tipoPlan ?? null
+    body.TIPO_PLAN_ID = tipoPlanId ?? null
+  }
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/${idTitular}/activar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },
-    body: JSON.stringify({ FECHA_INGRESO: fechaIngreso, APLICAR_A_GRUPO: aplicarAGrupo }),
+    body: JSON.stringify(body),
   })
   if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo activar el titular.')
 }
@@ -400,7 +414,7 @@ function mapTitularDetalle(r: TitularDetalleResponse): Titular {
     departamento: r.DEPARTAMENTO ?? '',
     empresa: r.EMPRESA ?? '',
     planContratado: '',
-    tipoPlanId: null,
+    tipoPlanId: r.TIPO_PLAN_ID,
     tipoPlan: r.TIPO_PLAN ?? '',
     tipoAfiliado: r.TIPO_AFILIADO ?? '',
     eps: r.EPS ?? '',

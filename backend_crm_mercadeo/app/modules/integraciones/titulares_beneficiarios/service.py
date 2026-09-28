@@ -9,6 +9,7 @@ from app.modules.integraciones.titulares_beneficiarios.exceptions import (
     BeneficiarioInactivoError,
     BeneficiarioNotFoundError,
     CupoBeneficiariosExcedidoError,
+    CupoPlanInsuficienteError,
     DocumentoDuplicadoError,
     TitularAmbiguoError,
     TitularInactivoError,
@@ -84,6 +85,21 @@ class TitularesBeneficiariosService:
         filas = self.repository.listar_beneficiarios(id_titular, estado)
         return [BeneficiarioDetalle(**fila) for fila in filas]
 
+    def _puede_elegir_plan(self, username: str | None) -> bool:
+        """Elegir un plan distinto del Estandar esta reservado al rol Comercial
+        (Jefe/Admin lo reciben por comodin). Cualquier otro rol -o un username
+        que no resuelve a un usuario_id- no puede elegirlo: defensa contra una
+        peticion armada a mano que se salte el bloqueo del frontend."""
+        if not username:
+            return False
+        usuario_id = self.repository.obtener_usuario_id(username)
+        if usuario_id is None:
+            return False
+
+        from app.modules.auth.repository import AuthRepository
+
+        return PERMISO_ELEGIR_PLAN in AuthRepository(self.db).obtener_permisos(usuario_id)
+
     def crear_titular(self, data: TitularCrear, username: str) -> CreacionTitularResultado:
         duplicado = self.repository.existe_documento(data.TIPO_DOCUMENTO, data.DOCUMENTO)
         if duplicado is not None:
@@ -92,18 +108,8 @@ class TitularesBeneficiariosService:
         datos = data.model_dump(exclude={"FECHA_INGRESO"})
         usuario_id = self.repository.obtener_usuario_id(username)
 
-        # Elegir un plan distinto del Estandar esta reservado al rol Comercial
-        # (Jefe/Admin lo reciben por comodin). Cualquier otro rol -o un
-        # usuario_id que no resuelve- queda fijo en Estandar aunque el payload
-        # traiga TIPO_PLAN_ID: defensa contra una peticion armada a mano que se
-        # salte el bloqueo del frontend. tipo_plan_id NULL = Plan Estandar
-        # (ver BENEFICIARIOS_PLAN_ESTANDAR en repository.py).
-        from app.modules.auth.repository import AuthRepository
-
-        puede_elegir_plan = usuario_id is not None and (
-            PERMISO_ELEGIR_PLAN in AuthRepository(self.db).obtener_permisos(usuario_id)
-        )
-        if not puede_elegir_plan or not datos.get("TIPO_PLAN_ID"):
+        # tipo_plan_id NULL = Plan Estandar (ver BENEFICIARIOS_PLAN_ESTANDAR en repository.py).
+        if not self._puede_elegir_plan(username) or not datos.get("TIPO_PLAN_ID"):
             datos["TIPO_PLAN_ID"] = None
 
         self.legacy_repository.crear_preplanliga(datos, usuario_id)
@@ -467,9 +473,32 @@ class TitularesBeneficiariosService:
         return self.desactivar_beneficiario(fila["PLANLIGA_ID"], fila["ID"])
 
     def activar_titular(
-        self, id_titular: int, fecha_ingreso: date, aplicar_a_grupo: bool = True
+        self,
+        id_titular: int,
+        fecha_ingreso: date,
+        aplicar_a_grupo: bool = True,
+        cambiar_plan: bool = False,
+        tipo_plan: str | None = None,
+        tipo_plan_id: int | None = None,
+        username: str | None = None,
     ) -> ActivacionTitularResultado:
-        if not self.repository.activar_titular(id_titular, fecha_ingreso):
+        # Revalidacion del permiso (ver _puede_elegir_plan): si el usuario no
+        # puede elegir plan, CAMBIAR_PLAN se ignora aunque venga en True.
+        cambiar_plan = cambiar_plan and self._puede_elegir_plan(username)
+        if cambiar_plan:
+            # No se permite bajar a un plan cuyo cupo sea menor a los
+            # beneficiarios activos que el titular ya tiene: primero hay que
+            # desactivarlos, o la renovacion completa (incluida la fecha) se
+            # rechaza sin aplicar nada.
+            cupo_nuevo_plan = self.repository.cupo_de_plan(tipo_plan_id)
+            beneficiarios_activos = self.repository.contar_beneficiarios(id_titular)
+            if beneficiarios_activos > cupo_nuevo_plan:
+                raise CupoPlanInsuficienteError(
+                    id_titular, beneficiarios_activos, cupo_nuevo_plan
+                )
+        if not self.repository.activar_titular(
+            id_titular, fecha_ingreso, cambiar_plan, tipo_plan, tipo_plan_id
+        ):
             raise TitularNotFoundError(id_titular)
         num_beneficiarios = (
             self.repository.activar_beneficiarios(id_titular, fecha_ingreso)

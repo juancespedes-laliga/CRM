@@ -134,6 +134,9 @@ export const RESPONSABLES = [...new Set(AFILIADOS_MOCK.map(a => a.responsable))]
 // ── Filtro de segmento (compartido por el segmentador y los segmentos) ──
 export interface FiltroSegmento {
   planLiga: '' | 'Plan Liga' | 'No plan Liga'
+  // Solo aplica junto con planLiga === 'Plan Liga' (ver FiltrosSegmento.vue):
+  // sale de INTRANET_PLANLIGA/INTRANET_PLANLIGA_BENEFICIARIO, no de TMPBI1.
+  usoPlan: '' | 'con_uso' | 'sin_uso'
   sexo: '' | 'F' | 'M'
   edadMin: string
   edadMax: string
@@ -152,7 +155,7 @@ export interface FiltroSegmento {
 }
 
 export const filtroVacio = (): FiltroSegmento => ({
-  planLiga: '', sexo: '', edadMin: '', edadMax: '',
+  planLiga: '', usoPlan: '', sexo: '', edadMin: '', edadMax: '',
   departamento: '', ciudades: [], etapas: [], origen: '', responsable: '',
   conceptos: [], servicios: [],
   ultimoUso: '', antiguedad: '', vinculacion: '',
@@ -162,7 +165,7 @@ export const filtroVacio = (): FiltroSegmento => ({
 export const clonarFiltro = (f: FiltroSegmento): FiltroSegmento => JSON.parse(JSON.stringify(f))
 
 export const contarFiltros = (f: FiltroSegmento): number =>
-  (f.planLiga ? 1 : 0) + (f.sexo ? 1 : 0) + (f.edadMin || f.edadMax ? 1 : 0)
+  (f.planLiga ? 1 : 0) + (f.usoPlan ? 1 : 0) + (f.sexo ? 1 : 0) + (f.edadMin || f.edadMax ? 1 : 0)
   + (f.departamento ? 1 : 0) + f.ciudades.length + f.etapas.length + (f.origen ? 1 : 0) + (f.responsable ? 1 : 0)
   + f.conceptos.length + f.servicios.length
   + (f.ultimoUso ? 1 : 0) + (f.antiguedad ? 1 : 0)
@@ -172,6 +175,7 @@ export const contarFiltros = (f: FiltroSegmento): number =>
 export function resumirFiltros(f: FiltroSegmento): string[] {
   const c: string[] = []
   if (f.planLiga) c.push(f.planLiga)
+  if (f.usoPlan) c.push(f.usoPlan === 'con_uso' ? 'Con uso del plan' : 'Sin uso del plan')
   if (f.sexo) c.push(f.sexo === 'F' ? 'Mujeres' : 'Hombres')
   if (f.edadMin || f.edadMax) c.push(`Edad ${f.edadMin || '0'}–${f.edadMax || '∞'}`)
   if (f.departamento) c.push(`Departamento: ${f.departamento}`)

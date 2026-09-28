@@ -242,6 +242,7 @@ export interface TitularDetalleResponse {
   CIUDAD: string | null
   DEPARTAMENTO: string | null
   TIPO_PLAN: string | null
+  TIPO_PLAN_ID: number | null
   TIPO_AFILIADO: string | null
   EMPRESA: string | null
   EPS: string | null

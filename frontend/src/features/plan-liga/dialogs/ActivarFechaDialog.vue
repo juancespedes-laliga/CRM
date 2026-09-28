@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { X, ToggleRight, Loader2 } from 'lucide-vue-next'
 import DatePicker from 'primevue/datepicker'
 import { fechaIngresoMaxima } from '../constants/plan-liga.constants'
+import type { PlanServicio } from '../types/plan-liga'
 
 const props = defineProps<{
   titulo: string
@@ -17,10 +18,16 @@ const props = defineProps<{
   // fecha de inscripción" de un titular que ya está activo.
   mensaje?: string
   textoBoton?: string
+  // Habilita la opción "cambiar el plan al renovar" (solo la pantalla de activar
+  // titular la usa; requiere permiso planliga:elegir_plan, se filtra desde afuera).
+  permitirCambiarPlan?: boolean
+  planesServicio?: PlanServicio[]
+  // Plan actual del titular, para preseleccionarlo si se activa "cambiar plan".
+  planActualId?: number | null
 }>()
 
 const emit = defineEmits<{
-  confirmar: [fechaIngreso: string, aplicarAGrupo: boolean]
+  confirmar: [fechaIngreso: string, aplicarAGrupo: boolean, cambiarPlan: boolean, tipoPlanId: number | null]
   cancelar: []
 }>()
 
@@ -36,7 +43,16 @@ const fechaIngresoDate = ref<Date>(hoy)
 // Desmarcado por defecto: hay que elegirlo a propósito para aplicar la fecha
 // también a los beneficiarios de este titular.
 const aplicarAGrupo = ref(false)
-watch(visible, (v) => { if (v) { fechaIngresoDate.value = new Date(); aplicarAGrupo.value = false } })
+// Desmarcado por defecto también: cambiar el plan es una decisión aparte de renovar.
+const cambiarPlan = ref(false)
+const tipoPlanId = ref<number | null>(null)
+watch(visible, (v) => {
+  if (!v) return
+  fechaIngresoDate.value = new Date()
+  aplicarAGrupo.value = false
+  cambiarPlan.value = false
+  tipoPlanId.value = props.planActualId ?? null
+})
 
 const cerrar = () => {
   visible.value = false
@@ -47,6 +63,8 @@ const confirmar = () => emit(
   'confirmar',
   props.pedirFecha ? formatFechaLocal(fechaIngresoDate.value) : fechaIngresoMaxima(),
   aplicarAGrupo.value,
+  cambiarPlan.value,
+  tipoPlanId.value,
 )
 </script>
 
@@ -77,6 +95,23 @@ const confirmar = () => emit(
             <input type="checkbox" v-model="aplicarAGrupo" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500" />
             <span class="text-[11px] text-slate-600 dark:text-slate-300">Aplicar esta fecha también a los beneficiarios de este titular</span>
           </label>
+
+          <div v-if="props.permitirCambiarPlan" class="mt-3">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" v-model="cambiarPlan" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500" />
+              <span class="text-[11px] text-slate-600 dark:text-slate-300">Cambiar el plan al renovar</span>
+            </label>
+            <div v-if="cambiarPlan" class="mt-2">
+              <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Plan</label>
+              <select
+                v-model="tipoPlanId"
+                class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] font-medium text-slate-700 dark:text-slate-100 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/40 focus:bg-white dark:focus:bg-slate-800 transition-all cursor-pointer"
+              >
+                <option :value="null">Estándar</option>
+                <option v-for="p in props.planesServicio" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+              </select>
+            </div>
+          </div>
         </div>
         <p v-if="props.error" class="text-[11px] text-red-600 dark:text-red-400 font-medium">{{ props.error }}</p>
       </div>

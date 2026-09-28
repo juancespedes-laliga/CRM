@@ -57,6 +57,7 @@ class TitularDetalle(BaseModel):
     CIUDAD: Optional[str] = None
     DEPARTAMENTO: Optional[str] = None
     TIPO_PLAN: Optional[str] = None
+    TIPO_PLAN_ID: Optional[int] = None
     TIPO_AFILIADO: Optional[str] = None
     EMPRESA: Optional[str] = None
     EPS: Optional[str] = None
@@ -105,6 +106,16 @@ class TitularActivar(BaseModel):
     # aplica a los beneficiarios activos de este titular. En False, solo
     # cambia la fecha del titular.
     APLICAR_A_GRUPO: bool = True
+    # Permite cambiar el plan del titular al renovar (ej. de Estandar a uno
+    # superior). CAMBIAR_PLAN es un toggle explicito -no basta con mandar
+    # TIPO_PLAN_ID- porque None es una eleccion valida en si misma (Plan
+    # Estandar): sin el toggle no habria forma de distinguir "no toques el
+    # plan" de "cambialo a Estandar". El backend igual revalida el permiso
+    # planliga:elegir_plan (ver PERMISO_ELEGIR_PLAN en service.py); si el
+    # usuario no lo tiene, CAMBIAR_PLAN se ignora aunque venga en True.
+    CAMBIAR_PLAN: bool = False
+    TIPO_PLAN: Optional[str] = None
+    TIPO_PLAN_ID: Optional[int] = None
 
 
 class CambioFechaIngresoGrupo(BaseModel):

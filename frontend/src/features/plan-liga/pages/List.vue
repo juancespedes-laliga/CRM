@@ -23,6 +23,8 @@ const puedeDesactivar = tienePermiso('planliga:desactivar')
 // Permiso propio para "Editar fecha de inscripcion" (separado de "gestionar"):
 // sin el, el boton ni siquiera aparece en la tabla.
 const puedeEditarFecha = tienePermiso('planliga:editar_fecha_ingreso')
+// Mismo permiso que habilita elegir plan al crear un titular (ver TitularForm.vue).
+const puedeElegirPlan = tienePermiso('planliga:elegir_plan')
 
 const modalFechaGrupoVisible = ref(false)
 
@@ -92,19 +94,24 @@ const titularActivando = ref<Titular | null>(null)
 const modalDesactivarTitularVisible = ref(false)
 const titularDesactivando = ref<Titular | null>(null)
 
-const toggleEstadoTitularConFecha = (t: Titular) => {
+const toggleEstadoTitularConFecha = async (t: Titular) => {
   errorGuardarTitular.value = null
   if (t.estado === 'Activo') {
     titularDesactivando.value = t
     modalDesactivarTitularVisible.value = true
     return
   }
-  titularActivando.value = t
+  // La fila de la tabla (/listado) no trae tipoPlanId (siempre null); se pide el
+  // detalle para preseleccionar el plan real del titular si se activa "cambiar plan".
+  const detalle = await obtenerTitular(t.id)
+  titularActivando.value = detalle ?? t
   modalActivarTitularVisible.value = true
 }
-const confirmarActivarTitular = async (fechaIngreso: string, aplicarAGrupo: boolean) => {
+const confirmarActivarTitular = async (
+  fechaIngreso: string, aplicarAGrupo: boolean, cambiarPlan: boolean, tipoPlanId: number | null,
+) => {
   if (!titularActivando.value) return
-  await toggleEstadoTitular(titularActivando.value, fechaIngreso, aplicarAGrupo)
+  await toggleEstadoTitular(titularActivando.value, fechaIngreso, aplicarAGrupo, cambiarPlan, tipoPlanId)
   if (!errorGuardarTitular.value) modalActivarTitularVisible.value = false
 }
 const confirmarDesactivarTitular = async () => {
@@ -466,6 +473,9 @@ const modalImportVisible = ref(false)
       :guardando="guardandoTitular"
       :error="errorGuardarTitular"
       pedir-fecha
+      :permitir-cambiar-plan="puedeElegirPlan"
+      :planes-servicio="planesServicio"
+      :plan-actual-id="titularActivando?.tipoPlanId ?? null"
       @confirmar="confirmarActivarTitular"
       @cancelar="errorGuardarTitular = null"
     />

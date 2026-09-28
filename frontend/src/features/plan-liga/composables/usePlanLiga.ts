@@ -218,19 +218,37 @@ export function usePlanLiga() {
       guardandoTitular.value = false
     }
   }
-  const toggleEstadoTitular = async (t: Titular, fechaIngreso?: string, aplicarAGrupo = true) => {
+  // Nombre a mostrar del plan elegido (tipoPlanId null = Plan Estándar); usado tanto para
+  // mandar TIPO_PLAN al backend como para reflejar el cambio en memoria sin recargar.
+  const nombrePlan = (tipoPlanId: number | null) =>
+    tipoPlanId === null ? 'Estándar' : (planesServicio.value.find(p => p.id === tipoPlanId)?.nombre ?? '')
+
+  const toggleEstadoTitular = async (
+    t: Titular,
+    fechaIngreso?: string,
+    aplicarAGrupo = true,
+    // Cambio de plan al renovar (solo aplica al activar, no al desactivar).
+    cambiarPlan = false,
+    tipoPlanId: number | null = null,
+  ) => {
     const activando = t.estado !== 'Activo'
     const nuevoEstado = activando ? 'Activo' : 'Inactivo'
     guardandoTitular.value = true
     errorGuardarTitular.value = null
     try {
       if (activando) {
-        await activarTitular(t.id, fechaIngreso!, aplicarAGrupo)
+        await activarTitular(t.id, fechaIngreso!, aplicarAGrupo, cambiarPlan, nombrePlan(tipoPlanId), tipoPlanId)
       } else {
         await desactivarTitular(t.id)
       }
       const idx = titulares.value.findIndex(x => x.id === t.id)
-      if (idx !== -1) titulares.value[idx] = { ...t, estado: nuevoEstado }
+      if (idx !== -1) {
+        titulares.value[idx] = {
+          ...t,
+          estado: nuevoEstado,
+          ...(activando && cambiarPlan ? { tipoPlanId, tipoPlan: nombrePlan(tipoPlanId) } : {}),
+        }
+      }
       cargarResumen()
     } catch (e) {
       errorGuardarTitular.value = e instanceof Error

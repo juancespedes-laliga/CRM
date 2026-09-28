@@ -69,12 +69,13 @@ const cuposTitular = (t: Titular, activosLocal: number) => ({
               </div>
               <span v-else class="text-[11px] font-semibold" :class="planStyle(t.planContratado || 'Estándar')">{{ t.planContratado || 'Estándar' }}</span>
             </td>
-            <td class="px-4 py-3.5">
-              <div class="flex items-center gap-2">
-                <CuposIndicador :activos="cuposTitular(t, activosPorTitular(t.id)).activos" :max="cuposTitular(t, activosPorTitular(t.id)).cupo" variant="dots" />
-                <span class="text-[11px] font-bold" :class="cuposTitular(t, activosPorTitular(t.id)).activos >= cuposTitular(t, activosPorTitular(t.id)).cupo ? 'text-[#EC4899]' : 'text-slate-600 dark:text-slate-300'">{{ cuposTitular(t, activosPorTitular(t.id)).activos }}/{{ cuposTitular(t, activosPorTitular(t.id)).cupo }}</span>
-              </div>
-              <button @click="emit('beneficiarios', t)" class="text-[10px] text-[#2447F9] dark:text-blue-400 hover:underline mt-0.5 block cursor-pointer">Ver beneficiarios</button>
+            <td class="px-4 py-3.5 align-top overflow-hidden">
+              <!-- Número arriba, puntos abajo (en vez de al lado): con planes de cupo alto
+                   (6, 8...) el número al lado forzaba a toda la fila a desbordarse sobre la
+                   columna de Inscripción, aunque los puntos por sí solos ya envolvieran. -->
+              <span class="text-[11px] font-bold block" :class="cuposTitular(t, activosPorTitular(t.id)).activos >= cuposTitular(t, activosPorTitular(t.id)).cupo ? 'text-[#EC4899]' : 'text-slate-600 dark:text-slate-300'">{{ cuposTitular(t, activosPorTitular(t.id)).activos }}/{{ cuposTitular(t, activosPorTitular(t.id)).cupo }}</span>
+              <CuposIndicador :activos="cuposTitular(t, activosPorTitular(t.id)).activos" :max="cuposTitular(t, activosPorTitular(t.id)).cupo" variant="dots" class="mt-1" />
+              <button @click="emit('beneficiarios', t)" class="text-[10px] text-[#2447F9] dark:text-blue-400 hover:underline mt-1 block cursor-pointer">Ver beneficiarios</button>
             </td>
             <td class="px-3 py-3.5 align-top text-[11px] text-slate-500 dark:text-slate-400">{{ t.fechaInscripcion }}</td>
             <td class="px-3 py-3.5 align-top">

@@ -310,9 +310,18 @@ def reemplazar_titular(
 def activar_titular(
     id_titular: int,
     data: TitularActivar,
+    username: str = Depends(get_current_username),
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> ActivacionTitularResultado:
-    return service.activar_titular(id_titular, data.FECHA_INGRESO, data.APLICAR_A_GRUPO)
+    return service.activar_titular(
+        id_titular,
+        data.FECHA_INGRESO,
+        data.APLICAR_A_GRUPO,
+        data.CAMBIAR_PLAN,
+        data.TIPO_PLAN,
+        data.TIPO_PLAN_ID,
+        username,
+    )
 
 
 @router.post("/{id_titular}/desactivar", response_model=DesactivacionTitularResultado)

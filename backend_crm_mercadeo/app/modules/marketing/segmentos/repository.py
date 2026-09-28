@@ -9,6 +9,13 @@ from .schemas import AudienciaSegmentoItem
 # afiliados activos de Plan Liga (INTRANET_VISTA_PLANLIGA). Una fila por
 # persona (RN=1 = ultimo servicio). Sin ORDER BY/paginacion: eso se agrega
 # en _ejecutar_pagina/_contar segun haga falta (ver mas abajo).
+#
+# El total de personas que devuelve esto NO va a coincidir con un
+# `SELECT COUNT(*) FROM TMPBI1 WHERE TARIFA = 'PL'` directo: esa cuenta
+# filas (TMPBI1 es un log de servicios, una persona puede tener varias),
+# mientras que aca se colapsa a 1 fila por persona (RN=1) y ademas se exige
+# que este activa en Plan Liga (INNER JOIN + p.ESTADO = 'A'). Es esperado
+# que el numero de personas termine bastante mas bajo que el de filas.
 _SQL_AUDIENCIA = """
 SELECT
     IDENTIFICACION,
@@ -58,7 +65,12 @@ FROM (
         FROM INTRANET_VISTA_PLANLIGA
     ) p
         ON p.DOCUMENTO = t.IDENTIFICACION
-    WHERE p.ESTADO = 'A'
+    -- TARIFA = 'PL' va primero (antes que el resto de filtros) por lo mismo
+    -- que en _SQL_AUDIENCIA_NO_PLAN_LIGA: TMPBI1 tiene ~5 millones de filas,
+    -- asi que conviene reducirla con esta condicion antes de evaluar el
+    -- resto (igual que p.ESTADO = 'A' y los filtros opcionales de abajo).
+    WHERE t.TARIFA = 'PL'
+      AND p.ESTADO = 'A'
       AND (:sexo IS NULL OR UPPER(t.SEXO) = UPPER(:sexo))
       AND (:edad_min IS NULL OR t.EDAD >= :edad_min)
       AND (:edad_max IS NULL OR t.EDAD <= :edad_max)
@@ -172,6 +184,111 @@ WHERE RN = 1
   )
 """
 
+# Audiencia "sin uso": titulares/beneficiarios ACTIVOS (INTRANET_PLANLIGA /
+# INTRANET_PLANLIGA_BENEFICIARIO, no la vista) que NO tienen ningun servicio
+# con TARIFA = 'PL' en TMPBI1 -- lo opuesto de _SQL_AUDIENCIA, que sale DE
+# TMPBI1 y por construccion solo puede traer gente que si tiene servicios ahi.
+# Sin fila en TMPBI1 no hay CONCEPTO/SERVICIO/ESPECIALIDAD/ULTIMO_USO que
+# mostrar (quedan NULL) ni forma de filtrar por esas columnas ni por
+# ultimo_uso -- si el frontend los manda igual, simplemente no hacen nada
+# (no estan referenciados en este SQL).
+_SQL_AUDIENCIA_SIN_USO = """
+SELECT
+    IDENTIFICACION,
+    NOMBRES,
+    EMPRESA,
+    SEXO,
+    EDAD,
+    CIUDAD,
+    DEPARTAMENTO,
+    CORREO,
+    TELEFONO,
+    TIPO_PLAN,
+    CAST(NULL AS VARCHAR2(200)) AS CONCEPTO,
+    CAST(NULL AS VARCHAR2(200)) AS SERVICIO,
+    CAST(NULL AS VARCHAR2(200)) AS ESPECIALIDAD,
+    0 AS SERVICIOS_USADOS,
+    CAST(NULL AS DATE) AS ULTIMO_USO,
+    TIPO_VINCULACION
+FROM (
+    -- CIUDAD/DEPARTAMENTO en INTRANET_PLANLIGA/_BENEFICIARIO guardan el
+    -- CODIGO Divipola (MUNCOD/DEPCOD), no el nombre -- a diferencia de
+    -- TMPBI1.MUNICIPIO/DEPARTAMENTO, que si traen el nombre directo. Sin
+    -- este cruce con INMUN/INDEP (mismos catalogos del modulo de
+    -- ubicaciones, ver compartidos/ubicaciones/repository.py) esta columna
+    -- mostraba el codigo numerico en vez del nombre.
+    SELECT
+        p.DOCUMENTO AS IDENTIFICACION,
+        REGEXP_REPLACE(
+            p.NOMBRE1 || ' ' || NVL(p.NOMBRE2, '') || ' ' || p.APELLIDO1 || ' ' || NVL(p.APELLIDO2, ''),
+            ' +', ' '
+        ) AS NOMBRES,
+        p.EMPRESA,
+        p.SEXO,
+        TRUNC(MONTHS_BETWEEN(SYSDATE, p.FECHA_NACIMIENTO) / 12) AS EDAD,
+        -- No sabemos con certeza si CIUDAD guarda el codigo corto de INMUN
+        -- (unico solo junto con el departamento) o el codigo Divipola
+        -- completo (departamento+municipio concatenado): se prueban ambas
+        -- formas, y si ninguna matchea se deja el valor tal cual (mejor
+        -- mostrar el codigo crudo que dejarlo en blanco).
+        COALESCE(UPPER(TRIM(m.MUNNOM)), UPPER(TRIM(p.CIUDAD))) AS CIUDAD,
+        COALESCE(UPPER(TRIM(d.DEPNOM)), UPPER(TRIM(p.DEPARTAMENTO))) AS DEPARTAMENTO,
+        p.CORREO,
+        p.TELEFONO,
+        p.TIPO_PLAN,
+        CASE WHEN UPPER(p.TIPO_PLAN) = 'PARTICULAR' THEN 'Particular' ELSE 'Empresa' END AS TIPO_VINCULACION
+    FROM INTRANET_PLANLIGA p
+    LEFT JOIN INMUN m
+        ON (m.MUNCOD = p.CIUDAD AND m.MUNDEP = p.DEPARTAMENTO)
+        OR (m.MUNDEP || m.MUNCOD = p.CIUDAD)
+    LEFT JOIN INDEP d ON d.DEPCOD = p.DEPARTAMENTO
+    WHERE p.ESTADO = 'A'
+      AND NOT EXISTS (
+          SELECT 1 FROM TMPBI1 b WHERE b.IDENTIFICACION = p.DOCUMENTO AND b.TARIFA = 'PL'
+      )
+
+    UNION ALL
+
+    SELECT
+        ben.DOCUMENTO AS IDENTIFICACION,
+        REGEXP_REPLACE(
+            ben.NOMBRE1 || ' ' || NVL(ben.NOMBRE2, '') || ' ' || ben.APELLIDO1 || ' ' || NVL(ben.APELLIDO2, ''),
+            ' +', ' '
+        ) AS NOMBRES,
+        ben.EMPRESA,
+        ben.SEXO,
+        TRUNC(MONTHS_BETWEEN(SYSDATE, ben.FECHA_NACIMIENTO) / 12) AS EDAD,
+        COALESCE(UPPER(TRIM(m2.MUNNOM)), UPPER(TRIM(ben.CIUDAD))) AS CIUDAD,
+        COALESCE(UPPER(TRIM(d2.DEPNOM)), UPPER(TRIM(ben.DEPARTAMENTO))) AS DEPARTAMENTO,
+        ben.CORREO,
+        ben.TELEFONO,
+        ben.TIPO_PLAN,
+        CASE WHEN UPPER(ben.TIPO_PLAN) = 'PARTICULAR' THEN 'Particular' ELSE 'Empresa' END AS TIPO_VINCULACION
+    FROM INTRANET_PLANLIGA_BENEFICIARIO ben
+    LEFT JOIN INMUN m2
+        ON (m2.MUNCOD = ben.CIUDAD AND m2.MUNDEP = ben.DEPARTAMENTO)
+        OR (m2.MUNDEP || m2.MUNCOD = ben.CIUDAD)
+    LEFT JOIN INDEP d2 ON d2.DEPCOD = ben.DEPARTAMENTO
+    WHERE ben.ESTADO = 'A'
+      AND NOT EXISTS (
+          SELECT 1 FROM TMPBI1 t WHERE t.IDENTIFICACION = ben.DOCUMENTO AND t.TARIFA = 'PL'
+      )
+)
+WHERE (:sexo IS NULL OR UPPER(SEXO) = UPPER(:sexo))
+  AND (:edad_min IS NULL OR EDAD >= :edad_min)
+  AND (:edad_max IS NULL OR EDAD <= :edad_max)
+  AND (:ciudad IS NULL OR CIUDAD = UPPER(:ciudad))
+  AND (:departamento IS NULL OR DEPARTAMENTO = UPPER(:departamento))
+  AND (
+        :tipo_vinculacion IS NULL
+        OR (UPPER(:tipo_vinculacion) = 'PARTICULAR' AND UPPER(TIPO_PLAN) = 'PARTICULAR')
+        OR (
+            UPPER(:tipo_vinculacion) = 'EMPRESA'
+            AND (TIPO_PLAN IS NULL OR UPPER(TIPO_PLAN) != 'PARTICULAR')
+        )
+  )
+"""
+
 # COUNT(*) OVER() (sin PARTITION BY) calcula el total de filas que cumplen
 # el filtro ANTES de recortar con OFFSET/FETCH -- Oracle evalua las funciones
 # de ventana sobre el resultado completo y recien al final aplica el recorte
@@ -238,6 +355,80 @@ FROM TMPBI1
 WHERE TRIM(CONCEPTO) IS NOT NULL
   AND TRIM(SERVICIO) IS NOT NULL
 ORDER BY CONCEPTO, SERVICIO
+"""
+
+
+# ---------------------------------------------------------------------------
+# Uso de Plan Liga: cuantos titulares/beneficiarios ACTIVOS (segun sus propias
+# tablas, INTRANET_PLANLIGA / INTRANET_PLANLIGA_BENEFICIARIO) tienen al menos
+# un servicio con TARIFA = 'PL' en TMPBI1. Se usan estas tablas en vez de
+# INTRANET_VISTA_PLANLIGA (la que arma /audiencias) porque necesitamos poder
+# separar titulares de beneficiarios, y no conocemos con certeza si esa vista
+# distingue entre ambos -- estas dos tablas si tienen esquema propio conocido
+# (son las mismas que usa el modulo integraciones/titulares_beneficiarios).
+# ---------------------------------------------------------------------------
+_SQL_RESUMEN_USO_PLAN = """
+SELECT
+    (SELECT COUNT(*) FROM INTRANET_PLANLIGA WHERE ESTADO = 'A') AS TITULARES_ACTIVOS,
+    (SELECT COUNT(*)
+     FROM INTRANET_PLANLIGA t
+     WHERE t.ESTADO = 'A'
+       AND EXISTS (
+           SELECT 1 FROM TMPBI1 b
+           WHERE b.IDENTIFICACION = t.DOCUMENTO AND b.TARIFA = 'PL'
+       )
+    ) AS TITULARES_CON_USO,
+    (SELECT COUNT(*) FROM INTRANET_PLANLIGA_BENEFICIARIO WHERE ESTADO = 'A') AS BENEFICIARIOS_ACTIVOS,
+    (SELECT COUNT(*)
+     FROM INTRANET_PLANLIGA_BENEFICIARIO t
+     WHERE t.ESTADO = 'A'
+       AND EXISTS (
+           SELECT 1 FROM TMPBI1 b
+           WHERE b.IDENTIFICACION = t.DOCUMENTO AND b.TARIFA = 'PL'
+       )
+    ) AS BENEFICIARIOS_CON_USO
+FROM DUAL
+"""
+
+# Busqueda por documento: primero titular, si no aparece, beneficiario (mismo
+# orden que existe_documento() en titulares_beneficiarios/repository.py).
+# ORDER BY FECHA_REGISTRO DESC + FETCH FIRST 1: si el documento tiene mas de
+# una fila (ej. reemplazos historicos), se toma la mas reciente.
+_SQL_BUSCAR_TITULAR_USO = """
+SELECT
+    DOCUMENTO,
+    REGEXP_REPLACE(
+        NOMBRE1 || ' ' || NVL(NOMBRE2, '') || ' ' || APELLIDO1 || ' ' || NVL(APELLIDO2, ''),
+        ' +', ' '
+    ) AS NOMBRE,
+    ESTADO
+FROM INTRANET_PLANLIGA
+WHERE DOCUMENTO = :documento
+ORDER BY FECHA_REGISTRO DESC
+FETCH FIRST 1 ROWS ONLY
+"""
+
+_SQL_BUSCAR_BENEFICIARIO_USO = """
+SELECT
+    DOCUMENTO,
+    REGEXP_REPLACE(
+        NOMBRE1 || ' ' || NVL(NOMBRE2, '') || ' ' || APELLIDO1 || ' ' || NVL(APELLIDO2, ''),
+        ' +', ' '
+    ) AS NOMBRE,
+    ESTADO
+FROM INTRANET_PLANLIGA_BENEFICIARIO
+WHERE DOCUMENTO = :documento
+ORDER BY FECHA_REGISTRO DESC
+FETCH FIRST 1 ROWS ONLY
+"""
+
+_SQL_USO_TMPBI1_POR_DOCUMENTO = """
+SELECT
+    COUNT(*) AS SERVICIOS_USADOS,
+    MAX(FECHA) AS ULTIMO_USO
+FROM TMPBI1
+WHERE IDENTIFICACION = :documento
+  AND TARIFA = 'PL'
 """
 
 
@@ -349,6 +540,27 @@ class SegmentosRepository:
             _SQL_AUDIENCIA_NO_PLAN_LIGA, params, pagina, por_pagina
         )
 
+    def listar_audiencia_sin_uso(
+        self,
+        sexo: str | None = None,
+        edad_min: int | None = None,
+        edad_max: int | None = None,
+        ciudad: str | None = None,
+        departamento: str | None = None,
+        tipo_vinculacion: str | None = None,
+        pagina: int = 1,
+        por_pagina: int = 10,
+    ) -> tuple[list[AudienciaSegmentoItem], int]:
+        params = {
+            "sexo": sexo,
+            "edad_min": edad_min,
+            "edad_max": edad_max,
+            "ciudad": ciudad,
+            "departamento": departamento,
+            "tipo_vinculacion": tipo_vinculacion,
+        }
+        return self._ejecutar_pagina(_SQL_AUDIENCIA_SIN_USO, params, pagina, por_pagina)
+
     def _valores_distintos(self, sql: str) -> list[str]:
         filas = self.db.execute(text(sql)).scalars().all()
         return [valor for valor in filas if valor]
@@ -386,3 +598,43 @@ class SegmentosRepository:
         """Pares (concepto, servicio) distintos, para el desplegable en
         cascada de Concepto -> Servicio."""
         return self._pares_distintos(_SQL_CONCEPTOS_SERVICIOS, "concepto", "servicio")
+
+    def resumen_uso_plan(self) -> dict[str, int]:
+        fila = self.db.execute(text(_SQL_RESUMEN_USO_PLAN)).mappings().first()
+        return {clave.upper(): int(valor or 0) for clave, valor in fila.items()}
+
+    def _uso_tmpbi1(self, documento: str) -> tuple[int, str | None]:
+        fila = self.db.execute(
+            text(_SQL_USO_TMPBI1_POR_DOCUMENTO), {"documento": documento}
+        ).mappings().first()
+        if fila is None:
+            return 0, None
+        datos = {clave.upper(): valor for clave, valor in fila.items()}
+        return int(datos.get("SERVICIOS_USADOS") or 0), _fecha_iso(datos.get("ULTIMO_USO"))
+
+    def buscar_uso_por_documento(self, documento: str) -> dict | None:
+        """Busca el documento como titular; si no aparece, como beneficiario.
+        Retorna None si no es ninguno de los dos."""
+        fila = self.db.execute(
+            text(_SQL_BUSCAR_TITULAR_USO), {"documento": documento}
+        ).mappings().first()
+        tipo = "titular"
+        if fila is None:
+            fila = self.db.execute(
+                text(_SQL_BUSCAR_BENEFICIARIO_USO), {"documento": documento}
+            ).mappings().first()
+            tipo = "beneficiario"
+        if fila is None:
+            return None
+
+        datos = {clave.upper(): valor for clave, valor in fila.items()}
+        servicios_usados, ultimo_uso = self._uso_tmpbi1(documento)
+        return {
+            "documento": datos["DOCUMENTO"],
+            "tipo": tipo,
+            "nombre": datos["NOMBRE"],
+            "estado": "Activo" if datos["ESTADO"] == "A" else "Inactivo",
+            "ha_usado": servicios_usados > 0,
+            "servicios_usados": servicios_usados,
+            "ultimo_uso": ultimo_uso,
+        }
