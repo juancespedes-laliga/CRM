@@ -518,8 +518,10 @@ class TitularesBeneficiariosService:
             registros_incle_desmarcados=num_incle,
         )
 
-    def contar_grupo_activo(self, empresa: str) -> CambioFechaIngresoGrupoResultado:
-        titulares, beneficiarios = self.repository.contar_grupo_activo(empresa)
+    def contar_grupo_activo(
+        self, empresa: str | None = None, tipo_plan: str | None = None
+    ) -> CambioFechaIngresoGrupoResultado:
+        titulares, beneficiarios = self.repository.contar_grupo_activo(empresa, tipo_plan)
         return CambioFechaIngresoGrupoResultado(
             titulares_actualizados=titulares,
             beneficiarios_actualizados=beneficiarios,
@@ -529,12 +531,15 @@ class TitularesBeneficiariosService:
         self, data: CambioFechaIngresoGrupo
     ) -> CambioFechaIngresoGrupoResultado:
         titulares, beneficiarios = self.repository.cambiar_fecha_ingreso_grupo(
-            data.EMPRESA, data.FECHA_INGRESO
+            data.FECHA_INGRESO, data.EMPRESA, data.TIPO_PLAN
         )
         return CambioFechaIngresoGrupoResultado(
             titulares_actualizados=titulares,
             beneficiarios_actualizados=beneficiarios,
         )
+
+    def listar_tipos_plan(self) -> list[str]:
+        return self.repository.listar_tipos_plan()
 
     def desactivar_titular(self, id_titular: int) -> DesactivacionTitularResultado:
         if not self.repository.desactivar_titular(id_titular):

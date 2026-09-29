@@ -21,6 +21,7 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     CambioFechaIngresoGrupo,
     CambioFechaIngresoGrupoResultado,
     CambioTitularBeneficiario,
+    TipoPlanValores,
     CreacionBeneficiarioResultado,
     CreacionTitularResultado,
     DesactivacionBeneficiarioResultado,
@@ -177,10 +178,22 @@ def get_nombres_planes(
 
 @router.get("/grupo/conteo", response_model=CambioFechaIngresoGrupoResultado)
 def get_conteo_grupo_activo(
-    empresa: str,
+    empresa: str | None = None,
+    tipo_plan: str | None = None,
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> CambioFechaIngresoGrupoResultado:
-    return service.contar_grupo_activo(empresa)
+    return service.contar_grupo_activo(empresa, tipo_plan)
+
+
+@router.get(
+    "/grupo/tipos-plan",
+    response_model=TipoPlanValores,
+    summary="Valores distintos de TIPO_PLAN, para elegir un grupo por tipo de plan en vez de por empresa.",
+)
+def get_tipos_plan(
+    service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
+) -> TipoPlanValores:
+    return TipoPlanValores(valores=service.listar_tipos_plan())
 
 
 @router.post("/grupo/fecha-ingreso", response_model=CambioFechaIngresoGrupoResultado)

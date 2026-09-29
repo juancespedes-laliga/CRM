@@ -905,15 +905,23 @@ class TitularesBeneficiariosRepository:
     # Cuenta cuantos titulares/beneficiarios ACTIVOS de esa empresa se verian
     # afectados por cambiar_fecha_ingreso_grupo, sin modificar nada: es el
     # preview que se muestra en el dialogo de confirmacion antes de aplicar.
-    def contar_grupo_activo(self, empresa: str) -> tuple[int, int]:
+    def _condicion_grupo(self, empresa: str | None, tipo_plan: str | None) -> ColumnElement:
+        """El llamador (service.py) ya garantiza que viene exactamente uno de
+        los dos -- ver CambioFechaIngresoGrupo._validar_un_solo_criterio."""
+        if tipo_plan:
+            return PlanLiga.tipo_plan == tipo_plan
+        return PlanLiga.empresa == empresa
+
+    def contar_grupo_activo(
+        self, empresa: str | None = None, tipo_plan: str | None = None
+    ) -> tuple[int, int]:
+        condicion = self._condicion_grupo(empresa, tipo_plan)
         total_titulares = self.db.scalar(
             select(func.count())
             .select_from(PlanLiga)
-            .where(PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO)
+            .where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         )
-        ids_titulares = select(PlanLiga.id).where(
-            PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO
-        )
+        ids_titulares = select(PlanLiga.id).where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         total_beneficiarios = self.db.scalar(
             select(func.count())
             .select_from(PlanLigaBeneficiario)
@@ -924,25 +932,28 @@ class TitularesBeneficiariosRepository:
         )
         return total_titulares or 0, total_beneficiarios or 0
 
-    # Cambia FECHA_INGRESO a todos los titulares ACTIVOS de esa empresa y a
-    # los beneficiarios ACTIVOS de esos titulares (coincidencia exacta con
-    # EMPRESA, no LIKE: el valor viene del selector de razon_social del
-    # catalogo de Empresas, que se importa desde este mismo texto).
+    # Cambia FECHA_INGRESO a todos los titulares ACTIVOS del grupo (por EMPRESA
+    # o por TIPO_PLAN, coincidencia exacta -- ver _condicion_grupo) y a los
+    # beneficiarios ACTIVOS de esos titulares.
     #
     # Cambiar la fecha de ingreso en masa es, en la practica, renovar el grupo
     # completo -> tambien se marca RENOVADO = 'S' en titular y beneficiario
     # (mismo criterio que activar_titular / activar_beneficiarios).
-    def cambiar_fecha_ingreso_grupo(self, empresa: str, fecha_ingreso: date) -> tuple[int, int]:
+    def cambiar_fecha_ingreso_grupo(
+        self,
+        fecha_ingreso: date,
+        empresa: str | None = None,
+        tipo_plan: str | None = None,
+    ) -> tuple[int, int]:
+        condicion = self._condicion_grupo(empresa, tipo_plan)
         stmt_titulares = (
             update(PlanLiga)
-            .where(PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO)
+            .where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
             .values(fecha_ingreso=fecha_ingreso, renovado="S")
         )
         resultado_titulares = self.db.execute(stmt_titulares)
 
-        ids_titulares = select(PlanLiga.id).where(
-            PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO
-        )
+        ids_titulares = select(PlanLiga.id).where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         stmt_beneficiarios = (
             update(PlanLigaBeneficiario)
             .where(
@@ -955,6 +966,16 @@ class TitularesBeneficiariosRepository:
 
         self.db.commit()
         return resultado_titulares.rowcount, resultado_beneficiarios.rowcount
+
+    def listar_tipos_plan(self) -> list[str]:
+        """Valores distintos de TIPO_PLAN (texto libre de INTRANET_PLANLIGA,
+        no el catalogo PlanLigaTipoPlan), para el selector de grupo."""
+        stmt = (
+            select(func.distinct(PlanLiga.tipo_plan))
+            .where(PlanLiga.tipo_plan.isnot(None), func.trim(PlanLiga.tipo_plan) != "")
+            .order_by(PlanLiga.tipo_plan)
+        )
+        return [valor for valor in self.db.scalars(stmt) if valor]
 
     def desactivar_titular(self, id_titular: int) -> bool:
         titular = self.db.get(PlanLiga, id_titular)

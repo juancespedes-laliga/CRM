@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { X, CalendarClock, Loader2, CheckCircle2, AlertTriangle } from 'lucide-vue-next'
 import DatePicker from 'primevue/datepicker'
-import { contarGrupoActivo, cambiarFechaIngresoGrupo } from '../services/plan-liga.api'
+import { contarGrupoActivo, cambiarFechaIngresoGrupo, getTiposPlan, type GrupoRef } from '../services/plan-liga.api'
 import { getEmpresas } from '@/features/empresas/services/empresas.api'
 import type { Empresa } from '@/features/empresas/types/empresa'
 import BuscadorEntidad, { type OpcionBuscador } from '@/shared/components/BuscadorEntidad.vue'
@@ -10,12 +10,29 @@ import BuscadorEntidad, { type OpcionBuscador } from '@/shared/components/Buscad
 const visible = defineModel<boolean>('visible', { required: true })
 
 const empresas = ref<Empresa[]>([])
+const tiposPlan = ref<string[]>([])
 const cargandoEmpresas = ref(false)
-const empresaIdSeleccionada = ref<number | null>(null)
-const opcionesEmpresas = computed<OpcionBuscador[]>(() =>
-  empresas.value.map(e => ({ id: e.id, label: e.razonSocial, sublabel: e.ciudad })),
-)
-const empresaSeleccionada = computed(() => empresas.value.find(e => e.id === empresaIdSeleccionada.value)?.razonSocial ?? '')
+const seleccionId = ref<number | null>(null)
+
+// Las empresas usan su id real (positivo); los tipos de plan no tienen un id
+// propio, asi que se les da uno sintetico negativo (-(indice+1)) para poder
+// convivir en el mismo buscador sin chocar con los ids reales de empresa.
+const opcionesEmpresas = computed<OpcionBuscador[]>(() => [
+  ...empresas.value.map(e => ({ id: e.id, label: e.razonSocial, sublabel: e.ciudad })),
+  ...tiposPlan.value.map((tp, i) => ({ id: -(i + 1), label: tp, sublabel: 'Tipo de plan' })),
+])
+
+const grupoSeleccionado = computed<GrupoRef | null>(() => {
+  if (seleccionId.value === null) return null
+  if (seleccionId.value < 0) {
+    const tipoPlan = tiposPlan.value[-seleccionId.value - 1]
+    return tipoPlan ? { tipoPlan } : null
+  }
+  const empresa = empresas.value.find(e => e.id === seleccionId.value)?.razonSocial
+  return empresa ? { empresa } : null
+})
+// Nombre a mostrar en el texto de confirmación/resultado (sirve para los dos casos).
+const nombreGrupoSeleccionado = computed(() => grupoSeleccionado.value?.empresa ?? grupoSeleccionado.value?.tipoPlan ?? '')
 const fechaDate = ref<Date>(new Date())
 const error = ref<string | null>(null)
 const resultado = ref<{ titularesActualizados: number; beneficiariosActualizados: number } | null>(null)
@@ -32,7 +49,7 @@ const formatFechaDisplay = (d: Date) => `${String(d.getDate()).padStart(2, '0')}
 
 watch(visible, async (v) => {
   if (!v) return
-  empresaIdSeleccionada.value = null
+  seleccionId.value = null
   fechaDate.value = new Date()
   error.value = null
   resultado.value = null
@@ -40,9 +57,11 @@ watch(visible, async (v) => {
   conteoPreview.value = null
   cargandoEmpresas.value = true
   try {
-    empresas.value = await getEmpresas()
+    const [empresasData, tiposPlanData] = await Promise.all([getEmpresas(), getTiposPlan()])
+    empresas.value = empresasData
+    tiposPlan.value = tiposPlanData
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'No se pudo cargar el listado de empresas.'
+    error.value = e instanceof Error ? e.message : 'No se pudo cargar el listado de empresas y tipos de plan.'
   } finally {
     cargandoEmpresas.value = false
   }
@@ -51,14 +70,14 @@ watch(visible, async (v) => {
 const cerrar = () => { visible.value = false }
 
 const pedirConfirmacion = async () => {
-  if (!empresaSeleccionada.value) {
-    error.value = 'Elige una empresa o grupo.'
+  if (!grupoSeleccionado.value) {
+    error.value = 'Elige una empresa, grupo o tipo de plan.'
     return
   }
   error.value = null
   cargandoConteo.value = true
   try {
-    const conteo = await contarGrupoActivo(empresaSeleccionada.value)
+    const conteo = await contarGrupoActivo(grupoSeleccionado.value)
     conteoPreview.value = { titulares: conteo.titularesActualizados, beneficiarios: conteo.beneficiariosActualizados }
     confirmando.value = true
   } catch (e) {
@@ -74,10 +93,11 @@ const cancelarConfirmacion = () => {
 }
 
 const aplicarCambio = async () => {
+  if (!grupoSeleccionado.value) return
   error.value = null
   guardando.value = true
   try {
-    resultado.value = await cambiarFechaIngresoGrupo(empresaSeleccionada.value, formatFechaLocal(fechaDate.value))
+    resultado.value = await cambiarFechaIngresoGrupo(grupoSeleccionado.value, formatFechaLocal(fechaDate.value))
     confirmando.value = false
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'No se pudo cambiar la fecha de ingreso del grupo.'
@@ -103,13 +123,13 @@ const aplicarCambio = async () => {
       <div class="p-6 space-y-4">
         <template v-if="!confirmando && !resultado">
           <div>
-            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Empresa / grupo *</label>
+            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Empresa / grupo / tipo de plan *</label>
             <BuscadorEntidad
-              v-model="empresaIdSeleccionada"
+              v-model="seleccionId"
               :opciones="opcionesEmpresas"
               :disabled="cargandoEmpresas"
-              :placeholder="cargandoEmpresas ? 'Cargando...' : 'Busca una empresa o grupo por nombre'"
-              vacio="No se encontraron empresas o grupos"
+              :placeholder="cargandoEmpresas ? 'Cargando...' : 'Busca por empresa, grupo o tipo de plan'"
+              vacio="No se encontraron empresas, grupos ni tipos de plan"
             />
           </div>
 
@@ -133,7 +153,7 @@ const aplicarCambio = async () => {
             Vas a cambiar la fecha de ingreso a <strong>{{ formatFechaDisplay(fechaDate) }}</strong> de
             <strong>{{ conteoPreview?.titulares ?? 0 }}</strong> titular{{ conteoPreview?.titulares === 1 ? '' : 'es' }}
             y <strong>{{ conteoPreview?.beneficiarios ?? 0 }}</strong> beneficiario{{ conteoPreview?.beneficiarios === 1 ? '' : 's' }}
-            de <strong>{{ empresaSeleccionada }}</strong>. ¿Confirmas?
+            de <strong>{{ nombreGrupoSeleccionado }}</strong>. ¿Confirmas?
           </p>
         </div>
 

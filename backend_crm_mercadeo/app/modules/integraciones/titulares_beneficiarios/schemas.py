@@ -126,13 +126,34 @@ class TitularActivar(BaseModel):
 
 
 class CambioFechaIngresoGrupo(BaseModel):
-    EMPRESA: str
+    """El grupo se define por EMPRESA o por TIPO_PLAN (uno de los dos, no
+    ambos): ver PlanLiga.empresa / PlanLiga.tipo_plan. Coincidencia exacta en
+    los dos casos, no LIKE -- el valor viene de un selector (catalogo de
+    Empresas o de GET /grupo/tipos-plan), no de texto libre."""
+
+    EMPRESA: Optional[str] = None
+    TIPO_PLAN: Optional[str] = None
     FECHA_INGRESO: date
+
+    @model_validator(mode="after")
+    def _validar_un_solo_criterio(self) -> "CambioFechaIngresoGrupo":
+        if bool(self.EMPRESA) == bool(self.TIPO_PLAN):
+            raise ValueError(
+                "Indique EMPRESA o TIPO_PLAN (exactamente uno de los dos)"
+            )
+        return self
 
 
 class CambioFechaIngresoGrupoResultado(BaseModel):
     titulares_actualizados: int
     beneficiarios_actualizados: int
+
+
+class TipoPlanValores(BaseModel):
+    """GET /grupo/tipos-plan: valores distintos de INTRANET_PLANLIGA.TIPO_PLAN,
+    para el selector de 'Cambiar fecha de ingreso por grupo'."""
+
+    valores: list[str]
 
 
 class ReemplazoPersona(EntradaMayusculas):

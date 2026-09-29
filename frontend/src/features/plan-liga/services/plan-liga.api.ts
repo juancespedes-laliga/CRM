@@ -154,11 +154,21 @@ export interface CambioFechaIngresoGrupoResultado {
   beneficiariosActualizados: number
 }
 
-// Cuenta cuantos titulares/beneficiarios activos de esa empresa se verian
+// El grupo se define por empresa O por tipo de plan (exactamente uno de los
+// dos -- el backend rechaza si vienen ambos o ninguno).
+export interface GrupoRef {
+  empresa?: string
+  tipoPlan?: string
+}
+
+// Cuenta cuantos titulares/beneficiarios activos del grupo se verian
 // afectados, sin modificar nada: para el mensaje de confirmacion antes de aplicar.
-export async function contarGrupoActivo(empresa: string): Promise<CambioFechaIngresoGrupoResultado> {
+export async function contarGrupoActivo(grupo: GrupoRef): Promise<CambioFechaIngresoGrupoResultado> {
+  const params = new URLSearchParams()
+  if (grupo.empresa) params.set('empresa', grupo.empresa)
+  if (grupo.tipoPlan) params.set('tipo_plan', grupo.tipoPlan)
   const response = await fetch(
-    `${API_URL}/api/titulares-beneficiarios/grupo/conteo?empresa=${encodeURIComponent(empresa)}`,
+    `${API_URL}/api/titulares-beneficiarios/grupo/conteo?${params}`,
     { headers: authHeader() },
   )
   if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo calcular cuántos registros se verían afectados.')
@@ -166,16 +176,28 @@ export async function contarGrupoActivo(empresa: string): Promise<CambioFechaIng
   return { titularesActualizados: r.titulares_actualizados, beneficiariosActualizados: r.beneficiarios_actualizados }
 }
 
-// Cambia FECHA_INGRESO a todos los titulares activos de esa empresa y a los
-// beneficiarios activos de esos titulares, de una sola vez.
+// Tipos de plan distintos (INTRANET_PLANLIGA.TIPO_PLAN), para poder elegir un
+// grupo por tipo de plan en vez de por empresa.
+export async function getTiposPlan(): Promise<string[]> {
+  const response = await fetch(`${API_URL}/api/titulares-beneficiarios/grupo/tipos-plan`, { headers: authHeader() })
+  if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo cargar la lista de tipos de plan.')
+  const data = await response.json() as { valores: string[] }
+  return data.valores
+}
+
+// Cambia FECHA_INGRESO a todos los titulares activos del grupo (empresa o
+// tipo de plan) y a los beneficiarios activos de esos titulares, de una sola vez.
 export async function cambiarFechaIngresoGrupo(
-  empresa: string,
+  grupo: GrupoRef,
   fechaIngreso: string,
 ): Promise<CambioFechaIngresoGrupoResultado> {
+  const body: Record<string, unknown> = { FECHA_INGRESO: fechaIngreso }
+  if (grupo.empresa) body.EMPRESA = grupo.empresa
+  if (grupo.tipoPlan) body.TIPO_PLAN = grupo.tipoPlan
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/grupo/fecha-ingreso`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },
-    body: JSON.stringify({ EMPRESA: empresa, FECHA_INGRESO: fechaIngreso }),
+    body: JSON.stringify(body),
   })
   if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo cambiar la fecha de ingreso del grupo.')
   const r = await response.json()
