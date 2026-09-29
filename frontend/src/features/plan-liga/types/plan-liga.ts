@@ -167,6 +167,7 @@ export interface TitularListadoResponse {
   DOCUMENTO: string
   EMPRESA: string | null
   PLANES: string | null
+  TIPO_PLAN: string | null
   BENEFICIARIOS: string | null
   INSCRIPCION: string
   ESTADO: string

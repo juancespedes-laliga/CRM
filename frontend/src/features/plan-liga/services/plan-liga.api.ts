@@ -379,7 +379,7 @@ function mapTitularListado(r: TitularListadoResponse): Titular {
     empresa: r.EMPRESA ?? '',
     planContratado: planesDetalle.map(p => p.nombre).join(' | '),
     tipoPlanId: null,
-    tipoPlan: '',
+    tipoPlan: r.TIPO_PLAN ?? '',
     tipoAfiliado: '',
     eps: '',
     otraEps: '',

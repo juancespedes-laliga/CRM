@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Select from 'primevue/select'
 import type { BeneficiarioDraft } from '../types/plan-liga'
 import { beneficiarioSchema } from '../schemas/beneficiario.schema'
@@ -36,6 +36,10 @@ defineExpose({ submit: onValidSubmit(() => { if (!apellidoFaltante.value) emit('
 // de solo lectura en edición para evitar registrar cambios que nunca se guardan.
 // El estado solo se cambia desde el botón de desactivar en la lista de beneficiarios.
 const soloLecturaEnEdicion = computed(() => props.modo === 'editar')
+
+// Ver el comentario equivalente en TitularForm.vue.
+const tienePlanSalud = ref(!!draft.value.planSalud || !!draft.value.planNombre)
+watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value.planNombre = '' } })
 </script>
 
 <template>
@@ -147,13 +151,28 @@ const soloLecturaEnEdicion = computed(() => props.modo === 'editar')
           <input v-model="draft.otraEps" placeholder="Solo si la EPS no está en la lista" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
         </div>
         <div>
-          <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Plan de salud</label>
-          <input v-model="draft.planSalud" placeholder="Ej: Medicina prepagada, Póliza de salud" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+          <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">¿Tiene plan complementario de salud?</label>
+          <div class="flex gap-2">
+            <button type="button" @click="tienePlanSalud = true"
+              class="h-10 px-4 rounded-lg border text-[12px] font-semibold transition-all"
+              :class="tienePlanSalud ? 'bg-[#EC4899] border-[#EC4899] text-white' : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300'"
+            >Sí</button>
+            <button type="button" @click="tienePlanSalud = false"
+              class="h-10 px-4 rounded-lg border text-[12px] font-semibold transition-all"
+              :class="!tienePlanSalud ? 'bg-[#EC4899] border-[#EC4899] text-white' : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300'"
+            >No</button>
+          </div>
         </div>
-        <div class="sm:col-span-2">
-          <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Nombre del plan</label>
-          <input v-model="draft.planNombre" placeholder="Nombre comercial del plan" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
-        </div>
+        <template v-if="tienePlanSalud">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Plan de salud</label>
+            <input v-model="draft.planSalud" placeholder="Ej: Medicina prepagada, Póliza de salud" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Nombre del plan</label>
+            <input v-model="draft.planNombre" placeholder="Nombre comercial del plan" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+          </div>
+        </template>
       </div>
     </div>
 

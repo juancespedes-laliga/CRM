@@ -52,6 +52,9 @@ class BitacoraRepository(BaseRepository[Bitacora]):
                     func.upper(Contacto.apellido1).like(patron),
                     func.upper(Bitacora.nombre_empresa).like(patron),
                     func.upper(Bitacora.descripcion).like(patron),
+                    # Cedula del contacto o del titular Plan Liga asociados.
+                    func.upper(Contacto.documento).like(patron),
+                    func.upper(PlanLiga.documento).like(patron),
                 )
             )
         return condiciones

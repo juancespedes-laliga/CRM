@@ -27,10 +27,17 @@ export function useRelacionamiento() {
   const filtroUsuario = ref('todos')
   const buscar = ref('')
 
+  // Sin espacios en ninguno de los dos lados: una cédula guardada/escrita como
+  // "123 456 789" tiene que matchear igual que "123456789" o "123 456789".
+  const sinEspacios = (s: string) => s.replace(/\s+/g, '')
+
   const actividadesFiltradas = computed(() =>
     actividades.value.filter(a => {
-      const q = buscar.value.toLowerCase()
-      const matchBuscar = !q || [a.contactoNombre, a.empresaNombre, a.titularNombre, a.accion].some(f => f.toLowerCase().includes(q))
+      const q = sinEspacios(buscar.value.toLowerCase())
+      const matchBuscar = !q || [
+        a.contactoNombre, a.empresaNombre, a.titularNombre, a.accion,
+        a.contactoDocumento, a.titularDocumento,
+      ].some(f => sinEspacios(f.toLowerCase()).includes(q))
       return matchBuscar
         && (filtroTipo.value === 'todos' || a.tipo === filtroTipo.value)
         && (filtroUsuario.value === 'todos' || a.usuario === filtroUsuario.value)

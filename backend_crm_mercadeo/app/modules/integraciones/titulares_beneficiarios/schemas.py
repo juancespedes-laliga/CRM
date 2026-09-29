@@ -80,6 +80,10 @@ class ListadoTitulares(BaseModel):
     DOCUMENTO: str
     EMPRESA: Optional[str] = None
     PLANES: Optional[str] = None
+    # Tipo de plan crudo (INTRANET_PLANLIGA.TIPO_PLAN), distinto de PLANES (el
+    # nombre del catalogo PlanLigaTipoPlan): se muestra en su propia columna
+    # "Tipo de Plan" en la tabla, separada de "Plan Contratado".
+    TIPO_PLAN: Optional[str] = None
     BENEFICIARIOS: Optional[str] = None
     INSCRIPCION: Optional[str] = None
     ESTADO: str

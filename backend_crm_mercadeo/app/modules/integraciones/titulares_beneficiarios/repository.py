@@ -406,6 +406,7 @@ class TitularesBeneficiariosRepository:
                     func.upper(func.coalesce(PlanLiga.documento, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.empresa, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.correo, "")).like(termino),
+                    func.upper(func.coalesce(PlanLiga.tipo_plan, "")).like(termino),
                     select(PlanLigaBeneficiario.id)
                     .where(
                         PlanLigaBeneficiario.planliga_id == PlanLiga.id,
@@ -415,6 +416,9 @@ class TitularesBeneficiariosRepository:
                                 termino
                             ),
                             func.upper(func.coalesce(PlanLigaBeneficiario.correo, "")).like(
+                                termino
+                            ),
+                            func.upper(func.coalesce(PlanLigaBeneficiario.tipo_plan, "")).like(
                                 termino
                             ),
                         ),
@@ -548,6 +552,7 @@ class TitularesBeneficiariosRepository:
                 PlanLiga.tipo.label("TIPO_DOCUMENTO"),
                 PlanLiga.empresa.label("EMPRESA"),
                 _nombre_plan().label("PLANES"),
+                PlanLiga.tipo_plan.label("TIPO_PLAN"),
                 (
                     cast(conteo_beneficiarios, String(50))
                     + literal_column("'/'")

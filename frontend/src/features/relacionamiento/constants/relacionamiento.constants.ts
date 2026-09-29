@@ -14,9 +14,9 @@ export const TIPO_META: Record<TipoActividad, { icono: unknown; color: string; b
 
 export const ACTIVIDAD_DRAFT_VACIO: ActividadDraft = {
   tipo: 'Llamada',
-  contactoId: null, contactoNombre: '',
+  contactoId: null, contactoNombre: '', contactoDocumento: '',
   empresaNombre: '',
-  titularId: null, titularNombre: '',
+  titularId: null, titularNombre: '', titularDocumento: '',
   accion: '', proximoPaso: '', proximoPasoFecha: '',
   fecha: new Date().toISOString().split('T')[0], oportunidadId: null,
 }

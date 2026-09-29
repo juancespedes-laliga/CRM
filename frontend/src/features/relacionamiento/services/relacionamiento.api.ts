@@ -18,9 +18,11 @@ interface BitacoraApiItem {
   usuario_nombre: string | null
   contacto_id: number | null
   contacto_nombre: string | null
+  contacto_documento: string | null
   nombre_empresa: string | null
   oportunidad_id: number | null
   titular_id: number | null
+  titular_documento: string | null
   fecha_actualizacion: string | null
   usuario_actualizacion_nombre: string | null
 }
@@ -86,9 +88,11 @@ function mapItem(r: BitacoraApiItem, titularNombre: string): Actividad {
     tipo: TIPO_DESDE_API[normalizarTipo(r.tipo)] ?? 'Nota',
     contactoId: r.contacto_id,
     contactoNombre: r.contacto_nombre ?? '',
+    contactoDocumento: r.contacto_documento ?? '',
     empresaNombre: r.nombre_empresa ?? '',
     titularId: r.titular_id,
     titularNombre,
+    titularDocumento: r.titular_documento ?? '',
     accion: r.descripcion,
     proximoPaso,
     proximoPasoFecha,

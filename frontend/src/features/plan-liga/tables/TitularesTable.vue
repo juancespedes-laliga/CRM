@@ -34,13 +34,14 @@ const cuposTitular = (t: Titular, activosLocal: number) => ({
 <template>
   <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[980px] table-fixed">
+      <table class="w-full min-w-[1090px] table-fixed">
         <thead class="bg-[#F8FAFC] dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
           <tr>
             <th class="text-left px-4 py-3 w-[200px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Titular</th>
             <th class="text-left px-3 py-3 w-[105px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Documento</th>
             <th class="text-left px-3 py-3 w-[115px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Empresa</th>
-            <th class="text-left px-3 py-3 w-[105px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Plan</th>
+            <th class="text-left px-3 py-3 w-[105px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Plan Contratado</th>
+            <th class="text-left px-3 py-3 w-[110px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tipo de Plan</th>
             <th class="text-left px-3 py-3 w-[125px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Beneficiarios</th>
             <th class="text-left px-3 py-3 w-[90px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Inscripción</th>
             <th class="text-left px-3 py-3 w-[75px] text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Estado</th>
@@ -69,6 +70,7 @@ const cuposTitular = (t: Titular, activosLocal: number) => ({
               </div>
               <span v-else class="text-[11px] font-semibold" :class="planStyle(t.planContratado || 'Estándar')">{{ t.planContratado || 'Estándar' }}</span>
             </td>
+            <td class="px-3 py-3.5 align-top text-[11px] text-slate-600 dark:text-slate-300 truncate" :title="t.tipoPlan">{{ t.tipoPlan || '—' }}</td>
             <td class="px-4 py-3.5 align-top overflow-hidden">
               <!-- Número arriba, puntos abajo (en vez de al lado): con planes de cupo alto
                    (6, 8...) el número al lado forzaba a toda la fila a desbordarse sobre la
@@ -115,7 +117,7 @@ const cuposTitular = (t: Titular, activosLocal: number) => ({
             </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td colspan="8" class="text-center py-16 text-slate-400 dark:text-slate-500 text-[12px]">No se encontraron titulares.</td>
+            <td colspan="9" class="text-center py-16 text-slate-400 dark:text-slate-500 text-[12px]">No se encontraron titulares.</td>
           </tr>
         </tbody>
       </table>

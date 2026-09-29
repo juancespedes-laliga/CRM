@@ -1,22 +1,7 @@
 <#
   Sube la carpeta CRM completa a la carpeta compartida del servidor, lo mas rapido
   posible segun la capacidad de esta maquina (robocopy multihilo, un hilo por cada
-  procesador logico que tenga el equipo, hasta el maximo que soporta robocopy).
-
-  El destino queda como <CARPETA_BASE>\CRM (el nombre CRM se toma solo del nombre
-  de esta carpeta, no hay que escribirlo).
-
-  Copia en modo ESPEJO (/MIR): lo que se borro o se movio de sitio localmente
-  tambien se borra en el servidor, para que no queden archivos viejos sueltos
-  (ej. tras mover una vista de un modulo a otro). Las carpetas que el servidor
-  regenera solo (node_modules, venv, .git, cache, builds) se excluyen tanto de
-  la copia como del borrado, asi que /MIR NO las toca alla.
-
-  Los .env SI se suben (el servidor los necesita para arrancar con la config
-  real): lo que este en el .env local al momento de correr esto es lo que queda
-  en el servidor -> revisa que apunte a la base correcta antes de subir.
-
-  Solo se ejecuta cuando TU lo corres a mano - no hay nada programado ni automatico.
+  
   Uso: clic derecho sobre este archivo -> "Ejecutar con PowerShell",
        o desde una terminal parado en esta carpeta: .\subir_a_servidor.ps1
 #>

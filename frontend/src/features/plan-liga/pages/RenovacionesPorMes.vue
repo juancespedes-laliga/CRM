@@ -47,7 +47,14 @@ const mesSiguiente = () => {
 }
 watch([anio, mes], cargar)
 
-const items = computed(() => datos.value?.items ?? [])
+// El backend ya trae activos e inactivos juntos (no filtra por ESTADO); este
+// chip es solo para poder acotar la vista sin perder el dato de los que ya
+// se dieron de baja despues de renovar/entrar ese mes.
+const filtroEstado = ref<'todos' | 'A' | 'I'>('todos')
+const items = computed(() => {
+  const todos = datos.value?.items ?? []
+  return filtroEstado.value === 'todos' ? todos : todos.filter(i => i.ESTADO === filtroEstado.value)
+})
 const resumen = computed(() => datos.value?.resumen ?? null)
 
 const fmtDia = (iso: string | null) => {
@@ -112,8 +119,20 @@ const PALETA_COLORES = [
   { color: '#FED7AA', nombre: 'Naranja' },
 ]
 const menuColorAbierto = ref<number | null>(null)
+const menuColorPos = ref({ top: 0, left: 0 })
 const guardandoColor = ref<number | null>(null)
-const toggleMenuColor = (id: number) => { menuColorAbierto.value = menuColorAbierto.value === id ? null : id }
+
+// El menu se teleporta a <body> (ver template) para que quede SIEMPRE por
+// encima de la tabla y no se pueda ver ni clickear nada de las filas que
+// tiene debajo -- dentro de una celda con overflow-x-auto en la tabla, el
+// z-index no alcanzaba a ganarle a las filas siguientes.
+const toggleMenuColor = (item: RenovacionMesItem, ev: MouseEvent) => {
+  if (menuColorAbierto.value === item.ID) { menuColorAbierto.value = null; return }
+  const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect()
+  menuColorPos.value = { top: rect.bottom + 6, left: rect.left }
+  menuColorAbierto.value = item.ID
+}
+const itemMenuColor = computed(() => items.value.find(i => i.ID === menuColorAbierto.value) ?? null)
 
 const elegirColor = async (item: RenovacionMesItem, color: string | null) => {
   menuColorAbierto.value = null
@@ -139,7 +158,7 @@ onMounted(cargar)
     <p class="text-[13px] font-semibold text-subtle">Sin acceso a este módulo</p>
   </div>
 
-  <div v-else class="space-y-5 font-[Inter,system-ui,sans-serif]" @click="menuColorAbierto = null">
+  <div v-else class="space-y-5 font-[Inter,system-ui,sans-serif]">
     <div>
       <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
         <CalendarRange :size="20" class="text-[#059669]" />
@@ -151,7 +170,7 @@ onMounted(cargar)
     </div>
 
     <!-- Selector de mes -->
-    <div class="surface-card rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between gap-3">
+    <div class="surface-card rounded-2xl shadow-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <button
           @click="mesAnterior"
@@ -163,13 +182,25 @@ onMounted(cargar)
           class="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
         ><ChevronRight :size="16" /></button>
       </div>
-      <button
-        @click="cargar"
-        :disabled="cargando"
-        class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
-      >
-        <RefreshCw :size="13" :class="cargando ? 'animate-spin' : ''" /> Actualizar
-      </button>
+      <div class="flex items-center gap-2">
+        <div class="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
+          <button
+            v-for="o in [['todos', 'Todos'], ['A', 'Activos'], ['I', 'Inactivos']] as const" :key="o[0]"
+            @click="filtroEstado = o[0]"
+            class="h-9 px-3 text-[11px] font-semibold transition-all"
+            :class="filtroEstado === o[0]
+              ? 'bg-[#059669] text-white'
+              : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
+          >{{ o[1] }}</button>
+        </div>
+        <button
+          @click="cargar"
+          :disabled="cargando"
+          class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+        >
+          <RefreshCw :size="13" :class="cargando ? 'animate-spin' : ''" /> Actualizar
+        </button>
+      </div>
     </div>
 
     <!-- Resumen, con explicación de qué significa cada número -->
@@ -228,10 +259,11 @@ onMounted(cargar)
               class="border-b border-slate-100 dark:border-slate-800 hover:brightness-95 dark:hover:brightness-110 transition-all"
               :style="t.COLOR ? { backgroundColor: t.COLOR } : {}"
             >
-              <!-- Color de la fila -->
-              <td class="px-2 py-2.5 relative" @click.stop>
+              <!-- Color de la fila: el boton solo abre el menu, el menu en si
+              vive fuera de la tabla (ver Teleport al final del template). -->
+              <td class="px-2 py-2.5" @click.stop>
                 <button
-                  @click="toggleMenuColor(t.ID)"
+                  @click="toggleMenuColor(t, $event)"
                   :disabled="guardandoColor === t.ID"
                   class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all disabled:opacity-50"
                   :class="t.COLOR ? 'border-white/60 shadow-sm' : 'border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400'"
@@ -240,25 +272,6 @@ onMounted(cargar)
                 >
                   <Palette v-if="!t.COLOR" :size="11" class="text-slate-400" />
                 </button>
-                <div
-                  v-if="menuColorAbierto === t.ID"
-                  class="absolute z-20 top-8 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-lg p-2.5 w-44"
-                >
-                  <div class="grid grid-cols-3 gap-2 mb-2">
-                    <button
-                      v-for="p in PALETA_COLORES" :key="p.color"
-                      @click="elegirColor(t, p.color)"
-                      :title="p.nombre"
-                      class="w-10 h-10 rounded-lg border border-black/5 hover:scale-105 transition-transform"
-                      :style="{ backgroundColor: p.color }"
-                    />
-                  </div>
-                  <button
-                    v-if="t.COLOR"
-                    @click="elegirColor(t, null)"
-                    class="w-full flex items-center justify-center gap-1 h-7 rounded-lg border border-slate-200 dark:border-slate-600 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
-                  ><X :size="10" /> Quitar color</button>
-                </div>
               </td>
               <td class="px-4 py-2.5">
                 <div class="font-semibold text-heading">{{ t.NOMBRE }}</div>
@@ -331,5 +344,34 @@ onMounted(cargar)
     </div>
 
     <SeguimientoDialog v-model:visible="modalSegVisible" :titular="titularSegActual" />
+
+    <!-- Menu de color: teleportado a <body> para quedar siempre por encima de
+    la tabla (no como hijo de una celda, donde el scroll horizontal de la
+    tabla hacia que otras filas se lo pisaran). El backdrop transparente
+    cierra el menu Y bloquea el clic a lo que este debajo mientras esta abierto. -->
+    <Teleport to="body">
+      <div v-if="itemMenuColor" class="fixed inset-0 z-[9998]" @click="menuColorAbierto = null" />
+      <div
+        v-if="itemMenuColor"
+        class="fixed z-[9999] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-lg p-2.5 w-44"
+        :style="{ top: menuColorPos.top + 'px', left: menuColorPos.left + 'px' }"
+        @click.stop
+      >
+        <div class="grid grid-cols-3 gap-2 mb-2">
+          <button
+            v-for="p in PALETA_COLORES" :key="p.color"
+            @click="elegirColor(itemMenuColor, p.color)"
+            :title="p.nombre"
+            class="w-10 h-10 rounded-lg border border-black/5 hover:scale-105 transition-transform"
+            :style="{ backgroundColor: p.color }"
+          />
+        </div>
+        <button
+          v-if="itemMenuColor.COLOR"
+          @click="elegirColor(itemMenuColor, null)"
+          class="w-full flex items-center justify-center gap-1 h-7 rounded-lg border border-slate-200 dark:border-slate-600 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+        ><X :size="10" /> Quitar color</button>
+      </div>
+    </Teleport>
   </div>
 </template>
