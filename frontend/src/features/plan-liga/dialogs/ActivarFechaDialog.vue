@@ -24,10 +24,13 @@ const props = defineProps<{
   planesServicio?: PlanServicio[]
   // Plan actual del titular, para preseleccionarlo si se activa "cambiar plan".
   planActualId?: number | null
+  // Habilita la casilla "Enviar correo de bienvenida" (solo la pantalla de
+  // activar beneficiario la usa). Antes se mandaba siempre al reactivar.
+  permitirEnviarCorreo?: boolean
 }>()
 
 const emit = defineEmits<{
-  confirmar: [fechaIngreso: string, aplicarAGrupo: boolean, cambiarPlan: boolean, tipoPlanId: number | null]
+  confirmar: [fechaIngreso: string, aplicarAGrupo: boolean, cambiarPlan: boolean, tipoPlanId: number | null, enviarCorreo: boolean]
   cancelar: []
 }>()
 
@@ -46,12 +49,16 @@ const aplicarAGrupo = ref(false)
 // Desmarcado por defecto también: cambiar el plan es una decisión aparte de renovar.
 const cambiarPlan = ref(false)
 const tipoPlanId = ref<number | null>(null)
+// Desmarcado por defecto: el correo solo se manda si se elige a propósito
+// (antes se mandaba siempre al reactivar un beneficiario).
+const enviarCorreo = ref(false)
 watch(visible, (v) => {
   if (!v) return
   fechaIngresoDate.value = new Date()
   aplicarAGrupo.value = false
   cambiarPlan.value = false
   tipoPlanId.value = props.planActualId ?? null
+  enviarCorreo.value = false
 })
 
 const cerrar = () => {
@@ -65,6 +72,7 @@ const confirmar = () => emit(
   aplicarAGrupo.value,
   cambiarPlan.value,
   tipoPlanId.value,
+  enviarCorreo.value,
 )
 </script>
 
@@ -113,6 +121,10 @@ const confirmar = () => emit(
             </div>
           </div>
         </div>
+        <label v-if="!props.pedirFecha && props.permitirEnviarCorreo" class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" v-model="enviarCorreo" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500" />
+          <span class="text-[11px] text-slate-600 dark:text-slate-300">Enviar correo de bienvenida</span>
+        </label>
         <p v-if="props.error" class="text-[11px] text-red-600 dark:text-red-400 font-medium">{{ props.error }}</p>
       </div>
       <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-900 rounded-b-2xl">
@@ -120,7 +132,9 @@ const confirmar = () => emit(
         <button @click="confirmar" :disabled="props.guardando"
           class="flex items-center gap-1.5 h-9 px-6 rounded-lg bg-emerald-600 text-white text-[11px] font-bold shadow hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all">
           <Loader2 v-if="props.guardando" :size="12" class="animate-spin" />
-          {{ props.guardando ? (props.pedirFecha ? 'Guardando...' : 'Enviando notificación por correo...') : (props.textoBoton ?? 'Activar') }}
+          {{ props.guardando
+            ? (!props.pedirFecha && enviarCorreo ? 'Enviando notificación por correo...' : 'Guardando...')
+            : (props.textoBoton ?? 'Activar') }}
         </button>
       </div>
     </div>

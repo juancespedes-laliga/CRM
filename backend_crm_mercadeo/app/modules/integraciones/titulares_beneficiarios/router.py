@@ -15,6 +15,7 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     ActivacionBeneficiarioResultado,
     ActivacionTitularResultado,
     BeneficiarioActivar,
+    BeneficiarioActivarOpciones,
     BeneficiarioCrear,
     BeneficiarioDetalle,
     BeneficiarioUpdate,
@@ -260,9 +261,12 @@ def reemplazar_beneficiario(
 def activar_beneficiario(
     id_titular: int,
     id_beneficiario: int,
+    data: BeneficiarioActivarOpciones,
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> ActivacionBeneficiarioResultado:
-    return service.activar_beneficiario(id_titular, id_beneficiario)
+    return service.activar_beneficiario(
+        id_titular, id_beneficiario, enviar_correo_bienvenida=data.ENVIAR_CORREO_BIENVENIDA
+    )
 
 
 @router.post(

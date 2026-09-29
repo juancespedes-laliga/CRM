@@ -79,9 +79,9 @@ const abrirEditarTitular = async (t: Titular) => {
   draftTitular.value = { ...t, ...detalle }
   modalTitularVisible.value = true
 }
-const guardarTitular = async () => {
+const guardarTitular = async (enviarCorreo = false) => {
   if (modalModo.value === 'nuevo') {
-    const ok = await crearTitular(draftTitular.value)
+    const ok = await crearTitular(draftTitular.value, enviarCorreo)
     if (ok) modalTitularVisible.value = false
   } else if (titularEditando.value) {
     const ok = await actualizarTitular(titularEditando.value.id, draftTitular.value)
@@ -207,10 +207,10 @@ const abrirEditarBeneficiario = (b: Beneficiario) => {
   draftBene.value = { ...b }
   modalBeneVisible.value = true
 }
-const guardarBeneficiario = async () => {
+const guardarBeneficiario = async (enviarCorreo = false) => {
   if (!titularSeleccionado.value) return
   if (modalBeneModo.value === 'nuevo') {
-    const ok = await crearBeneficiario(titularSeleccionado.value.id, draftBene.value)
+    const ok = await crearBeneficiario(titularSeleccionado.value.id, draftBene.value, enviarCorreo)
     if (ok) modalBeneVisible.value = false
   } else if (beneficiarioEditando.value) {
     const ok = await actualizarBeneficiario(titularSeleccionado.value.id, beneficiarioEditando.value.id, draftBene.value)
@@ -227,9 +227,11 @@ const activarBeneficiario = (b: Beneficiario) => {
   beneficiarioActivando.value = b
   modalActivarVisible.value = true
 }
-const confirmarActivarBeneficiario = async (fechaIngreso: string) => {
+const confirmarActivarBeneficiario = async (
+  fechaIngreso: string, _aplicarAGrupo: boolean, _cambiarPlan: boolean, _tipoPlanId: number | null, enviarCorreo: boolean,
+) => {
   if (!titularSeleccionado.value || !beneficiarioActivando.value) return
-  await activarEstadoBeneficiario(titularSeleccionado.value.id, beneficiarioActivando.value, fechaIngreso)
+  await activarEstadoBeneficiario(titularSeleccionado.value.id, beneficiarioActivando.value, fechaIngreso, enviarCorreo)
   if (!errorEstadoBeneficiario.value) modalActivarVisible.value = false
 }
 const modalDesactivarBeneVisible = ref(false)
@@ -452,6 +454,7 @@ const modalImportVisible = ref(false)
       :nombre="beneficiarioActivando?.nombre"
       :guardando="guardandoEstadoBeneficiario"
       :error="errorEstadoBeneficiario"
+      permitir-enviar-correo
       @confirmar="confirmarActivarBeneficiario"
       @cancelar="errorEstadoBeneficiario = null"
     />

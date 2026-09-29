@@ -56,15 +56,19 @@ watch(visible, async (v) => {
   confirmando.value = false
   conteoPreview.value = null
   cargandoEmpresas.value = true
-  try {
-    const [empresasData, tiposPlanData] = await Promise.all([getEmpresas(), getTiposPlan()])
-    empresas.value = empresasData
-    tiposPlan.value = tiposPlanData
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'No se pudo cargar el listado de empresas y tipos de plan.'
-  } finally {
-    cargandoEmpresas.value = false
+  // allSettled, no all: si "tipos de plan" falla (ej. backend viejo sin ese
+  // endpoint todavia), las empresas se siguen mostrando igual -- con Promise.all
+  // un solo fallo dejaba las DOS listas vacias, sin avisar por qué.
+  const [empresasResult, tiposPlanResult] = await Promise.allSettled([getEmpresas(), getTiposPlan()])
+  empresas.value = empresasResult.status === 'fulfilled' ? empresasResult.value : []
+  tiposPlan.value = tiposPlanResult.status === 'fulfilled' ? tiposPlanResult.value : []
+  const fallos = [empresasResult, tiposPlanResult].filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+  if (fallos.length) {
+    error.value = fallos
+      .map(r => (r.reason instanceof Error ? r.reason.message : String(r.reason)))
+      .join(' · ')
   }
+  cargandoEmpresas.value = false
 })
 
 const cerrar = () => { visible.value = false }

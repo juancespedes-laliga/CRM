@@ -55,7 +55,10 @@ const SEXO_TITULAR_API: Record<Titular['sexo'], string | null> = { Masculino: 'M
 
 // enviarCorreoRegistro en false solo desde la carga masiva por Excel (cargaMasiva.ts):
 // un alta manual individual si manda el correo, una importacion de muchos no.
-export async function createTitular(data: TitularDraft, enviarCorreoRegistro = true): Promise<void> {
+// enviarCorreoRegistro en false por defecto: solo se manda si el usuario marca
+// la casilla al crear (antes se mandaba siempre); en carga masiva sigue
+// forzado a false explícito desde cargaMasiva.ts.
+export async function createTitular(data: TitularDraft, enviarCorreoRegistro = false): Promise<void> {
   const { nombre1, nombre2, apellido1, apellido2 } = splitNombreCompleto(data.nombre)
   const body = {
     TIPO_PLAN: data.tipoPlan,
@@ -264,7 +267,9 @@ const SEXO_BENEFICIARIO_API: Record<Beneficiario['sexo'], string | null> = { Mas
 
 // enviarCorreoBienvenida en false solo desde la carga masiva por Excel (cargaMasiva.ts):
 // un alta manual individual si manda el correo, una importacion de muchos no.
-export async function createBeneficiario(idTitular: number, data: BeneficiarioDraft, enviarCorreoBienvenida = true): Promise<void> {
+// Ver el comentario equivalente en createTitular: false por defecto, solo se
+// manda si el usuario marca la casilla al agregar.
+export async function createBeneficiario(idTitular: number, data: BeneficiarioDraft, enviarCorreoBienvenida = false): Promise<void> {
   const { nombre1, nombre2, apellido1, apellido2 } = splitNombreCompleto(data.nombre)
   const body = {
     TIPO_DOCUMENTO: data.tipoDocumento,
@@ -490,8 +495,15 @@ export async function getBeneficiariosTitular(
   return data.map(r => mapBeneficiarioListado(r, idTitular))
 }
 
-export async function activarBeneficiario(idTitular: number, idBeneficiario: number, fechaIngreso: string): Promise<Beneficiario> {
-  const body = { FECHA_INGRESO: fechaIngreso }
+export async function activarBeneficiario(
+  idTitular: number,
+  idBeneficiario: number,
+  fechaIngreso: string,
+  // false por defecto: el correo de bienvenida al reactivar solo se manda si
+  // el usuario lo elige explícitamente, no en cada activación.
+  enviarCorreo = false,
+): Promise<Beneficiario> {
+  const body = { FECHA_INGRESO: fechaIngreso, ENVIAR_CORREO_BIENVENIDA: enviarCorreo }
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/${idTitular}/beneficiarios/${idBeneficiario}/activar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },

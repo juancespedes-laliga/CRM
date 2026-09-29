@@ -186,11 +186,11 @@ export function usePlanLiga() {
   const guardandoTitular = ref(false)
   const errorGuardarTitular = ref<string | null>(null)
 
-  const crearTitular = async (data: TitularDraft): Promise<boolean> => {
+  const crearTitular = async (data: TitularDraft, enviarCorreo = false): Promise<boolean> => {
     guardandoTitular.value = true
     errorGuardarTitular.value = null
     try {
-      await createTitular(data)
+      await createTitular(data, enviarCorreo)
       offsetTitulares.value = 0
       await cargarTitulares()
       cargarResumen()
@@ -359,11 +359,11 @@ export function usePlanLiga() {
   const guardandoBeneficiario = ref(false)
   const errorGuardarBeneficiario = ref<string | null>(null)
 
-  const crearBeneficiario = async (titularId: number, data: BeneficiarioDraft): Promise<boolean> => {
+  const crearBeneficiario = async (titularId: number, data: BeneficiarioDraft, enviarCorreo = false): Promise<boolean> => {
     guardandoBeneficiario.value = true
     errorGuardarBeneficiario.value = null
     try {
-      await createBeneficiario(titularId, data)
+      await createBeneficiario(titularId, data, enviarCorreo)
       await cargarBeneficiariosTitular(titularId)
       if (data.estado === 'Activo') {
         ajustarConteoActivosTitular(titularId, 1)
@@ -451,11 +451,11 @@ export function usePlanLiga() {
   const guardandoEstadoBeneficiario = ref(false)
   const errorEstadoBeneficiario = ref<string | null>(null)
 
-  const activarEstadoBeneficiario = async (titularId: number, b: Beneficiario, fechaIngreso: string) => {
+  const activarEstadoBeneficiario = async (titularId: number, b: Beneficiario, fechaIngreso: string, enviarCorreo = false) => {
     guardandoEstadoBeneficiario.value = true
     errorEstadoBeneficiario.value = null
     try {
-      await activarBeneficiarioApi(titularId, b.id, fechaIngreso)
+      await activarBeneficiarioApi(titularId, b.id, fechaIngreso, enviarCorreo)
       ajustarConteoActivosTitular(titularId, 1)
       if (filtroEstadoBeneficiarios.value === 'I') {
         activosBeneficiariosCount.value += 1

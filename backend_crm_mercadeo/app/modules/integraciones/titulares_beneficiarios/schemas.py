@@ -350,6 +350,15 @@ class BeneficiarioActivar(BaseModel):
     FECHA_INGRESO: date
 
 
+class BeneficiarioActivarOpciones(BaseModel):
+    """POST .../{id_titular}/beneficiarios/{id_beneficiario}/activar: a
+    diferencia de BeneficiarioActivar (activacion masiva por documento), aqui
+    FECHA_INGRESO no se pide -- se sigue resolviendo del titular, como
+    siempre. Solo agrega el toggle de correo."""
+
+    ENVIAR_CORREO_BIENVENIDA: bool = True
+
+
 class ActivacionBeneficiarioResultado(BaseModel):
     beneficiario: BeneficiarioDetalle
     registros_incle_desmarcados: int
