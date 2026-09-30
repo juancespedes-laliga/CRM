@@ -8,6 +8,7 @@ import { useSegmentosGuardados } from '../composables/useSegmentosGuardados'
 import { useSegmentador } from '../composables/useSegmentador'
 import FiltrosSegmento from '../components/FiltrosSegmento.vue'
 import EnviarSegmentoDialog from '../components/EnviarSegmentoDialog.vue'
+import UsoPlanPanel from '../components/UsoPlanPanel.vue'
 
 const router = useRouter()
 const nf = new Intl.NumberFormat('es-CO')
@@ -87,6 +88,11 @@ const confirmarGuardar = () => {
         Arma una audiencia con filtros de Plan Liga (o no Plan Liga) y actúa sobre ella por correo o WhatsApp.
       </p>
     </div>
+
+    <!-- Solo cuando el filtro APLICADO (fApp, no el borrador f) es "Plan Liga": el
+    resumen/buscador es especifico de esa audiencia, no tiene sentido con "No plan
+    Liga" ni sin filtro de plan elegido. -->
+    <UsoPlanPanel v-if="fApp.planLiga === 'Plan Liga'" />
 
     <button
       class="lg:hidden flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-bold text-body"

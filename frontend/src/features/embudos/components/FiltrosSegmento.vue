@@ -82,6 +82,15 @@ const toggleSeccion = (clave: string) => {
   nueva.has(clave) ? nueva.delete(clave) : nueva.add(clave)
   expandidas.value = nueva
 }
+// Al elegir "Plan Liga" se abre de una la seccion "Uso del plan" (si no, queda
+// colapsada como cualquier otra seccion y hay que abrirla a mano para notar
+// que existe -- se pasa por alto facil porque solo aparece con este chip).
+const expandirSeccion = (clave: string) => {
+  if (expandidas.value.has(clave)) return
+  const nueva = new Set(expandidas.value)
+  nueva.add(clave)
+  expandidas.value = nueva
+}
 const abierta = (clave: string) => expandidas.value.has(clave) || !!buscarFiltro.value.trim()
 
 const toggle = (arr: string[], v: string) => {
@@ -161,11 +170,33 @@ const chipCls = (on: boolean) => on
         </button>
         <div v-show="abierta('plan')" class="px-4 pb-3">
           <div class="flex flex-wrap gap-1.5">
-            <button @click="f.planLiga = ''" :class="[CHIP, chipCls(f.planLiga === '')]">Todos</button>
+            <button @click="f.planLiga = ''; f.usoPlan = ''" :class="[CHIP, chipCls(f.planLiga === '')]">Todos</button>
             <button v-for="o in ['Plan Liga', 'No plan Liga']" :key="o"
-              @click="f.planLiga = (f.planLiga === o ? '' : o) as FiltroSegmento['planLiga']"
+              @click="f.planLiga = (f.planLiga === o ? '' : o) as FiltroSegmento['planLiga']; f.planLiga === 'Plan Liga' ? expandirSeccion('usoPlan') : (f.usoPlan = '')"
               :class="[CHIP, chipCls(f.planLiga === o)]">{{ o }}</button>
           </div>
+        </div>
+      </section>
+
+      <!-- Uso del plan: solo tiene sentido con Plan Liga elegido (sale de otra
+      consulta, ver segmentos.api.ts / backend). Con "Todos" o "No plan Liga"
+      no se muestra, y si estaba marcado se limpia solo (ver arriba). -->
+      <section v-show="f.planLiga === 'Plan Liga' && visible('Uso del plan Con uso Sin uso')">
+        <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('usoPlan')">
+          <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Uso del plan
+            <span v-if="f.usoPlan" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+          </span>
+          <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('usoPlan') }" />
+        </button>
+        <div v-show="abierta('usoPlan')" class="px-4 pb-3">
+          <div class="flex flex-wrap gap-1.5">
+            <button @click="f.usoPlan = ''" :class="[CHIP, chipCls(f.usoPlan === '')]">Todos</button>
+            <button @click="f.usoPlan = f.usoPlan === 'con_uso' ? '' : 'con_uso'" :class="[CHIP, chipCls(f.usoPlan === 'con_uso')]">Con uso</button>
+            <button @click="f.usoPlan = f.usoPlan === 'sin_uso' ? '' : 'sin_uso'" :class="[CHIP, chipCls(f.usoPlan === 'sin_uso')]">Sin uso</button>
+          </div>
+          <p v-if="f.usoPlan === 'sin_uso'" class="text-[10px] text-muted mt-2">
+            Activos de Plan Liga sin ningún servicio registrado. Los filtros de concepto, servicio y último uso no aplican aquí.
+          </p>
         </div>
       </section>
 

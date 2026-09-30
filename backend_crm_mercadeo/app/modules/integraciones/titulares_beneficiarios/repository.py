@@ -10,11 +10,12 @@ from sqlalchemy import (
     literal_column,
     or_,
     select,
+    text,
     update,
 )
 from sqlalchemy.orm import Session
 
-from app.models import PlanLiga, PlanLigaBeneficiario, PlanLigaTipoPlan, Usuario
+from app.models import PlanLiga, PlanLigaBeneficiario, PlanLigaTipoPlan, TitularColor, Usuario
 
 ESTADO_ACTIVO = "A"
 ESTADO_INACTIVO = "I"
@@ -118,6 +119,19 @@ CAMPOS_BENEFICIARIO_EDITABLES = {
 }
 
 
+def _fecha_iso(valor) -> str | None:
+    """Normaliza date/datetime (lo que trae oracledb para columnas DATE) a
+    'YYYY-MM-DD'; usado solo por las consultas con SQL crudo (text()) de esta
+    clase, ya que las armadas con select()/func.to_char() no lo necesitan."""
+    if valor is None:
+        return None
+    if isinstance(valor, datetime):
+        return valor.date().isoformat()
+    if isinstance(valor, date):
+        return valor.isoformat()
+    return str(valor)
+
+
 def _rango_fecha_nacimiento(edad: str, hoy: date) -> tuple[date | None, date | None]:
     edad_min, edad_max = RANGOS_EDAD[edad]
     fecha_nacimiento_max = hoy.replace(year=hoy.year - edad_min)
@@ -213,6 +227,7 @@ class TitularesBeneficiariosRepository:
             PlanLiga.ciudad.label("CIUDAD"),
             PlanLiga.departamento.label("DEPARTAMENTO"),
             PlanLiga.tipo_plan.label("TIPO_PLAN"),
+            PlanLiga.tipo_plan_id.label("TIPO_PLAN_ID"),
             PlanLiga.tipo_afiliado.label("TIPO_AFILIADO"),
             PlanLiga.empresa.label("EMPRESA"),
             PlanLiga.eps.label("EPS"),
@@ -391,6 +406,7 @@ class TitularesBeneficiariosRepository:
                     func.upper(func.coalesce(PlanLiga.documento, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.empresa, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.correo, "")).like(termino),
+                    func.upper(func.coalesce(PlanLiga.tipo_plan, "")).like(termino),
                     select(PlanLigaBeneficiario.id)
                     .where(
                         PlanLigaBeneficiario.planliga_id == PlanLiga.id,
@@ -400,6 +416,9 @@ class TitularesBeneficiariosRepository:
                                 termino
                             ),
                             func.upper(func.coalesce(PlanLigaBeneficiario.correo, "")).like(
+                                termino
+                            ),
+                            func.upper(func.coalesce(PlanLigaBeneficiario.tipo_plan, "")).like(
                                 termino
                             ),
                         ),
@@ -533,6 +552,7 @@ class TitularesBeneficiariosRepository:
                 PlanLiga.tipo.label("TIPO_DOCUMENTO"),
                 PlanLiga.empresa.label("EMPRESA"),
                 _nombre_plan().label("PLANES"),
+                PlanLiga.tipo_plan.label("TIPO_PLAN"),
                 (
                     cast(conteo_beneficiarios, String(50))
                     + literal_column("'/'")
@@ -759,6 +779,20 @@ class TitularesBeneficiariosRepository:
         )
         return self.db.scalar(stmt) or 0
 
+    def cupo_de_plan(self, tipo_plan_id: int | None) -> int:
+        """Cupo de beneficiarios de un plan candidato (ej. el que se elige al
+        renovar), sin depender de que ya este asociado a un titular. Misma
+        formula que _cupo_plan(), pero evaluada en Python porque aqui no hay
+        una fila de PlanLiga contra la cual outer-joinear."""
+        if tipo_plan_id is None:
+            return BENEFICIARIOS_PLAN_ESTANDAR
+        tipo_plan = self.db.get(PlanLigaTipoPlan, tipo_plan_id)
+        if tipo_plan is None:
+            return BENEFICIARIOS_PLAN_ESTANDAR
+        if tipo_plan.beneficiarios_adicionales and tipo_plan.beneficiarios_adicionales > 0:
+            return BENEFICIARIOS_PLAN_ESTANDAR + tipo_plan.beneficiarios_adicionales
+        return tipo_plan.beneficiarios or 0
+
     def siguiente_orden_beneficiario(self, id_titular: int) -> int:
         """ORDEN a asignar al proximo beneficiario del titular: reutiliza el
         menor ORDEN de un beneficiario inactivo (ese cupo quedo libre) si
@@ -835,13 +869,23 @@ class TitularesBeneficiariosRepository:
         self.db.commit()
         return True
 
-    def activar_titular(self, id_titular: int, fecha_ingreso: date) -> bool:
+    def activar_titular(
+        self,
+        id_titular: int,
+        fecha_ingreso: date,
+        cambiar_plan: bool = False,
+        tipo_plan: str | None = None,
+        tipo_plan_id: int | None = None,
+    ) -> bool:
         titular = self.db.get(PlanLiga, id_titular)
         if titular is None:
             return False
         titular.estado = ESTADO_ACTIVO
         titular.fecha_ingreso = fecha_ingreso
         titular.renovado = "S"
+        if cambiar_plan:
+            titular.tipo_plan = tipo_plan
+            titular.tipo_plan_id = tipo_plan_id
         self.db.commit()
         return True
 
@@ -861,15 +905,23 @@ class TitularesBeneficiariosRepository:
     # Cuenta cuantos titulares/beneficiarios ACTIVOS de esa empresa se verian
     # afectados por cambiar_fecha_ingreso_grupo, sin modificar nada: es el
     # preview que se muestra en el dialogo de confirmacion antes de aplicar.
-    def contar_grupo_activo(self, empresa: str) -> tuple[int, int]:
+    def _condicion_grupo(self, empresa: str | None, tipo_plan: str | None) -> ColumnElement:
+        """El llamador (service.py) ya garantiza que viene exactamente uno de
+        los dos -- ver CambioFechaIngresoGrupo._validar_un_solo_criterio."""
+        if tipo_plan:
+            return PlanLiga.tipo_plan == tipo_plan
+        return PlanLiga.empresa == empresa
+
+    def contar_grupo_activo(
+        self, empresa: str | None = None, tipo_plan: str | None = None
+    ) -> tuple[int, int]:
+        condicion = self._condicion_grupo(empresa, tipo_plan)
         total_titulares = self.db.scalar(
             select(func.count())
             .select_from(PlanLiga)
-            .where(PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO)
+            .where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         )
-        ids_titulares = select(PlanLiga.id).where(
-            PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO
-        )
+        ids_titulares = select(PlanLiga.id).where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         total_beneficiarios = self.db.scalar(
             select(func.count())
             .select_from(PlanLigaBeneficiario)
@@ -880,25 +932,28 @@ class TitularesBeneficiariosRepository:
         )
         return total_titulares or 0, total_beneficiarios or 0
 
-    # Cambia FECHA_INGRESO a todos los titulares ACTIVOS de esa empresa y a
-    # los beneficiarios ACTIVOS de esos titulares (coincidencia exacta con
-    # EMPRESA, no LIKE: el valor viene del selector de razon_social del
-    # catalogo de Empresas, que se importa desde este mismo texto).
+    # Cambia FECHA_INGRESO a todos los titulares ACTIVOS del grupo (por EMPRESA
+    # o por TIPO_PLAN, coincidencia exacta -- ver _condicion_grupo) y a los
+    # beneficiarios ACTIVOS de esos titulares.
     #
     # Cambiar la fecha de ingreso en masa es, en la practica, renovar el grupo
     # completo -> tambien se marca RENOVADO = 'S' en titular y beneficiario
     # (mismo criterio que activar_titular / activar_beneficiarios).
-    def cambiar_fecha_ingreso_grupo(self, empresa: str, fecha_ingreso: date) -> tuple[int, int]:
+    def cambiar_fecha_ingreso_grupo(
+        self,
+        fecha_ingreso: date,
+        empresa: str | None = None,
+        tipo_plan: str | None = None,
+    ) -> tuple[int, int]:
+        condicion = self._condicion_grupo(empresa, tipo_plan)
         stmt_titulares = (
             update(PlanLiga)
-            .where(PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO)
+            .where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
             .values(fecha_ingreso=fecha_ingreso, renovado="S")
         )
         resultado_titulares = self.db.execute(stmt_titulares)
 
-        ids_titulares = select(PlanLiga.id).where(
-            PlanLiga.empresa == empresa, PlanLiga.estado == ESTADO_ACTIVO
-        )
+        ids_titulares = select(PlanLiga.id).where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         stmt_beneficiarios = (
             update(PlanLigaBeneficiario)
             .where(
@@ -911,6 +966,16 @@ class TitularesBeneficiariosRepository:
 
         self.db.commit()
         return resultado_titulares.rowcount, resultado_beneficiarios.rowcount
+
+    def listar_tipos_plan(self) -> list[str]:
+        """Valores distintos de TIPO_PLAN (texto libre de INTRANET_PLANLIGA,
+        no el catalogo PlanLigaTipoPlan), para el selector de grupo."""
+        stmt = (
+            select(func.distinct(PlanLiga.tipo_plan))
+            .where(PlanLiga.tipo_plan.isnot(None), func.trim(PlanLiga.tipo_plan) != "")
+            .order_by(PlanLiga.tipo_plan)
+        )
+        return [valor for valor in self.db.scalars(stmt) if valor]
 
     def desactivar_titular(self, id_titular: int) -> bool:
         titular = self.db.get(PlanLiga, id_titular)
@@ -940,3 +1005,88 @@ class TitularesBeneficiariosRepository:
         self.db.execute(stmt_update)
         self.db.commit()
         return beneficiarios
+
+    # ---------------------------------------------------------------------
+    # Renovaciones por mes: titulares cuyo FECHA_INGRESO cae en el mes
+    # consultado (se activaron o renovaron ese mes). RENOVADO distingue
+    # renovacion ('S', ya existian) de alta nueva ('N', primera vez).
+    # ---------------------------------------------------------------------
+    _SQL_RENOVACIONES_MES = """
+    SELECT
+        p.ID,
+        p.TIPO AS TIPO_DOCUMENTO,
+        p.DOCUMENTO,
+        REGEXP_REPLACE(
+            p.NOMBRE1 || ' ' || NVL(p.NOMBRE2, '') || ' ' || p.APELLIDO1 || ' ' || NVL(p.APELLIDO2, ''),
+            ' +', ' '
+        ) AS NOMBRE,
+        p.CORREO,
+        p.TELEFONO,
+        p.EMPRESA,
+        p.TIPO_PLAN,
+        p.ESTADO,
+        p.RENOVADO,
+        TRUNC(p.FECHA_INGRESO) AS FECHA_INGRESO,
+        TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12)) AS FECHA_FIN,
+        (
+            SELECT MAX(b.FECHA)
+            FROM MERCADEO_CRM_BITACORA b
+            WHERE b.TITULAR_ID = p.ID
+        ) AS ULTIMO_CONTACTO_FECHA,
+        (
+            SELECT b2.DESCRIPCION
+            FROM MERCADEO_CRM_BITACORA b2
+            WHERE b2.TITULAR_ID = p.ID
+            ORDER BY b2.FECHA DESC
+            FETCH FIRST 1 ROW ONLY
+        ) AS ULTIMO_CONTACTO_DESC,
+        tc.COLOR
+    FROM INTRANET_PLANLIGA p
+    LEFT JOIN MERCADEO_CRM_TITULAR_COLOR tc ON tc.TITULAR_ID = p.ID
+    WHERE p.FECHA_INGRESO IS NOT NULL
+      AND EXTRACT(YEAR FROM p.FECHA_INGRESO) = :anio
+      AND EXTRACT(MONTH FROM p.FECHA_INGRESO) = :mes
+    ORDER BY p.FECHA_INGRESO DESC, NOMBRE
+    """
+
+    def listar_renovaciones_mes(self, anio: int, mes: int) -> list[dict]:
+        filas = self.db.execute(
+            text(self._SQL_RENOVACIONES_MES), {"anio": anio, "mes": mes}
+        ).mappings().all()
+        resultado = []
+        for fila in filas:
+            datos = {clave.upper(): valor for clave, valor in fila.items()}
+            datos["FECHA_INGRESO"] = _fecha_iso(datos["FECHA_INGRESO"])
+            datos["FECHA_FIN"] = _fecha_iso(datos["FECHA_FIN"])
+            datos["ULTIMO_CONTACTO_FECHA"] = _fecha_iso(datos["ULTIMO_CONTACTO_FECHA"])
+            resultado.append(datos)
+        return resultado
+
+    def establecer_color_titular(
+        self, id_titular: int, color: str, usuario_id: int | None
+    ) -> bool:
+        """Upsert: 1 fila por titular como maximo (unique en titular_id, ver
+        modelo TitularColor). Retorna False si el titular no existe."""
+        if self.db.get(PlanLiga, id_titular) is None:
+            return False
+        fila = self.db.scalar(
+            select(TitularColor).where(TitularColor.titular_id == id_titular)
+        )
+        if fila is None:
+            fila = TitularColor(titular_id=id_titular, color=color, usuario_id=usuario_id)
+            self.db.add(fila)
+        else:
+            fila.color = color
+            fila.usuario_id = usuario_id
+        self.db.commit()
+        return True
+
+    def quitar_color_titular(self, id_titular: int) -> bool:
+        fila = self.db.scalar(
+            select(TitularColor).where(TitularColor.titular_id == id_titular)
+        )
+        if fila is None:
+            return False
+        self.db.delete(fila)
+        self.db.commit()
+        return True

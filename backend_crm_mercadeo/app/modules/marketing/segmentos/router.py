@@ -10,7 +10,9 @@ from app.modules.marketing.segmentos.schemas import (
     ListadoAudienciaSegmento,
     ListadoConceptosServicios,
     ListadoUbicaciones,
+    ResumenUsoPlan,
     Ubicacion,
+    UsoPlanPersona,
     ValoresDistintos,
 )
 from app.modules.marketing.segmentos.service import SegmentosService
@@ -51,6 +53,15 @@ def obtener_audiencia(
         None,
         description="Sin uso en los ultimos N dias (ULTIMO_USO <= SYSDATE - N).",
     ),
+    uso_plan: Literal["con_uso", "sin_uso", "todos"] | None = Query(
+        None,
+        description=(
+            "Solo aplica junto con plan='plan_liga'. 'con_uso'/None/'todos' = "
+            "comportamiento actual (TMPBI1.TARIFA='PL'). 'sin_uso' = activos "
+            "de Plan Liga sin ningun servicio con esa tarifa (no admite "
+            "concepto/servicio/ultimo_uso: nadie en ese grupo tiene fila en TMPBI1)."
+        ),
+    ),
     pagina: int = Query(1, ge=1, description="Pagina a mostrar (1-indexada)."),
     por_pagina: int = Query(
         10, ge=1, le=500, description="Cuantas personas traer por pagina."
@@ -69,6 +80,7 @@ def obtener_audiencia(
             servicio=servicio,
             tipo_vinculacion=tipo_vinculacion,
             ultimo_uso=ultimo_uso,
+            uso_plan=uso_plan,
             pagina=pagina,
             por_pagina=por_pagina,
         )
@@ -138,3 +150,29 @@ def obtener_servicios(
     service: SegmentosService = Depends(get_segmentos_service),
 ) -> ValoresDistintos:
     return ValoresDistintos(valores=service.obtener_servicios())
+
+
+@router.get(
+    "/uso-plan/resumen",
+    response_model=ResumenUsoPlan,
+    summary=(
+        "Resumen de uso de Plan Liga: titulares/beneficiarios ACTIVOS, "
+        "cuantos tienen algun servicio con TMPBI1.TARIFA='PL' y cuantos no."
+    ),
+)
+def obtener_resumen_uso_plan(
+    service: SegmentosService = Depends(get_segmentos_service),
+) -> ResumenUsoPlan:
+    return service.obtener_resumen_uso_plan()
+
+
+@router.get(
+    "/uso-plan/buscar",
+    response_model=UsoPlanPersona,
+    summary="Busca un titular o beneficiario por documento y dice si ha usado el plan.",
+)
+def buscar_uso_plan(
+    documento: str = Query(..., min_length=1),
+    service: SegmentosService = Depends(get_segmentos_service),
+) -> UsoPlanPersona:
+    return service.buscar_uso_plan(documento)

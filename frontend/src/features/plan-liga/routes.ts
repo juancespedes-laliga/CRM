@@ -7,6 +7,11 @@ const routes: RouteRecordRaw[] = [
     name: 'plan-liga-vencimientos',
     component: () => import('./pages/RecordatoriosVencimiento.vue'),
   },
+  {
+    path: 'plan-liga-renovaciones',
+    name: 'plan-liga-renovaciones',
+    component: () => import('./pages/RenovacionesPorMes.vue'),
+  },
 ]
 
 export default routes

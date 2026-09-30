@@ -59,3 +59,17 @@ class CupoBeneficiariosExcedidoError(ConflictError):
                 f"beneficiarios de su plan"
             )
         )
+
+
+class CupoPlanInsuficienteError(ConflictError):
+    """Se intento cambiar el plan de un titular (ej. al renovar) a uno cuyo
+    cupo de beneficiarios es menor a los beneficiarios activos que ya tiene."""
+
+    def __init__(self, id_titular: int, beneficiarios_activos: int, cupo_nuevo_plan: int) -> None:
+        super().__init__(
+            detail=(
+                f"El titular {id_titular} tiene {beneficiarios_activos} beneficiario(s) "
+                f"activo(s), pero el plan elegido solo permite {cupo_nuevo_plan}. "
+                "Desactiva beneficiarios antes de cambiar a ese plan."
+            )
+        )

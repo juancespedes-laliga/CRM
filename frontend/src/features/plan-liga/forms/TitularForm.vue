@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Select from 'primevue/select'
 import type { PlanServicio, TitularDraft } from '../types/plan-liga'
 import { titularSchema } from '../schemas/titular.schema'
@@ -70,6 +70,13 @@ const fechaInscripcionMinima = computed(() => {
   // zonas horarias negativas como Colombia), igual que el resto de la app.
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 })
+
+// Toggle "¿Tiene plan complementario de salud?": arranca en Sí si ya trae un
+// valor (editando un titular que ya lo tenía), o en No si viene vacío (alta
+// nueva). Al pasar a No se limpia el campo para no mandar basura si el
+// usuario lo había escrito y se arrepiente.
+const tienePlanSalud = ref(!!draft.value.planSalud || !!draft.value.planNombre)
+watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value.planNombre = '' } })
 </script>
 
 <template>
@@ -177,13 +184,28 @@ const fechaInscripcionMinima = computed(() => {
       <input v-model="draft.otraEps" placeholder="Solo si la EPS no está en la lista" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
     </div>
     <div>
-      <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Plan de salud</label>
-      <input v-model="draft.planSalud" placeholder="Plan de salud" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+      <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">¿Tiene plan complementario de salud?</label>
+      <div class="flex gap-2">
+        <button type="button" @click="tienePlanSalud = true"
+          class="h-10 px-4 rounded-lg border text-[12px] font-semibold transition-all"
+          :class="tienePlanSalud ? 'bg-[#EC4899] border-[#EC4899] text-white' : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300'"
+        >Sí</button>
+        <button type="button" @click="tienePlanSalud = false"
+          class="h-10 px-4 rounded-lg border text-[12px] font-semibold transition-all"
+          :class="!tienePlanSalud ? 'bg-[#EC4899] border-[#EC4899] text-white' : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300'"
+        >No</button>
+      </div>
     </div>
-    <div>
-      <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Nombre del plan</label>
-      <input v-model="draft.planNombre" placeholder="Nombre comercial del plan" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
-    </div>
+    <template v-if="tienePlanSalud">
+      <div>
+        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Plan de salud</label>
+        <input v-model="draft.planSalud" placeholder="Ej: Medicina prepagada, Póliza de salud" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Nombre del plan</label>
+        <input v-model="draft.planNombre" placeholder="Nombre comercial del plan" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+      </div>
+    </template>
     <div>
       <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Factura</label>
       <input v-model="draft.factura" placeholder="Número de factura" :disabled="soloLecturaEnEdicion" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed" />

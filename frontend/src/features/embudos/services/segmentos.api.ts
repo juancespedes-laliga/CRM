@@ -74,6 +74,87 @@ export async function getConceptosServicios(): Promise<ConceptoServicioApi[]> {
   return data.pares
 }
 
+export interface CategoriaUsoPlan {
+  activos: number
+  conUso: number
+  sinUso: number
+  porcentajeUso: number
+}
+
+export interface ResumenUsoPlan {
+  total: CategoriaUsoPlan
+  titulares: CategoriaUsoPlan
+  beneficiarios: CategoriaUsoPlan
+}
+
+interface CategoriaUsoPlanApi {
+  activos: number
+  con_uso: number
+  sin_uso: number
+  porcentaje_uso: number
+}
+
+function mapCategoriaUsoPlan(c: CategoriaUsoPlanApi): CategoriaUsoPlan {
+  return { activos: c.activos, conUso: c.con_uso, sinUso: c.sin_uso, porcentajeUso: c.porcentaje_uso }
+}
+
+/** Resumen de uso de Plan Liga: titulares/beneficiarios activos, cuantos han
+ * usado el plan (TMPBI1.TARIFA='PL') y cuantos no, total y por separado. */
+export async function getResumenUsoPlan(): Promise<ResumenUsoPlan> {
+  const response = await fetch(`${API_URL}/api/segmentos/uso-plan/resumen`, {
+    headers: authHeader(),
+  })
+  if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo cargar el resumen de uso del plan.')
+  const data = (await response.json()) as {
+    total: CategoriaUsoPlanApi
+    titulares: CategoriaUsoPlanApi
+    beneficiarios: CategoriaUsoPlanApi
+  }
+  return {
+    total: mapCategoriaUsoPlan(data.total),
+    titulares: mapCategoriaUsoPlan(data.titulares),
+    beneficiarios: mapCategoriaUsoPlan(data.beneficiarios),
+  }
+}
+
+export interface UsoPlanPersona {
+  documento: string
+  tipo: 'titular' | 'beneficiario'
+  nombre: string
+  estado: string
+  haUsado: boolean
+  serviciosUsados: number
+  ultimoUso: string | null
+}
+
+/** Busca un documento como titular o beneficiario y dice si ha usado el plan.
+ * Lanza si no existe (404) o si el request falla. */
+export async function buscarUsoPlan(documento: string): Promise<UsoPlanPersona> {
+  const response = await fetch(
+    `${API_URL}/api/segmentos/uso-plan/buscar?documento=${encodeURIComponent(documento.trim())}`,
+    { headers: authHeader() },
+  )
+  if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo buscar el documento.')
+  const data = await response.json() as {
+    documento: string
+    tipo: 'titular' | 'beneficiario'
+    nombre: string
+    estado: string
+    ha_usado: boolean
+    servicios_usados: number
+    ultimo_uso: string | null
+  }
+  return {
+    documento: data.documento,
+    tipo: data.tipo,
+    nombre: data.nombre,
+    estado: data.estado,
+    haUsado: data.ha_usado,
+    serviciosUsados: data.servicios_usados,
+    ultimoUso: data.ultimo_uso,
+  }
+}
+
 /** Fila de la tabla de Audiencias (mapeo del consolidado). */
 export interface PersonaAudiencia {
   id: string
@@ -148,6 +229,11 @@ export function filtroSegmentoAQuery(
 
   if (f.planLiga === 'No plan Liga') q.set('plan', 'no_plan_liga')
   else q.set('plan', 'plan_liga')
+
+  // Solo tiene efecto junto con plan_liga (ver descripcion en el backend);
+  // si el usuario lo dejo marcado y despues cambio a 'No plan Liga', se
+  // manda igual pero el backend simplemente lo ignora.
+  if (f.usoPlan === 'con_uso' || f.usoPlan === 'sin_uso') q.set('uso_plan', f.usoPlan)
 
   if (f.sexo === 'F' || f.sexo === 'M') q.set('sexo', f.sexo)
 

@@ -109,7 +109,7 @@ const confirmarEliminar = async () => {
       <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div class="relative flex-1 min-w-0">
           <Filter :size="13" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-          <input v-model="buscar" placeholder="Buscar por contacto, empresa o acción..." class="w-full h-9 pl-9 pr-4 rounded-lg input-surface text-[12px] outline-none focus:border-[#2447F9] dark:focus:border-[#2447F9] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+          <input v-model="buscar" placeholder="Buscar por contacto, cédula, empresa o acción..." class="w-full h-9 pl-9 pr-4 rounded-lg input-surface text-[12px] outline-none focus:border-[#2447F9] dark:focus:border-[#2447F9] focus:bg-white dark:focus:bg-slate-800 transition-all" />
         </div>
         <select v-model="filtroUsuario" class="h-9 px-3 rounded-lg input-surface text-[11px] font-medium outline-none cursor-pointer">
           <option value="todos">Todos los usuarios</option>

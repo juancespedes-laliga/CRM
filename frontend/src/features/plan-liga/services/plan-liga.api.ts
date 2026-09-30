@@ -55,7 +55,10 @@ const SEXO_TITULAR_API: Record<Titular['sexo'], string | null> = { Masculino: 'M
 
 // enviarCorreoRegistro en false solo desde la carga masiva por Excel (cargaMasiva.ts):
 // un alta manual individual si manda el correo, una importacion de muchos no.
-export async function createTitular(data: TitularDraft, enviarCorreoRegistro = true): Promise<void> {
+// enviarCorreoRegistro en false por defecto: solo se manda si el usuario marca
+// la casilla al crear (antes se mandaba siempre); en carga masiva sigue
+// forzado a false explícito desde cargaMasiva.ts.
+export async function createTitular(data: TitularDraft, enviarCorreoRegistro = false): Promise<void> {
   const { nombre1, nombre2, apellido1, apellido2 } = splitNombreCompleto(data.nombre)
   const body = {
     TIPO_PLAN: data.tipoPlan,
@@ -126,11 +129,25 @@ export async function activarTitular(
   idTitular: number,
   fechaIngreso: string,
   aplicarAGrupo = true,
+  // Cambio de plan al renovar (opcional): cambiarPlan es el toggle explícito, ver
+  // CAMBIAR_PLAN en schemas.py. tipoPlanId null es "Plan Estándar", una elección válida.
+  cambiarPlan = false,
+  tipoPlan?: string | null,
+  tipoPlanId?: number | null,
 ): Promise<void> {
+  const body: Record<string, unknown> = {
+    FECHA_INGRESO: fechaIngreso,
+    APLICAR_A_GRUPO: aplicarAGrupo,
+    CAMBIAR_PLAN: cambiarPlan,
+  }
+  if (cambiarPlan) {
+    body.TIPO_PLAN = tipoPlan ?? null
+    body.TIPO_PLAN_ID = tipoPlanId ?? null
+  }
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/${idTitular}/activar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },
-    body: JSON.stringify({ FECHA_INGRESO: fechaIngreso, APLICAR_A_GRUPO: aplicarAGrupo }),
+    body: JSON.stringify(body),
   })
   if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo activar el titular.')
 }
@@ -140,11 +157,21 @@ export interface CambioFechaIngresoGrupoResultado {
   beneficiariosActualizados: number
 }
 
-// Cuenta cuantos titulares/beneficiarios activos de esa empresa se verian
+// El grupo se define por empresa O por tipo de plan (exactamente uno de los
+// dos -- el backend rechaza si vienen ambos o ninguno).
+export interface GrupoRef {
+  empresa?: string
+  tipoPlan?: string
+}
+
+// Cuenta cuantos titulares/beneficiarios activos del grupo se verian
 // afectados, sin modificar nada: para el mensaje de confirmacion antes de aplicar.
-export async function contarGrupoActivo(empresa: string): Promise<CambioFechaIngresoGrupoResultado> {
+export async function contarGrupoActivo(grupo: GrupoRef): Promise<CambioFechaIngresoGrupoResultado> {
+  const params = new URLSearchParams()
+  if (grupo.empresa) params.set('empresa', grupo.empresa)
+  if (grupo.tipoPlan) params.set('tipo_plan', grupo.tipoPlan)
   const response = await fetch(
-    `${API_URL}/api/titulares-beneficiarios/grupo/conteo?empresa=${encodeURIComponent(empresa)}`,
+    `${API_URL}/api/titulares-beneficiarios/grupo/conteo?${params}`,
     { headers: authHeader() },
   )
   if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo calcular cuántos registros se verían afectados.')
@@ -152,16 +179,28 @@ export async function contarGrupoActivo(empresa: string): Promise<CambioFechaIng
   return { titularesActualizados: r.titulares_actualizados, beneficiariosActualizados: r.beneficiarios_actualizados }
 }
 
-// Cambia FECHA_INGRESO a todos los titulares activos de esa empresa y a los
-// beneficiarios activos de esos titulares, de una sola vez.
+// Tipos de plan distintos (INTRANET_PLANLIGA.TIPO_PLAN), para poder elegir un
+// grupo por tipo de plan en vez de por empresa.
+export async function getTiposPlan(): Promise<string[]> {
+  const response = await fetch(`${API_URL}/api/titulares-beneficiarios/grupo/tipos-plan`, { headers: authHeader() })
+  if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo cargar la lista de tipos de plan.')
+  const data = await response.json() as { valores: string[] }
+  return data.valores
+}
+
+// Cambia FECHA_INGRESO a todos los titulares activos del grupo (empresa o
+// tipo de plan) y a los beneficiarios activos de esos titulares, de una sola vez.
 export async function cambiarFechaIngresoGrupo(
-  empresa: string,
+  grupo: GrupoRef,
   fechaIngreso: string,
 ): Promise<CambioFechaIngresoGrupoResultado> {
+  const body: Record<string, unknown> = { FECHA_INGRESO: fechaIngreso }
+  if (grupo.empresa) body.EMPRESA = grupo.empresa
+  if (grupo.tipoPlan) body.TIPO_PLAN = grupo.tipoPlan
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/grupo/fecha-ingreso`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },
-    body: JSON.stringify({ EMPRESA: empresa, FECHA_INGRESO: fechaIngreso }),
+    body: JSON.stringify(body),
   })
   if (!response.ok) await lanzarErrorConDetalle(response, 'No se pudo cambiar la fecha de ingreso del grupo.')
   const r = await response.json()
@@ -228,7 +267,9 @@ const SEXO_BENEFICIARIO_API: Record<Beneficiario['sexo'], string | null> = { Mas
 
 // enviarCorreoBienvenida en false solo desde la carga masiva por Excel (cargaMasiva.ts):
 // un alta manual individual si manda el correo, una importacion de muchos no.
-export async function createBeneficiario(idTitular: number, data: BeneficiarioDraft, enviarCorreoBienvenida = true): Promise<void> {
+// Ver el comentario equivalente en createTitular: false por defecto, solo se
+// manda si el usuario marca la casilla al agregar.
+export async function createBeneficiario(idTitular: number, data: BeneficiarioDraft, enviarCorreoBienvenida = false): Promise<void> {
   const { nombre1, nombre2, apellido1, apellido2 } = splitNombreCompleto(data.nombre)
   const body = {
     TIPO_DOCUMENTO: data.tipoDocumento,
@@ -365,7 +406,7 @@ function mapTitularListado(r: TitularListadoResponse): Titular {
     empresa: r.EMPRESA ?? '',
     planContratado: planesDetalle.map(p => p.nombre).join(' | '),
     tipoPlanId: null,
-    tipoPlan: '',
+    tipoPlan: r.TIPO_PLAN ?? '',
     tipoAfiliado: '',
     eps: '',
     otraEps: '',
@@ -400,7 +441,7 @@ function mapTitularDetalle(r: TitularDetalleResponse): Titular {
     departamento: r.DEPARTAMENTO ?? '',
     empresa: r.EMPRESA ?? '',
     planContratado: '',
-    tipoPlanId: null,
+    tipoPlanId: r.TIPO_PLAN_ID,
     tipoPlan: r.TIPO_PLAN ?? '',
     tipoAfiliado: r.TIPO_AFILIADO ?? '',
     eps: r.EPS ?? '',
@@ -454,8 +495,15 @@ export async function getBeneficiariosTitular(
   return data.map(r => mapBeneficiarioListado(r, idTitular))
 }
 
-export async function activarBeneficiario(idTitular: number, idBeneficiario: number, fechaIngreso: string): Promise<Beneficiario> {
-  const body = { FECHA_INGRESO: fechaIngreso }
+export async function activarBeneficiario(
+  idTitular: number,
+  idBeneficiario: number,
+  fechaIngreso: string,
+  // false por defecto: el correo de bienvenida al reactivar solo se manda si
+  // el usuario lo elige explícitamente, no en cada activación.
+  enviarCorreo = false,
+): Promise<Beneficiario> {
+  const body = { FECHA_INGRESO: fechaIngreso, ENVIAR_CORREO_BIENVENIDA: enviarCorreo }
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/${idTitular}/beneficiarios/${idBeneficiario}/activar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },

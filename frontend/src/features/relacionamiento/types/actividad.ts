@@ -6,11 +6,15 @@ export interface Actividad {
   tipo: TipoActividad
   contactoId: number | null
   contactoNombre: string
+  /** Cédula/NIT del contacto asociado; '' si no tiene contacto o el contacto no tiene documento. */
+  contactoDocumento: string
   /** Texto libre (no FK): el backend ya no valida contra un catálogo de empresas. */
   empresaNombre: string
   /** Titular Plan Liga asociado a la actividad; opcional, igual que contacto y empresa. */
   titularId: number | null
   titularNombre: string
+  /** Cédula del titular Plan Liga asociado; '' si no tiene titular. */
+  titularDocumento: string
   accion: string
   proximoPaso: string
   /** Fecha límite del próximo paso; '' si no se definió una. No es un campo propio del

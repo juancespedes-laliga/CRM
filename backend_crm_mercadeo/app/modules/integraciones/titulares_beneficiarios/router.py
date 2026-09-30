@@ -15,16 +15,19 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     ActivacionBeneficiarioResultado,
     ActivacionTitularResultado,
     BeneficiarioActivar,
+    BeneficiarioActivarOpciones,
     BeneficiarioCrear,
     BeneficiarioDetalle,
     BeneficiarioUpdate,
     CambioFechaIngresoGrupo,
     CambioFechaIngresoGrupoResultado,
     CambioTitularBeneficiario,
+    TipoPlanValores,
     CreacionBeneficiarioResultado,
     CreacionTitularResultado,
     DesactivacionBeneficiarioResultado,
     DesactivacionTitularResultado,
+    ListadoRenovacionesMes,
     ListadoTitularesPaginado,
     PlanItem,
     PlanNombre,
@@ -33,6 +36,7 @@ from app.modules.integraciones.titulares_beneficiarios.schemas import (
     ReemplazoTitularResultado,
     ResumenTitularesBeneficiarios,
     TitularActivar,
+    TitularColorActualizar,
     TitularCrear,
     TitularDetalle,
     TitularUpdate,
@@ -84,6 +88,40 @@ def get_listado(
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> ListadoTitularesPaginado:
     return service.listar_titulares(limit, offset, estado, tipo_plan_id, sexo, edad, busqueda)
+
+
+@router.get(
+    "/renovaciones",
+    response_model=ListadoRenovacionesMes,
+    summary=(
+        "Titulares cuyo FECHA_INGRESO cae en el mes/anio dado (se activaron o "
+        "renovaron ese mes), separando renovaciones (RENOVADO='S') de altas "
+        "nuevas (RENOVADO='N'), con el ultimo contacto de bitacora de cada uno."
+    ),
+)
+def get_renovaciones_mes(
+    anio: int = Query(..., ge=2000, le=2100),
+    mes: int = Query(..., ge=1, le=12),
+    service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
+) -> ListadoRenovacionesMes:
+    return service.listar_renovaciones_mes(anio, mes)
+
+
+@router.put(
+    "/{id_titular}/color",
+    summary="Fija (o quita, con COLOR=null) el color que el equipo le asigna a mano a un titular.",
+)
+def poner_color_titular(
+    id_titular: int,
+    data: TitularColorActualizar,
+    username: str = Depends(get_current_username),
+    service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
+) -> dict:
+    if data.COLOR is None:
+        service.quitar_color_titular(id_titular)
+    else:
+        service.establecer_color_titular(id_titular, data.COLOR, username)
+    return {"COLOR": data.COLOR}
 
 
 @router.get("/exportar")
@@ -141,10 +179,22 @@ def get_nombres_planes(
 
 @router.get("/grupo/conteo", response_model=CambioFechaIngresoGrupoResultado)
 def get_conteo_grupo_activo(
-    empresa: str,
+    empresa: str | None = None,
+    tipo_plan: str | None = None,
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> CambioFechaIngresoGrupoResultado:
-    return service.contar_grupo_activo(empresa)
+    return service.contar_grupo_activo(empresa, tipo_plan)
+
+
+@router.get(
+    "/grupo/tipos-plan",
+    response_model=TipoPlanValores,
+    summary="Valores distintos de TIPO_PLAN, para elegir un grupo por tipo de plan en vez de por empresa.",
+)
+def get_tipos_plan(
+    service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
+) -> TipoPlanValores:
+    return TipoPlanValores(valores=service.listar_tipos_plan())
 
 
 @router.post("/grupo/fecha-ingreso", response_model=CambioFechaIngresoGrupoResultado)
@@ -211,9 +261,12 @@ def reemplazar_beneficiario(
 def activar_beneficiario(
     id_titular: int,
     id_beneficiario: int,
+    data: BeneficiarioActivarOpciones,
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> ActivacionBeneficiarioResultado:
-    return service.activar_beneficiario(id_titular, id_beneficiario)
+    return service.activar_beneficiario(
+        id_titular, id_beneficiario, enviar_correo_bienvenida=data.ENVIAR_CORREO_BIENVENIDA
+    )
 
 
 @router.post(
@@ -310,9 +363,18 @@ def reemplazar_titular(
 def activar_titular(
     id_titular: int,
     data: TitularActivar,
+    username: str = Depends(get_current_username),
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> ActivacionTitularResultado:
-    return service.activar_titular(id_titular, data.FECHA_INGRESO, data.APLICAR_A_GRUPO)
+    return service.activar_titular(
+        id_titular,
+        data.FECHA_INGRESO,
+        data.APLICAR_A_GRUPO,
+        data.CAMBIAR_PLAN,
+        data.TIPO_PLAN,
+        data.TIPO_PLAN_ID,
+        username,
+    )
 
 
 @router.post("/{id_titular}/desactivar", response_model=DesactivacionTitularResultado)

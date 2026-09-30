@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { X, CheckCircle, AlertCircle } from 'lucide-vue-next'
 import type { BeneficiarioDraft } from '../types/plan-liga'
 import BeneficiarioForm from '../forms/BeneficiarioForm.vue'
@@ -11,12 +11,15 @@ defineProps<{
   guardando?: boolean
   error?: string | null
 }>()
-const emit = defineEmits<{ submit: [] }>()
+const emit = defineEmits<{ submit: [enviarCorreo: boolean] }>()
 
 const visible = defineModel<boolean>('visible', { required: true })
 const draft = defineModel<BeneficiarioDraft>('draft', { required: true })
 
 const formRef = ref<InstanceType<typeof BeneficiarioForm>>()
+// Ver el comentario equivalente en TitularFormDialog.vue.
+const enviarCorreo = ref(false)
+watch(visible, (v) => { if (v) enviarCorreo.value = false })
 </script>
 
 <template>
@@ -38,13 +41,19 @@ const formRef = ref<InstanceType<typeof BeneficiarioForm>>()
           <AlertCircle :size="13" class="text-red-500 dark:text-red-400 shrink-0" />
           <p class="text-[11px] text-red-600 dark:text-red-400 font-medium">{{ error }}</p>
         </div>
-        <BeneficiarioForm ref="formRef" v-model="draft" :modo="modo" @valid-submit="emit('submit')" />
+        <BeneficiarioForm ref="formRef" v-model="draft" :modo="modo" @valid-submit="emit('submit', enviarCorreo)" />
+        <label v-if="modo === 'nuevo'" class="flex items-center gap-2 mt-4 cursor-pointer select-none">
+          <input type="checkbox" v-model="enviarCorreo" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#EC4899] focus:ring-[#EC4899]" />
+          <span class="text-[11px] text-slate-600 dark:text-slate-300">Enviar correo de bienvenida a este beneficiario</span>
+        </label>
       </div>
       <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-900">
         <button @click="visible = false" class="h-9 px-5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Cancelar</button>
         <button @click="formRef?.submit()" :disabled="guardando"
           class="h-9 px-6 rounded-lg bg-[#EC4899] text-white text-[11px] font-bold shadow hover:bg-[#D61F69] transition-all disabled:opacity-60 disabled:cursor-not-allowed">
-          {{ guardando ? (modo === 'nuevo' ? 'Enviando notificación por correo...' : 'Guardando...') : (modo === 'nuevo' ? 'Agregar beneficiario' : 'Guardar cambios') }}
+          {{ guardando
+            ? (modo === 'nuevo' && enviarCorreo ? 'Enviando notificación por correo...' : 'Guardando...')
+            : (modo === 'nuevo' ? 'Agregar beneficiario' : 'Guardar cambios') }}
         </button>
       </div>
     </div>

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -8,6 +10,14 @@ class FiltrosAudiencia(BaseModel):
     plan: str | None = Field(
         default="plan_liga",
         description="'plan_liga' ejecuta el consolidado. 'no_plan_liga' responde vacio.",
+    )
+    uso_plan: str | None = Field(
+        default=None,
+        description=(
+            "Solo aplica junto con plan='plan_liga'. 'con_uso'/None = "
+            "comportamiento actual (TMPBI1.TARIFA='PL'). 'sin_uso' = activos "
+            "de Plan Liga sin ningun servicio con esa tarifa."
+        ),
     )
     sexo: str | None = Field(default=None, description="'F' | 'M' | 'todos'/None.")
     edad_min: int | None = None
@@ -91,3 +101,36 @@ class ListadoConceptosServicios(BaseModel):
 # Alias por compatibilidad con imports previos del modulo.
 TitularSegmentoItem = AudienciaSegmentoItem
 ListadoTitularesSegmento = ListadoAudienciaSegmento
+
+
+class CategoriaUsoPlan(BaseModel):
+    """Activos/con uso/sin uso de un grupo (titulares, beneficiarios o total).
+    'Uso' = al menos un servicio con TARIFA = 'PL' en TMPBI1."""
+
+    activos: int
+    con_uso: int
+    sin_uso: int
+    porcentaje_uso: float
+
+
+class ResumenUsoPlan(BaseModel):
+    """GET /segmentos/uso-plan/resumen: cuantos titulares/beneficiarios
+    ACTIVOS (INTRANET_PLANLIGA / INTRANET_PLANLIGA_BENEFICIARIO) tienen
+    algun servicio con tarifa PL en TMPBI1."""
+
+    total: CategoriaUsoPlan
+    titulares: CategoriaUsoPlan
+    beneficiarios: CategoriaUsoPlan
+
+
+class UsoPlanPersona(BaseModel):
+    """GET /segmentos/uso-plan/buscar: si un documento es titular o
+    beneficiario (el que se encuentre primero) y si ha usado el plan."""
+
+    documento: str
+    tipo: Literal["titular", "beneficiario"]
+    nombre: str
+    estado: str
+    ha_usado: bool
+    servicios_usados: int
+    ultimo_uso: str | None = None

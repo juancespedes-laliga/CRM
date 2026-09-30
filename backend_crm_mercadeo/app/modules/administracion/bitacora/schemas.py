@@ -64,9 +64,11 @@ class BitacoraItem(BaseModel):
     usuario_nombre: str | None = None
     contacto_id: int | None = None
     contacto_nombre: str | None = None
+    contacto_documento: str | None = None
     nombre_empresa: str | None = None
     oportunidad_id: int | None = None
     titular_id: int | None = None
+    titular_documento: str | None = None
     plan_nombre: str | None = None
     fecha_actualizacion: datetime | None = None
     usuario_actualizacion_nombre: str | None = None

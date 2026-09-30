@@ -53,11 +53,18 @@ watch(query, (q) => {
   }, 300)
 }, { immediate: true })
 
+// Sin tildes/diacríticos en ninguno de los dos lados: un valor guardado con una
+// "Ñ"/vocal acentuada en una forma Unicode distinta a la que teclea el usuario
+// (visualmente idénticas, pero código a código no lo son) no debe fallar el
+// match. Mismo truco que ya usa relacionamiento.api.ts (normalizarTipo) para
+// el mismo problema.
+const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 const filtradas = computed(() => {
   if (props.buscar) return resultadosRemotos.value
-  const q = query.value.trim().toLowerCase()
+  const q = normalizar(query.value.trim())
   if (!q) return props.opciones
-  return props.opciones.filter(o => o.label.toLowerCase().includes(q) || o.sublabel?.toLowerCase().includes(q))
+  return props.opciones.filter(o => normalizar(o.label).includes(q) || (o.sublabel && normalizar(o.sublabel).includes(q)))
 })
 
 function elegir(o: OpcionBuscador) {

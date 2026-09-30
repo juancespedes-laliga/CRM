@@ -186,11 +186,11 @@ export function usePlanLiga() {
   const guardandoTitular = ref(false)
   const errorGuardarTitular = ref<string | null>(null)
 
-  const crearTitular = async (data: TitularDraft): Promise<boolean> => {
+  const crearTitular = async (data: TitularDraft, enviarCorreo = false): Promise<boolean> => {
     guardandoTitular.value = true
     errorGuardarTitular.value = null
     try {
-      await createTitular(data)
+      await createTitular(data, enviarCorreo)
       offsetTitulares.value = 0
       await cargarTitulares()
       cargarResumen()
@@ -218,19 +218,37 @@ export function usePlanLiga() {
       guardandoTitular.value = false
     }
   }
-  const toggleEstadoTitular = async (t: Titular, fechaIngreso?: string, aplicarAGrupo = true) => {
+  // Nombre a mostrar del plan elegido (tipoPlanId null = Plan Estándar); usado tanto para
+  // mandar TIPO_PLAN al backend como para reflejar el cambio en memoria sin recargar.
+  const nombrePlan = (tipoPlanId: number | null) =>
+    tipoPlanId === null ? 'Estándar' : (planesServicio.value.find(p => p.id === tipoPlanId)?.nombre ?? '')
+
+  const toggleEstadoTitular = async (
+    t: Titular,
+    fechaIngreso?: string,
+    aplicarAGrupo = true,
+    // Cambio de plan al renovar (solo aplica al activar, no al desactivar).
+    cambiarPlan = false,
+    tipoPlanId: number | null = null,
+  ) => {
     const activando = t.estado !== 'Activo'
     const nuevoEstado = activando ? 'Activo' : 'Inactivo'
     guardandoTitular.value = true
     errorGuardarTitular.value = null
     try {
       if (activando) {
-        await activarTitular(t.id, fechaIngreso!, aplicarAGrupo)
+        await activarTitular(t.id, fechaIngreso!, aplicarAGrupo, cambiarPlan, nombrePlan(tipoPlanId), tipoPlanId)
       } else {
         await desactivarTitular(t.id)
       }
       const idx = titulares.value.findIndex(x => x.id === t.id)
-      if (idx !== -1) titulares.value[idx] = { ...t, estado: nuevoEstado }
+      if (idx !== -1) {
+        titulares.value[idx] = {
+          ...t,
+          estado: nuevoEstado,
+          ...(activando && cambiarPlan ? { tipoPlanId, tipoPlan: nombrePlan(tipoPlanId) } : {}),
+        }
+      }
       cargarResumen()
     } catch (e) {
       errorGuardarTitular.value = e instanceof Error
@@ -341,11 +359,11 @@ export function usePlanLiga() {
   const guardandoBeneficiario = ref(false)
   const errorGuardarBeneficiario = ref<string | null>(null)
 
-  const crearBeneficiario = async (titularId: number, data: BeneficiarioDraft): Promise<boolean> => {
+  const crearBeneficiario = async (titularId: number, data: BeneficiarioDraft, enviarCorreo = false): Promise<boolean> => {
     guardandoBeneficiario.value = true
     errorGuardarBeneficiario.value = null
     try {
-      await createBeneficiario(titularId, data)
+      await createBeneficiario(titularId, data, enviarCorreo)
       await cargarBeneficiariosTitular(titularId)
       if (data.estado === 'Activo') {
         ajustarConteoActivosTitular(titularId, 1)
@@ -433,11 +451,11 @@ export function usePlanLiga() {
   const guardandoEstadoBeneficiario = ref(false)
   const errorEstadoBeneficiario = ref<string | null>(null)
 
-  const activarEstadoBeneficiario = async (titularId: number, b: Beneficiario, fechaIngreso: string) => {
+  const activarEstadoBeneficiario = async (titularId: number, b: Beneficiario, fechaIngreso: string, enviarCorreo = false) => {
     guardandoEstadoBeneficiario.value = true
     errorEstadoBeneficiario.value = null
     try {
-      await activarBeneficiarioApi(titularId, b.id, fechaIngreso)
+      await activarBeneficiarioApi(titularId, b.id, fechaIngreso, enviarCorreo)
       ajustarConteoActivosTitular(titularId, 1)
       if (filtroEstadoBeneficiarios.value === 'I') {
         activosBeneficiariosCount.value += 1

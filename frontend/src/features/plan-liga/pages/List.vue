@@ -23,6 +23,8 @@ const puedeDesactivar = tienePermiso('planliga:desactivar')
 // Permiso propio para "Editar fecha de inscripcion" (separado de "gestionar"):
 // sin el, el boton ni siquiera aparece en la tabla.
 const puedeEditarFecha = tienePermiso('planliga:editar_fecha_ingreso')
+// Mismo permiso que habilita elegir plan al crear un titular (ver TitularForm.vue).
+const puedeElegirPlan = tienePermiso('planliga:elegir_plan')
 
 const modalFechaGrupoVisible = ref(false)
 
@@ -77,9 +79,9 @@ const abrirEditarTitular = async (t: Titular) => {
   draftTitular.value = { ...t, ...detalle }
   modalTitularVisible.value = true
 }
-const guardarTitular = async () => {
+const guardarTitular = async (enviarCorreo = false) => {
   if (modalModo.value === 'nuevo') {
-    const ok = await crearTitular(draftTitular.value)
+    const ok = await crearTitular(draftTitular.value, enviarCorreo)
     if (ok) modalTitularVisible.value = false
   } else if (titularEditando.value) {
     const ok = await actualizarTitular(titularEditando.value.id, draftTitular.value)
@@ -92,19 +94,24 @@ const titularActivando = ref<Titular | null>(null)
 const modalDesactivarTitularVisible = ref(false)
 const titularDesactivando = ref<Titular | null>(null)
 
-const toggleEstadoTitularConFecha = (t: Titular) => {
+const toggleEstadoTitularConFecha = async (t: Titular) => {
   errorGuardarTitular.value = null
   if (t.estado === 'Activo') {
     titularDesactivando.value = t
     modalDesactivarTitularVisible.value = true
     return
   }
-  titularActivando.value = t
+  // La fila de la tabla (/listado) no trae tipoPlanId (siempre null); se pide el
+  // detalle para preseleccionar el plan real del titular si se activa "cambiar plan".
+  const detalle = await obtenerTitular(t.id)
+  titularActivando.value = detalle ?? t
   modalActivarTitularVisible.value = true
 }
-const confirmarActivarTitular = async (fechaIngreso: string, aplicarAGrupo: boolean) => {
+const confirmarActivarTitular = async (
+  fechaIngreso: string, aplicarAGrupo: boolean, cambiarPlan: boolean, tipoPlanId: number | null,
+) => {
   if (!titularActivando.value) return
-  await toggleEstadoTitular(titularActivando.value, fechaIngreso, aplicarAGrupo)
+  await toggleEstadoTitular(titularActivando.value, fechaIngreso, aplicarAGrupo, cambiarPlan, tipoPlanId)
   if (!errorGuardarTitular.value) modalActivarTitularVisible.value = false
 }
 const confirmarDesactivarTitular = async () => {
@@ -200,10 +207,10 @@ const abrirEditarBeneficiario = (b: Beneficiario) => {
   draftBene.value = { ...b }
   modalBeneVisible.value = true
 }
-const guardarBeneficiario = async () => {
+const guardarBeneficiario = async (enviarCorreo = false) => {
   if (!titularSeleccionado.value) return
   if (modalBeneModo.value === 'nuevo') {
-    const ok = await crearBeneficiario(titularSeleccionado.value.id, draftBene.value)
+    const ok = await crearBeneficiario(titularSeleccionado.value.id, draftBene.value, enviarCorreo)
     if (ok) modalBeneVisible.value = false
   } else if (beneficiarioEditando.value) {
     const ok = await actualizarBeneficiario(titularSeleccionado.value.id, beneficiarioEditando.value.id, draftBene.value)
@@ -220,9 +227,11 @@ const activarBeneficiario = (b: Beneficiario) => {
   beneficiarioActivando.value = b
   modalActivarVisible.value = true
 }
-const confirmarActivarBeneficiario = async (fechaIngreso: string) => {
+const confirmarActivarBeneficiario = async (
+  fechaIngreso: string, _aplicarAGrupo: boolean, _cambiarPlan: boolean, _tipoPlanId: number | null, enviarCorreo: boolean,
+) => {
   if (!titularSeleccionado.value || !beneficiarioActivando.value) return
-  await activarEstadoBeneficiario(titularSeleccionado.value.id, beneficiarioActivando.value, fechaIngreso)
+  await activarEstadoBeneficiario(titularSeleccionado.value.id, beneficiarioActivando.value, fechaIngreso, enviarCorreo)
   if (!errorEstadoBeneficiario.value) modalActivarVisible.value = false
 }
 const modalDesactivarBeneVisible = ref(false)
@@ -445,6 +454,7 @@ const modalImportVisible = ref(false)
       :nombre="beneficiarioActivando?.nombre"
       :guardando="guardandoEstadoBeneficiario"
       :error="errorEstadoBeneficiario"
+      permitir-enviar-correo
       @confirmar="confirmarActivarBeneficiario"
       @cancelar="errorEstadoBeneficiario = null"
     />
@@ -466,6 +476,9 @@ const modalImportVisible = ref(false)
       :guardando="guardandoTitular"
       :error="errorGuardarTitular"
       pedir-fecha
+      :permitir-cambiar-plan="puedeElegirPlan"
+      :planes-servicio="planesServicio"
+      :plan-actual-id="titularActivando?.tipoPlanId ?? null"
       @confirmar="confirmarActivarTitular"
       @cancelar="errorGuardarTitular = null"
     />

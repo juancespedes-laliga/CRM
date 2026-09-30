@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Heart, Users, Building2, Truck,
   BookOpen, Target, Filter, Wrench, Upload, Zap, Send,
   ChevronLeft, ChevronRight, LogOut, Settings,
-  RefreshCw, X, Menu, Moon, Sun, CalendarClock
+  RefreshCw, X, Menu, Moon, Sun, CalendarClock, CalendarRange
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -38,7 +38,7 @@ onUnmounted(() => {
 })
 
 type Vista =
-  | 'dashboard' | 'plan-liga' | 'plan-liga-vencimientos' | 'contactos' | 'empresas' | 'proveedores'
+  | 'dashboard' | 'plan-liga' | 'plan-liga-vencimientos' | 'plan-liga-renovaciones' | 'contactos' | 'empresas' | 'proveedores'
   | 'servicios' | 'oportunidades' | 'embudos'
   | 'relacionamiento' | 'campanas' | 'importacion' | 'automatizaciones'
 
@@ -60,6 +60,7 @@ const menuGroups: MenuGroup[] = [
   { label: 'Plan Liga', items: [
     { key: 'plan-liga',              label: 'Titulares y Beneficiarios',   icono: Heart,         modulo: 'planliga' },
     { key: 'plan-liga-vencimientos', label: 'Recordatorios de vencimiento', icono: CalendarClock, modulo: 'recordatorios' },
+    { key: 'plan-liga-renovaciones', label: 'Renovaciones por mes',        icono: CalendarRange, modulo: 'planliga' },
   ]},
   { label: 'Comercial', items: [
     { key: 'contactos',        label: 'Contactos',                 icono: Users,           modulo: 'contactos'       },

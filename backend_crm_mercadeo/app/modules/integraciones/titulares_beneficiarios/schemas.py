@@ -1,7 +1,10 @@
+import re
 from datetime import date
 from typing import Any, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
+
+_PATRON_COLOR_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
 class EntradaMayusculas(BaseModel):
@@ -57,6 +60,7 @@ class TitularDetalle(BaseModel):
     CIUDAD: Optional[str] = None
     DEPARTAMENTO: Optional[str] = None
     TIPO_PLAN: Optional[str] = None
+    TIPO_PLAN_ID: Optional[int] = None
     TIPO_AFILIADO: Optional[str] = None
     EMPRESA: Optional[str] = None
     EPS: Optional[str] = None
@@ -76,6 +80,10 @@ class ListadoTitulares(BaseModel):
     DOCUMENTO: str
     EMPRESA: Optional[str] = None
     PLANES: Optional[str] = None
+    # Tipo de plan crudo (INTRANET_PLANLIGA.TIPO_PLAN), distinto de PLANES (el
+    # nombre del catalogo PlanLigaTipoPlan): se muestra en su propia columna
+    # "Tipo de Plan" en la tabla, separada de "Plan Contratado".
+    TIPO_PLAN: Optional[str] = None
     BENEFICIARIOS: Optional[str] = None
     INSCRIPCION: Optional[str] = None
     ESTADO: str
@@ -105,16 +113,47 @@ class TitularActivar(BaseModel):
     # aplica a los beneficiarios activos de este titular. En False, solo
     # cambia la fecha del titular.
     APLICAR_A_GRUPO: bool = True
+    # Permite cambiar el plan del titular al renovar (ej. de Estandar a uno
+    # superior). CAMBIAR_PLAN es un toggle explicito -no basta con mandar
+    # TIPO_PLAN_ID- porque None es una eleccion valida en si misma (Plan
+    # Estandar): sin el toggle no habria forma de distinguir "no toques el
+    # plan" de "cambialo a Estandar". El backend igual revalida el permiso
+    # planliga:elegir_plan (ver PERMISO_ELEGIR_PLAN en service.py); si el
+    # usuario no lo tiene, CAMBIAR_PLAN se ignora aunque venga en True.
+    CAMBIAR_PLAN: bool = False
+    TIPO_PLAN: Optional[str] = None
+    TIPO_PLAN_ID: Optional[int] = None
 
 
 class CambioFechaIngresoGrupo(BaseModel):
-    EMPRESA: str
+    """El grupo se define por EMPRESA o por TIPO_PLAN (uno de los dos, no
+    ambos): ver PlanLiga.empresa / PlanLiga.tipo_plan. Coincidencia exacta en
+    los dos casos, no LIKE -- el valor viene de un selector (catalogo de
+    Empresas o de GET /grupo/tipos-plan), no de texto libre."""
+
+    EMPRESA: Optional[str] = None
+    TIPO_PLAN: Optional[str] = None
     FECHA_INGRESO: date
+
+    @model_validator(mode="after")
+    def _validar_un_solo_criterio(self) -> "CambioFechaIngresoGrupo":
+        if bool(self.EMPRESA) == bool(self.TIPO_PLAN):
+            raise ValueError(
+                "Indique EMPRESA o TIPO_PLAN (exactamente uno de los dos)"
+            )
+        return self
 
 
 class CambioFechaIngresoGrupoResultado(BaseModel):
     titulares_actualizados: int
     beneficiarios_actualizados: int
+
+
+class TipoPlanValores(BaseModel):
+    """GET /grupo/tipos-plan: valores distintos de INTRANET_PLANLIGA.TIPO_PLAN,
+    para el selector de 'Cambiar fecha de ingreso por grupo'."""
+
+    valores: list[str]
 
 
 class ReemplazoPersona(EntradaMayusculas):
@@ -201,6 +240,59 @@ class ListadoTitularesPaginado(BaseModel):
     offset: int
 
 
+class RenovacionMesItem(BaseModel):
+    """Una fila de GET /titulares-beneficiarios/renovaciones: un titular cuyo
+    FECHA_INGRESO cae en el mes consultado (se activo o reactivo ese mes)."""
+
+    ID: int
+    TIPO_DOCUMENTO: Optional[str] = None
+    DOCUMENTO: str
+    NOMBRE: str
+    CORREO: Optional[str] = None
+    TELEFONO: Optional[str] = None
+    EMPRESA: Optional[str] = None
+    TIPO_PLAN: Optional[str] = None
+    ESTADO: str
+    # 'S' = fue una renovacion (ya existia antes); 'N' = alta nueva ese mes.
+    RENOVADO: Optional[str] = None
+    FECHA_INGRESO: str
+    FECHA_FIN: str
+    ULTIMO_CONTACTO_FECHA: Optional[str] = None
+    ULTIMO_CONTACTO_DESC: Optional[str] = None
+    # Color que el equipo le asigna a mano a la fila (ver TitularColor);
+    # None = sin colorear.
+    COLOR: Optional[str] = None
+
+
+class ResumenRenovacionesMes(BaseModel):
+    anio: int
+    mes: int
+    total: int
+    renovados: int
+    altas_nuevas: int
+    activos: int
+    inactivos: int
+
+
+class ListadoRenovacionesMes(BaseModel):
+    resumen: ResumenRenovacionesMes
+    items: list[RenovacionMesItem]
+
+
+class TitularColorActualizar(BaseModel):
+    """PUT .../titulares-beneficiarios/{id}/color. COLOR=None quita el color
+    (la fila vuelve a mostrarse sin colorear)."""
+
+    COLOR: Optional[str] = None
+
+    @field_validator("COLOR")
+    @classmethod
+    def _validar_color(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is not None and not _PATRON_COLOR_HEX.match(valor):
+            raise ValueError("COLOR debe ser un hex de 6 digitos, ej. '#FCA5A5'")
+        return valor
+
+
 class BeneficiarioDetalle(BaseModel):
     ID: int
     TIPO_DOCUMENTO: Optional[str] = None
@@ -256,6 +348,15 @@ class CreacionBeneficiarioResultado(BaseModel):
 
 class BeneficiarioActivar(BaseModel):
     FECHA_INGRESO: date
+
+
+class BeneficiarioActivarOpciones(BaseModel):
+    """POST .../{id_titular}/beneficiarios/{id_beneficiario}/activar: a
+    diferencia de BeneficiarioActivar (activacion masiva por documento), aqui
+    FECHA_INGRESO no se pide -- se sigue resolviendo del titular, como
+    siempre. Solo agrega el toggle de correo."""
+
+    ENVIAR_CORREO_BIENVENIDA: bool = True
 
 
 class ActivacionBeneficiarioResultado(BaseModel):
