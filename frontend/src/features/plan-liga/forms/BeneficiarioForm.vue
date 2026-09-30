@@ -184,8 +184,8 @@ watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value
           <select v-model="draft.estado" :disabled="soloLecturaEnEdicion" title="Usa el botón de desactivar en la lista de beneficiarios para cambiar el estado" class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed">
             <option value="Activo">Activo</option>
             <option value="Inactivo">Inactivo</option>
-            <option value="Reemplazado">Reemplazado</option>
-            <option value="Retirado">Retirado</option>
+            <!-- Solo para mostrar registros históricos; no se pueden seleccionar -->
+            <option v-if="draft.estado === 'Reemplazado' || draft.estado === 'Retirado'" :value="draft.estado" disabled>{{ draft.estado }}</option>
           </select>
         </div>
         <div>
