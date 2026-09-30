@@ -18,8 +18,8 @@ const seleccionId = ref<number | null>(null)
 // propio, asi que se les da uno sintetico negativo (-(indice+1)) para poder
 // convivir en el mismo buscador sin chocar con los ids reales de empresa.
 const opcionesEmpresas = computed<OpcionBuscador[]>(() => [
-  ...empresas.value.map(e => ({ id: e.id, label: e.razonSocial, sublabel: e.ciudad })),
   ...tiposPlan.value.map((tp, i) => ({ id: -(i + 1), label: tp, sublabel: 'Tipo de plan' })),
+  ...empresas.value.map(e => ({ id: e.id, label: e.razonSocial, sublabel: e.ciudad })),
 ])
 
 const grupoSeleccionado = computed<GrupoRef | null>(() => {

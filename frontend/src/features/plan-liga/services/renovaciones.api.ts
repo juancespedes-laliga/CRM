@@ -30,11 +30,14 @@ export interface ResumenRenovacionesMes {
   altas_nuevas: number
   activos: number
   inactivos: number
+  vencen: number
 }
 
 export interface ListadoRenovacionesMes {
   resumen: ResumenRenovacionesMes
   items: RenovacionMesItem[]
+  // Titulares activos cuyo plan vence (ingreso + 12 meses) en ese mes.
+  vencen: RenovacionMesItem[]
 }
 
 async function parseError(response: Response, fallback: string): Promise<never> {

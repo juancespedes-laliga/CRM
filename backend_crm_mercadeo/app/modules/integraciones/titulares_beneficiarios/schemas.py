@@ -272,11 +272,14 @@ class ResumenRenovacionesMes(BaseModel):
     altas_nuevas: int
     activos: int
     inactivos: int
+    vencen: int = 0
 
 
 class ListadoRenovacionesMes(BaseModel):
     resumen: ResumenRenovacionesMes
     items: list[RenovacionMesItem]
+    # Titulares activos cuyo plan vence (ingreso + 12 meses) en ese mes.
+    vencen: list[RenovacionMesItem] = []
 
 
 class TitularColorActualizar(BaseModel):

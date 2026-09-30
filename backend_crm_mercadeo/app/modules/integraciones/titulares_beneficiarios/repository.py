@@ -4,6 +4,7 @@ from typing import Iterator
 from sqlalchemy import (
     ColumnElement,
     String,
+    and_,
     case,
     cast,
     func,
@@ -912,6 +913,26 @@ class TitularesBeneficiariosRepository:
             return PlanLiga.tipo_plan == tipo_plan
         return PlanLiga.empresa == empresa
 
+    def _condicion_beneficiarios_grupo(
+        self, empresa: str | None, tipo_plan: str | None
+    ) -> ColumnElement:
+        """Por EMPRESA: beneficiarios de los titulares activos de esa empresa.
+        Por TIPO_PLAN: el TIPO_PLAN propio del beneficiario
+        (INTRANET_PLANLIGA_BENEFICIARIO) o, si lo tiene vacio, el de su titular
+        activo -- mismo criterio con el que se muestra en el detalle."""
+        ids_titulares = select(PlanLiga.id).where(
+            self._condicion_grupo(empresa, tipo_plan), PlanLiga.estado == ESTADO_ACTIVO
+        )
+        if not tipo_plan:
+            return PlanLigaBeneficiario.planliga_id.in_(ids_titulares)
+        return or_(
+            PlanLigaBeneficiario.tipo_plan == tipo_plan,
+            and_(
+                func.trim(PlanLigaBeneficiario.tipo_plan).is_(None),
+                PlanLigaBeneficiario.planliga_id.in_(ids_titulares),
+            ),
+        )
+
     def contar_grupo_activo(
         self, empresa: str | None = None, tipo_plan: str | None = None
     ) -> tuple[int, int]:
@@ -921,12 +942,11 @@ class TitularesBeneficiariosRepository:
             .select_from(PlanLiga)
             .where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         )
-        ids_titulares = select(PlanLiga.id).where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         total_beneficiarios = self.db.scalar(
             select(func.count())
             .select_from(PlanLigaBeneficiario)
             .where(
-                PlanLigaBeneficiario.planliga_id.in_(ids_titulares),
+                self._condicion_beneficiarios_grupo(empresa, tipo_plan),
                 PlanLigaBeneficiario.estado == ESTADO_ACTIVO,
             )
         )
@@ -953,11 +973,10 @@ class TitularesBeneficiariosRepository:
         )
         resultado_titulares = self.db.execute(stmt_titulares)
 
-        ids_titulares = select(PlanLiga.id).where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
         stmt_beneficiarios = (
             update(PlanLigaBeneficiario)
             .where(
-                PlanLigaBeneficiario.planliga_id.in_(ids_titulares),
+                self._condicion_beneficiarios_grupo(empresa, tipo_plan),
                 PlanLigaBeneficiario.estado == ESTADO_ACTIVO,
             )
             .values(fecha_ingreso=fecha_ingreso, renovado="S")
@@ -968,14 +987,16 @@ class TitularesBeneficiariosRepository:
         return resultado_titulares.rowcount, resultado_beneficiarios.rowcount
 
     def listar_tipos_plan(self) -> list[str]:
-        """Valores distintos de TIPO_PLAN (texto libre de INTRANET_PLANLIGA,
-        no el catalogo PlanLigaTipoPlan), para el selector de grupo."""
-        stmt = (
-            select(func.distinct(PlanLiga.tipo_plan))
-            .where(PlanLiga.tipo_plan.isnot(None), func.trim(PlanLiga.tipo_plan) != "")
-            .order_by(PlanLiga.tipo_plan)
-        )
-        return [valor for valor in self.db.scalars(stmt) if valor]
+        """Valores distintos de TIPO_PLAN (texto libre de INTRANET_PLANLIGA e
+        INTRANET_PLANLIGA_BENEFICIARIO, no el catalogo PlanLigaTipoPlan), para
+        el selector de grupo."""
+        # Oracle trata '' como NULL: "trim(x) != ''" nunca es verdadero y
+        # devolvia la lista vacia. TRIM de un texto en blanco ya da NULL.
+        valores: set[str] = set()
+        for columna in (PlanLiga.tipo_plan, PlanLigaBeneficiario.tipo_plan):
+            stmt = select(func.distinct(columna)).where(func.trim(columna).isnot(None))
+            valores.update(valor for valor in self.db.scalars(stmt) if valor and valor.strip())
+        return sorted(valores)
 
     def desactivar_titular(self, id_titular: int) -> bool:
         titular = self.db.get(PlanLiga, id_titular)
@@ -1044,14 +1065,31 @@ class TitularesBeneficiariosRepository:
     FROM INTRANET_PLANLIGA p
     LEFT JOIN MERCADEO_CRM_TITULAR_COLOR tc ON tc.TITULAR_ID = p.ID
     WHERE p.FECHA_INGRESO IS NOT NULL
-      AND EXTRACT(YEAR FROM p.FECHA_INGRESO) = :anio
-      AND EXTRACT(MONTH FROM p.FECHA_INGRESO) = :mes
+      AND {filtro}
     ORDER BY p.FECHA_INGRESO DESC, NOMBRE
     """
 
+    _FILTRO_INGRESO_MES = (
+        "EXTRACT(YEAR FROM p.FECHA_INGRESO) = :anio"
+        " AND EXTRACT(MONTH FROM p.FECHA_INGRESO) = :mes"
+    )
+    # Vencen ese mes: titulares ACTIVOS cuyo FECHA_FIN (ingreso + 12 meses, ver
+    # SELECT) cae en el mes consultado y que todavia no han renovado.
+    _FILTRO_VENCE_MES = (
+        "p.ESTADO = 'A'"
+        " AND EXTRACT(YEAR FROM ADD_MONTHS(p.FECHA_INGRESO, 12)) = :anio"
+        " AND EXTRACT(MONTH FROM ADD_MONTHS(p.FECHA_INGRESO, 12)) = :mes"
+    )
+
     def listar_renovaciones_mes(self, anio: int, mes: int) -> list[dict]:
+        return self._listar_por_mes(self._FILTRO_INGRESO_MES, anio, mes)
+
+    def listar_vencen_mes(self, anio: int, mes: int) -> list[dict]:
+        return self._listar_por_mes(self._FILTRO_VENCE_MES, anio, mes)
+
+    def _listar_por_mes(self, filtro: str, anio: int, mes: int) -> list[dict]:
         filas = self.db.execute(
-            text(self._SQL_RENOVACIONES_MES), {"anio": anio, "mes": mes}
+            text(self._SQL_RENOVACIONES_MES.format(filtro=filtro)), {"anio": anio, "mes": mes}
         ).mappings().all()
         resultado = []
         for fila in filas:

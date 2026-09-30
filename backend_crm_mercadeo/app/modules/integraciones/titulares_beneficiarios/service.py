@@ -596,6 +596,7 @@ class TitularesBeneficiariosService:
     def listar_renovaciones_mes(self, anio: int, mes: int) -> ListadoRenovacionesMes:
         filas = self.repository.listar_renovaciones_mes(anio, mes)
         items = [RenovacionMesItem(**fila) for fila in filas]
+        vencen = [RenovacionMesItem(**fila) for fila in self.repository.listar_vencen_mes(anio, mes)]
         renovados = sum(1 for i in items if i.RENOVADO == "S")
         activos = sum(1 for i in items if i.ESTADO == ESTADO_ACTIVO)
         resumen = ResumenRenovacionesMes(
@@ -606,8 +607,9 @@ class TitularesBeneficiariosService:
             altas_nuevas=len(items) - renovados,
             activos=activos,
             inactivos=len(items) - activos,
+            vencen=len(vencen),
         )
-        return ListadoRenovacionesMes(resumen=resumen, items=items)
+        return ListadoRenovacionesMes(resumen=resumen, items=items, vencen=vencen)
 
     def establecer_color_titular(self, id_titular: int, color: str, username: str | None) -> None:
         usuario_id = self.repository.obtener_usuario_id(username) if username else None

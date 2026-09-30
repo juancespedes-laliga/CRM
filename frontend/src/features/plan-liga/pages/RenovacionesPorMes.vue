@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import {
-  ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CalendarRange,
+  ChevronLeft, ChevronRight, AlertTriangle, CalendarRange,
   Mail, Phone, MessageSquare, ClipboardList, Palette, X,
 } from 'lucide-vue-next'
 import { permisosDeModulo } from '@/features/auth/composables/useAuth'
@@ -47,13 +47,19 @@ const mesSiguiente = () => {
 }
 watch([anio, mes], cargar)
 
-// El backend ya trae activos e inactivos juntos (no filtra por ESTADO); este
-// chip es solo para poder acotar la vista sin perder el dato de los que ya
-// se dieron de baja despues de renovar/entrar ese mes.
-const filtroEstado = ref<'todos' | 'A' | 'I'>('todos')
+// Las tarjetas del resumen son el filtro de la tabla. "Vencen" es otra lista
+// (titulares activos cuyo plan vence ese mes), no un subconjunto del total.
+type Vista = 'todos' | 'renovados' | 'altas' | 'vencen'
+const vista = ref<Vista>('todos')
 const items = computed(() => {
-  const todos = datos.value?.items ?? []
-  return filtroEstado.value === 'todos' ? todos : todos.filter(i => i.ESTADO === filtroEstado.value)
+  const d = datos.value
+  if (!d) return []
+  switch (vista.value) {
+    case 'renovados': return d.items.filter(i => i.RENOVADO === 'S')
+    case 'altas': return d.items.filter(i => i.RENOVADO !== 'S')
+    case 'vencen': return d.vencen ?? []
+    default: return d.items
+  }
 })
 const resumen = computed(() => datos.value?.resumen ?? null)
 
@@ -134,6 +140,28 @@ const toggleMenuColor = (item: RenovacionMesItem, ev: MouseEvent) => {
 }
 const itemMenuColor = computed(() => items.value.find(i => i.ID === menuColorAbierto.value) ?? null)
 
+const tarjetas = computed(() => {
+  const r = resumen.value
+  if (!r) return []
+  const nombreMes = MESES[mes.value - 1]
+  return [
+    { vista: 'todos' as const, valor: r.total, titulo: 'Total del mes', texto: `Titulares con fecha de ingreso en ${nombreMes}.`, color: 'text-heading', activo: 'border-slate-400 dark:border-slate-400' },
+    { vista: 'renovados' as const, valor: r.renovados, titulo: 'Renovaciones (RENOVADO = S)', texto: 'Ya eran titulares antes y volvieron a activar el plan.', color: 'text-emerald-600 dark:text-emerald-400', activo: 'border-emerald-500' },
+    { vista: 'altas' as const, valor: r.altas_nuevas, titulo: 'Altas nuevas (RENOVADO = N)', texto: 'Se registraron en Plan Liga por primera vez.', color: 'text-[#2447F9] dark:text-blue-400', activo: 'border-[#2447F9]' },
+    { vista: 'vencen' as const, valor: r.vencen, titulo: `Vencen en ${nombreMes}`, texto: 'Titulares activos cuyo plan cumple un año este mes.', color: 'text-amber-600 dark:text-amber-400', activo: 'border-amber-500' },
+  ]
+})
+
+const mensajeVacio = computed(() => {
+  const periodo = `${MESES[mes.value - 1]} ${anio.value}`
+  switch (vista.value) {
+    case 'renovados': return `Nadie renovó en ${periodo}.`
+    case 'altas': return `No hubo altas nuevas en ${periodo}.`
+    case 'vencen': return `Ningún titular activo vence en ${periodo}.`
+    default: return `Nadie se activó ni renovó en ${periodo}.`
+  }
+})
+
 const elegirColor = async (item: RenovacionMesItem, color: string | null) => {
   menuColorAbierto.value = null
   const anterior = item.COLOR
@@ -170,7 +198,7 @@ onMounted(cargar)
     </div>
 
     <!-- Selector de mes -->
-    <div class="surface-card rounded-2xl shadow-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="surface-card rounded-2xl shadow-sm px-4 py-3 flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
         <button
           @click="mesAnterior"
@@ -182,51 +210,20 @@ onMounted(cargar)
           class="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
         ><ChevronRight :size="16" /></button>
       </div>
-      <div class="flex items-center gap-2">
-        <div class="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
-          <button
-            v-for="o in [['todos', 'Todos'], ['A', 'Activos'], ['I', 'Inactivos']] as const" :key="o[0]"
-            @click="filtroEstado = o[0]"
-            class="h-9 px-3 text-[11px] font-semibold transition-all"
-            :class="filtroEstado === o[0]
-              ? 'bg-[#059669] text-white'
-              : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-          >{{ o[1] }}</button>
-        </div>
-        <button
-          @click="cargar"
-          :disabled="cargando"
-          class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
-        >
-          <RefreshCw :size="13" :class="cargando ? 'animate-spin' : ''" /> Actualizar
-        </button>
-      </div>
     </div>
 
-    <!-- Resumen, con explicación de qué significa cada número -->
+    <!-- Resumen: cada tarjeta filtra la tabla -->
     <div v-if="resumen" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div class="surface-card rounded-2xl shadow-sm p-4">
-        <div class="text-[22px] font-bold text-heading leading-none">{{ resumen.total }}</div>
-        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Total del mes</div>
-        <p class="text-[10px] text-muted mt-1 leading-snug">Titulares con fecha de ingreso en {{ MESES[mes - 1] }}.</p>
-      </div>
-      <div class="surface-card rounded-2xl shadow-sm p-4">
-        <div class="text-[22px] font-bold text-emerald-600 dark:text-emerald-400 leading-none">{{ resumen.renovados }}</div>
-        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Renovaciones (RENOVADO = S)</div>
-        <p class="text-[10px] text-muted mt-1 leading-snug">Ya eran titulares antes y volvieron a activar el plan.</p>
-      </div>
-      <div class="surface-card rounded-2xl shadow-sm p-4">
-        <div class="text-[22px] font-bold text-[#2447F9] dark:text-blue-400 leading-none">{{ resumen.altas_nuevas }}</div>
-        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Altas nuevas (RENOVADO = N)</div>
-        <p class="text-[10px] text-muted mt-1 leading-snug">Se registraron en Plan Liga por primera vez.</p>
-      </div>
-      <div class="surface-card rounded-2xl shadow-sm p-4">
-        <div class="text-[22px] font-bold text-heading leading-none">
-          {{ resumen.activos }}<span class="text-[13px] text-muted"> / {{ resumen.inactivos }}</span>
-        </div>
-        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Activos / Inactivos</div>
-        <p class="text-[10px] text-muted mt-1 leading-snug">De esos mismos, cuántos siguen activos hoy vs. ya se dieron de baja.</p>
-      </div>
+      <button
+        v-for="c in tarjetas" :key="c.vista"
+        @click="vista = c.vista"
+        class="surface-card rounded-2xl shadow-sm p-4 text-left border-2 transition-all hover:shadow-md"
+        :class="vista === c.vista ? c.activo : 'border-transparent'"
+      >
+        <div class="text-[22px] font-bold leading-none" :class="c.color">{{ c.valor }}</div>
+        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">{{ c.titulo }}</div>
+        <p class="text-[10px] text-muted mt-1 leading-snug">{{ c.texto }}</p>
+      </button>
     </div>
 
     <div v-if="error" class="rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-[12px] text-red-600 dark:text-red-400">
@@ -321,7 +318,7 @@ onMounted(cargar)
             </tr>
             <tr v-if="!cargando && items.length === 0">
               <td colspan="9" class="px-4 py-12 text-center text-[12px] text-muted">
-                Nadie se activó ni renovó en {{ MESES[mes - 1] }} {{ anio }}.
+                {{ mensajeVacio }}
               </td>
             </tr>
             <tr v-if="cargando">
