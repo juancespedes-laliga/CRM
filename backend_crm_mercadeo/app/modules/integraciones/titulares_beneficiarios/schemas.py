@@ -105,6 +105,14 @@ class TitularUpdate(EntradaMayusculas):
     DEPARTAMENTO: Optional[str] = None
     EMPRESA: Optional[str] = None
     ESTADO: Optional[str] = None
+    # Cambio del "Plan Contratado" (TIPO_PLAN_ID del catalogo) al editar. Mismo
+    # patron que TitularActivar: CAMBIAR_PLAN es un toggle explicito porque
+    # None (Plan Estandar) es una eleccion valida en si misma, no "no toques el
+    # plan". El backend revalida el permiso planliga:elegir_plan (ver
+    # PERMISO_ELEGIR_PLAN en service.py); si el usuario no lo tiene,
+    # CAMBIAR_PLAN se ignora aunque venga en True.
+    CAMBIAR_PLAN: bool = False
+    TIPO_PLAN_ID: Optional[int] = None
 
 
 class TitularActivar(BaseModel):

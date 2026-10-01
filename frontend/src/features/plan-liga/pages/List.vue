@@ -73,9 +73,17 @@ const abrirEditarTitular = async (t: Titular) => {
   const detalle = await obtenerTitular(t.id)
   cargandoEditarId.value = null
 
+  // La fila del listado no trae tipoPlanId (siempre null); el plan real llega
+  // en el detalle. Como al guardar se manda CAMBIAR_PLAN, abrir sin el detalle
+  // bajaría el plan a Estándar por error: mejor avisar y no abrir.
+  if (!detalle) {
+    errorGuardarTitular.value = 'No se pudo cargar el titular para editar. Intenta de nuevo.'
+    return
+  }
+
   errorGuardarTitular.value = null
   modalModo.value = 'editar'
-  titularEditando.value = detalle ?? t
+  titularEditando.value = detalle
   draftTitular.value = { ...t, ...detalle }
   modalTitularVisible.value = true
 }

@@ -574,7 +574,13 @@ class TitularesBeneficiariosRepository:
 
         return [dict(row) for row in self.db.execute(stmt).mappings().all()]
 
-    def actualizar_titular(self, id_titular: int, datos: dict) -> bool:
+    def actualizar_titular(
+        self,
+        id_titular: int,
+        datos: dict,
+        cambiar_plan: bool = False,
+        tipo_plan_id: int | None = None,
+    ) -> bool:
         titular = self.db.get(PlanLiga, id_titular)
         if titular is None:
             return False
@@ -582,6 +588,13 @@ class TitularesBeneficiariosRepository:
             atributo = CAMPOS_TITULAR_EDITABLES.get(campo)
             if atributo:
                 setattr(titular, atributo, valor)
+        # El "Plan Contratado" (tipo_plan_id) no esta en CAMPOS_TITULAR_EDITABLES
+        # a proposito: solo cambia por este camino explicito (edicion con permiso,
+        # o la renovacion en activar_titular). tipo_plan_id None = Plan Estandar.
+        # La columna "Plan Contratado" del listado se deriva del join por
+        # tipo_plan_id (ver _nombre_plan), asi que basta con actualizar el id.
+        if cambiar_plan:
+            titular.tipo_plan_id = tipo_plan_id
         self.db.commit()
         return True
 

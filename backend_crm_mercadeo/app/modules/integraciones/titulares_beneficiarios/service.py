@@ -233,9 +233,26 @@ class TitularesBeneficiariosService:
             marcado_en_incle=marcado_incle,
         )
 
-    def actualizar_titular(self, id_titular: int, data: TitularUpdate) -> TitularDetalle:
-        cambios = data.model_dump(exclude_unset=True)
-        if not self.repository.actualizar_titular(id_titular, cambios):
+    def actualizar_titular(
+        self, id_titular: int, data: TitularUpdate, username: str | None = None
+    ) -> TitularDetalle:
+        cambios = data.model_dump(
+            exclude_unset=True, exclude={"CAMBIAR_PLAN", "TIPO_PLAN_ID"}
+        )
+        # Cambio del plan contratado: igual que en la renovacion (activar_titular),
+        # requiere el permiso planliga:elegir_plan y no permite bajar a un plan
+        # cuyo cupo sea menor a los beneficiarios activos que ya tiene el titular.
+        cambiar_plan = data.CAMBIAR_PLAN and self._puede_elegir_plan(username)
+        if cambiar_plan:
+            cupo_nuevo_plan = self.repository.cupo_de_plan(data.TIPO_PLAN_ID)
+            beneficiarios_activos = self.repository.contar_beneficiarios(id_titular)
+            if beneficiarios_activos > cupo_nuevo_plan:
+                raise CupoPlanInsuficienteError(
+                    id_titular, beneficiarios_activos, cupo_nuevo_plan
+                )
+        if not self.repository.actualizar_titular(
+            id_titular, cambios, cambiar_plan, data.TIPO_PLAN_ID
+        ):
             raise TitularNotFoundError(id_titular)
         fila = self.repository.obtener_titular(id_titular)
         return TitularDetalle(**fila)

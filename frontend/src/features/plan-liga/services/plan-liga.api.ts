@@ -115,6 +115,11 @@ export async function updateTitular(id: number, data: TitularDraft): Promise<Tit
     DEPARTAMENTO: data.departamento,
     EMPRESA: data.empresa,
     ESTADO: ESTADO_TITULAR_API[data.estado],
+    // Cambio del "Plan Contratado". CAMBIAR_PLAN siempre en true: el backend
+    // revalida el permiso planliga:elegir_plan y lo ignora si el usuario no lo
+    // tiene (ver TitularUpdate en schemas.py). tipoPlanId null = Plan Estándar.
+    CAMBIAR_PLAN: true,
+    TIPO_PLAN_ID: data.tipoPlanId,
   }
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/${id}`, {
     method: 'PATCH',
