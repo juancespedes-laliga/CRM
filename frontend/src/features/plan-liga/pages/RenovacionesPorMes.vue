@@ -253,7 +253,8 @@ onMounted(cargar)
           </thead>
           <tbody>
             <tr v-for="t in itemsPagina" :key="t.ID"
-              class="border-b border-slate-100 dark:border-slate-800 hover:brightness-95 dark:hover:brightness-110 transition-all"
+              class="border-b border-slate-100 dark:border-slate-800 hover:brightness-95 transition-all"
+              :class="t.COLOR ? 'fila-coloreada' : 'dark:hover:brightness-110'"
               :style="t.COLOR ? { backgroundColor: t.COLOR } : {}"
             >
               <!-- Color de la fila: el boton solo abre el menu, el menu en si
@@ -276,18 +277,22 @@ onMounted(cargar)
               </td>
               <td class="px-4 py-2.5">
                 <span
-                  class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                  :class="t.RENOVADO === 'S'
-                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
-                    : 'bg-blue-50 text-[#2447F9] dark:bg-blue-950/50 dark:text-blue-400'"
+                  class="text-[11px] font-semibold"
+                  :class="t.COLOR
+                    ? (t.RENOVADO === 'S' ? 'text-emerald-700' : 'text-[#1d3bd1]')
+                    : t.RENOVADO === 'S'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-[#2447F9] dark:text-blue-400'"
                 >{{ t.RENOVADO === 'S' ? 'Renovación' : 'Alta nueva' }}</span>
               </td>
               <td class="px-4 py-2.5">
                 <span
-                  class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                  :class="t.ESTADO === 'A'
-                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
-                    : 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400'"
+                  class="text-[11px] font-semibold"
+                  :class="t.COLOR
+                    ? (t.ESTADO === 'A' ? 'text-emerald-700' : 'text-red-700')
+                    : t.ESTADO === 'A'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-red-600 dark:text-red-400'"
                 >{{ t.ESTADO === 'A' ? 'Activo' : 'Inactivo' }}</span>
               </td>
               <td class="px-4 py-2.5 text-body font-medium">{{ fmtDia(t.FECHA_INGRESO) }}</td>
@@ -372,3 +377,14 @@ onMounted(cargar)
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* La paleta de colores de fila es toda pastel clara: en modo oscuro el texto
+claro del tema quedaba ilegible sobre ella, asi que las filas pintadas usan
+siempre texto oscuro, sin importar el tema. */
+.fila-coloreada .text-heading { color: #0f172a !important; }
+.fila-coloreada .text-body { color: #1e293b !important; }
+.fila-coloreada .text-muted { color: #475569 !important; }
+.fila-coloreada .text-emerald-600 { color: #047857 !important; }
+.fila-coloreada .text-slate-400 { color: #64748b !important; }
+</style>
