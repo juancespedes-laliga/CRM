@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onActivated, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, ChevronLeft, RefreshCw, SlidersHorizontal, PanelLeftOpen, Send, X, Mail, Phone, Bookmark, Check, Loader2, AlertTriangle } from 'lucide-vue-next'
+import { ChevronRight, ChevronLeft, RefreshCw, SlidersHorizontal, PanelLeftOpen, Send, X, Mail, Phone, Bookmark, Check, Loader2, Info, UsersRound } from 'lucide-vue-next'
 import { clonarFiltro, resumirFiltros } from '../constants/ciclo-afiliado.constants'
 import { getSegmentoPreseleccionado } from '../composables/useSegmentoPreseleccionado'
 import { useSegmentosGuardados } from '../composables/useSegmentosGuardados'
@@ -9,6 +9,9 @@ import { useSegmentador } from '../composables/useSegmentador'
 import FiltrosSegmento from '../components/FiltrosSegmento.vue'
 import EnviarSegmentoDialog from '../components/EnviarSegmentoDialog.vue'
 import UsoPlanPanel from '../components/UsoPlanPanel.vue'
+import AudienciasSubnav from '../components/AudienciasSubnav.vue'
+import AgregarAGrupoDialog from '@/features/grupos-interes/dialogs/AgregarAGrupoDialog.vue'
+import type { PersonaParaGrupo } from '@/features/grupos-interes/types/grupo'
 
 const router = useRouter()
 const nf = new Intl.NumberFormat('es-CO')
@@ -47,7 +50,19 @@ const formatearDocumento = (doc: string) => {
 const ultimoUsoTxt = (d: number | null) => d === null ? 'Nunca' : `hace ${d} d`
 const ultimoUsoCls = (d: number | null) => d === null || d > 90 ? 'text-red-500 dark:text-red-400'
   : d > 45 ? 'text-amber-600 dark:text-amber-400' : 'text-muted'
-const planStyle = (_p: string) => 'text-[#1E3A8A] dark:text-blue-300'
+const sexoTxt = (s: string | null) => (s === 'F' ? 'Mujer' : s === 'M' ? 'Hombre' : '')
+const detallePersona = (a: { sexo: string | null; edad: number | null }) =>
+  [sexoTxt(a.sexo), a.edad !== null ? `${a.edad} años` : ''].filter(Boolean).join(' · ')
+
+// Filtros APLICADOS (no el borrador del panel) como etiquetas legibles en la barra superior.
+const criteriosAplicados = computed(() => resumirFiltros(fApp.value))
+
+// Personas seleccionadas -> grupo de interés (ver features/grupos-interes).
+const agregarGrupoVisible = ref(false)
+const ciudadDe = (direccion: string) => (direccion === '—' ? '' : direccion.split(' · ')[0])
+const personasParaGrupo = computed<PersonaParaGrupo[]>(() => seleccion.value.map(a => ({
+  documento: a.documento, nombre: a.nombre, correo: a.correo, telefono: a.telefono, ciudad: ciudadDe(a.direccion),
+})))
 
 const enviarVisible = ref(false)
 
@@ -85,9 +100,11 @@ const confirmarGuardar = () => {
         <RefreshCw :size="19" class="text-[#EC4899]" /> Audiencias
       </h2>
       <p class="text-[12px] text-body mt-0.5">
-        Arma una audiencia con filtros de Plan Liga (o no Plan Liga) y actúa sobre ella por correo o WhatsApp.
+        Arma una audiencia con filtros de Plan Liga (o no Plan Liga) y actúa sobre ella, o trabaja con grupos de interés: listas fijas con categorías propias.
       </p>
     </div>
+
+    <AudienciasSubnav />
 
     <!-- Solo cuando el filtro APLICADO (fApp, no el borrador f) es "Plan Liga": el
     resumen/buscador es especifico de esa audiencia, no tiene sentido con "No plan
@@ -95,11 +112,11 @@ const confirmarGuardar = () => {
     <UsoPlanPanel v-if="fApp.planLiga === 'Plan Liga'" />
 
     <button
-      class="lg:hidden flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-bold text-body"
+      class="lg:hidden flex items-center gap-1.5 h-9 px-3 rounded-md border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body"
       @click="mostrarFiltros = !mostrarFiltros"
     >
       <SlidersHorizontal :size="13" /> Filtros de segmento
-      <span v-if="nFiltros" class="bg-[#2447F9] text-white text-[9px] font-bold px-1.5 rounded-full">{{ nFiltros }}</span>
+      <span v-if="nFiltros" class="bg-[#2447F9] text-white text-[9px] font-bold px-1.5 rounded-sm">{{ nFiltros }}</span>
     </button>
 
     <div class="flex flex-col lg:flex-row gap-4">
@@ -119,139 +136,147 @@ const confirmarGuardar = () => {
       </aside>
 
       <div class="flex-1 min-w-0 flex flex-col gap-4 lg:h-[calc(100vh-190px)]">
-        <div class="surface-card rounded-xl shadow-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div class="flex items-center gap-3 flex-wrap">
-            <button
-              v-if="filtrosColapsados"
-              type="button"
-              class="hidden lg:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-bold text-body hover:border-[#2447F9] hover:text-[#2447F9] transition-all"
-              title="Mostrar filtros"
-              @click="filtrosColapsados = false"
-            >
-              <PanelLeftOpen :size="13" /> Filtros
-              <span v-if="nFiltros" class="bg-[#2447F9] text-white text-[9px] font-bold px-1.5 rounded-full">{{ nFiltros }}</span>
-            </button>
-            <span class="text-[15px] font-extrabold text-heading flex items-center gap-2">
-              <Loader2 v-if="cargando" :size="16" class="animate-spin text-[#2447F9]" />
-              <template v-if="total">{{ nf.format(rangoDesde) }}–{{ nf.format(rangoHasta) }}</template>
-              <template v-else>0</template>
-              <span class="text-[12px] text-muted font-semibold">/ {{ nf.format(total) }} personas</span>
-            </span>
-            <span v-if="cargandoBloque" class="flex items-center gap-1.5 text-[11px] font-semibold text-[#2447F9]">
-              <Loader2 :size="12" class="animate-spin" /> cargando más…
-            </span>
-            <span class="text-[11px] text-muted"><strong class="text-heading">{{ seleccion.length }}</strong> seleccionados</span>
-            <template v-if="nFiltros">
-              <span class="text-[10px] font-bold text-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 px-2 py-0.5 rounded-full">{{ nFiltros }} filtro(s)</span>
-              <button class="text-[10px] font-bold text-muted hover:text-[#2447F9] flex items-center gap-1" @click="limpiar"><X :size="11" /> quitar</button>
-            </template>
+        <!-- Barra de la audiencia: totales, filtros aplicados y acciones -->
+        <div class="surface-card rounded-xl shadow-sm shrink-0">
+          <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <button
+                v-if="filtrosColapsados"
+                type="button"
+                class="hidden lg:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:border-slate-400 transition-colors"
+                title="Mostrar filtros"
+                @click="filtrosColapsados = false"
+              >
+                <PanelLeftOpen :size="13" /> Filtros
+                <span v-if="nFiltros" class="bg-[#2447F9] text-white text-[9px] font-bold px-1.5 rounded-sm">{{ nFiltros }}</span>
+              </button>
+              <div class="flex items-baseline gap-1.5">
+                <Loader2 v-if="cargando" :size="14" class="animate-spin text-[#2447F9] self-center" />
+                <span class="text-[18px] font-bold text-heading tabular-nums">{{ nf.format(total) }}</span>
+                <span class="text-[12px] text-muted">personas</span>
+              </div>
+              <span class="h-5 w-px bg-slate-200 dark:bg-slate-700" />
+              <span class="text-[12px] text-muted"><strong class="text-heading tabular-nums">{{ nf.format(seleccion.length) }}</strong> seleccionadas</span>
+              <span v-if="cargandoBloque" class="flex items-center gap-1.5 text-[11px] font-semibold text-[#2447F9]">
+                <Loader2 :size="12" class="animate-spin" /> cargando más…
+              </span>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button
+                @click="abrirGuardar"
+                :disabled="!seleccion.length || cargando"
+                class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              ><Bookmark :size="13" /> Guardar segmento</button>
+              <button
+                @click="agregarGrupoVisible = true"
+                :disabled="!seleccion.length || cargando"
+                class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              ><UsersRound :size="13" /> Agregar a grupo de interés</button>
+              <button
+                @click="enviarVisible = true"
+                :disabled="!seleccion.length || cargando"
+                title="Vista previa: el envío real de correos/WhatsApp todavía no está conectado."
+                class="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold shadow-sm hover:bg-[#1D3DD9] transition-colors disabled:opacity-50"
+              ><Send :size="13" /> Enviar</button>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button
-              @click="abrirGuardar"
-              :disabled="!seleccion.length || cargando"
-              class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
-            ><Bookmark :size="13" /> Guardar segmento</button>
-            <button
-              @click="enviarVisible = true"
-              :disabled="!seleccion.length || cargando"
-              title="El envío real de correos/WhatsApp desde este módulo todavía no está conectado."
-              class="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold shadow hover:bg-[#1D3DD9] transition-all disabled:opacity-50"
-            ><Send :size="13" /> Enviar al segmento</button>
+          <div v-if="criteriosAplicados.length" class="px-4 py-2 border-t border-default flex items-center gap-1.5 flex-wrap">
+            <span class="text-[10px] font-bold text-subtle uppercase tracking-wide mr-1">Filtros</span>
+            <span v-for="c in criteriosAplicados" :key="c"
+              class="text-[11px] font-medium text-body bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-md">{{ c }}</span>
+            <button class="ml-1 text-[11px] font-semibold text-muted hover:text-[#2447F9] flex items-center gap-1" @click="limpiar"><X :size="11" /> Quitar todos</button>
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">
-          <AlertTriangle :size="12" /> El envío de correos y WhatsApp desde Audiencias todavía no está conectado a un proveedor real — por ahora es solo una vista previa.
-        </div>
+        <p class="flex items-center gap-1.5 text-[11px] text-muted shrink-0">
+          <Info :size="12" class="shrink-0" /> «Enviar» es una vista previa: el envío real de correos y WhatsApp aún no está conectado a un proveedor.
+        </p>
 
-        <div v-if="error" class="rounded-xl bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[12px] font-semibold px-4 py-3 shrink-0">
+        <div v-if="error" class="rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[12px] font-semibold px-4 py-3 shrink-0">
           {{ error }}
         </div>
 
         <div class="surface-card rounded-xl shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
           <div class="overflow-auto flex-1 min-h-0">
             <table class="w-full text-[12px]">
-              <thead>
+              <thead class="sticky top-0 z-10 bg-white dark:bg-slate-800">
                 <tr class="border-b border-default text-left text-[10px] uppercase tracking-wide text-subtle">
                   <th class="px-3 py-2.5 w-8"><input type="checkbox" class="w-3.5 h-3.5 accent-[#2447F9]" :checked="todoSel" :disabled="cargando" @change="toggleTodo" /></th>
                   <th class="px-3 py-2.5 font-semibold">Persona</th>
-                  <th class="px-3 py-2.5 font-semibold">Sexo</th>
-                  <th class="px-3 py-2.5 font-semibold">Edad</th>
-                  <th class="px-3 py-2.5 font-semibold">Empresa</th>
-                  <th class="px-3 py-2.5 font-semibold">Dirección</th>
+                  <th class="px-3 py-2.5 font-semibold">Ubicación</th>
                   <th class="px-3 py-2.5 font-semibold">Plan</th>
-                  <th class="px-3 py-2.5 font-semibold">Concepto</th>
-                  <th class="px-3 py-2.5 font-semibold">Servicio</th>
-                  <th class="px-3 py-2.5 font-semibold">Especialidad</th>
-                  <th class="px-3 py-2.5 font-semibold">Último uso</th>
-                  <th class="px-3 py-2.5 font-semibold">Serv.</th>
-                  <th class="px-3 py-2.5 font-semibold">Correo</th>
-                  <th class="px-3 py-2.5 font-semibold">Teléfono</th>
+                  <th class="px-3 py-2.5 font-semibold">Último servicio</th>
+                  <th class="px-3 py-2.5 font-semibold">Uso</th>
+                  <th class="px-3 py-2.5 font-semibold">Contacto</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="cargando">
-                  <td colspan="14" class="px-3 py-12 text-center text-[12px] text-muted">
+                  <td colspan="7" class="px-3 py-12 text-center text-[12px] text-muted">
                     <span class="inline-flex items-center gap-2"><Loader2 :size="14" class="animate-spin" /> Consultando audiencia…</span>
                   </td>
                 </tr>
                 <template v-else>
                   <tr v-for="a in filtrados" :key="a.id"
-                    class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
-                    :class="sel.has(a.id) ? '' : 'opacity-55'"
+                    class="border-b border-slate-100 dark:border-slate-800 cursor-pointer align-top transition-colors"
+                    :class="sel.has(a.id) ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'bg-slate-50/60 dark:bg-slate-900/30 opacity-60'"
                     @click="toggleRow(a.id)"
                   >
-                    <td class="px-3 py-2.5" @click.stop>
+                    <td class="px-3 py-3" @click.stop>
                       <input type="checkbox" class="w-3.5 h-3.5 accent-[#2447F9]" :checked="sel.has(a.id)" @change="toggleRow(a.id)" />
                     </td>
-                    <td class="px-3 py-2.5">
-                      <div class="font-bold text-heading">{{ a.nombre }}</div>
-                      <div class="text-[11px] font-semibold text-[#2447F9] dark:text-blue-300 tabular-nums">CC {{ formatearDocumento(a.documento) }}</div>
+                    <td class="px-3 py-3 min-w-[180px]">
+                      <div class="font-semibold text-heading">{{ a.nombre }}</div>
+                      <div class="text-[11px] text-muted tabular-nums mt-0.5">
+                        CC {{ formatearDocumento(a.documento) }}<template v-if="detallePersona(a)"> · {{ detallePersona(a) }}</template>
+                      </div>
                     </td>
-                    <td class="px-3 py-2.5 text-body">{{ a.sexo || '—' }}</td>
-                    <td class="px-3 py-2.5 text-body tabular-nums">{{ a.edad ?? '—' }}</td>
-                    <td class="px-3 py-2.5 text-body">{{ a.empresa || '—' }}</td>
-                    <td class="px-3 py-2.5 text-body">{{ a.direccion }}</td>
-                    <td class="px-3 py-2.5">
-                      <span class="text-[10px] font-bold" :class="planStyle(a.plan)">{{ a.plan }}</span>
-                      <span class="text-[10px] text-muted"> · {{ a.vinculacion }}</span>
+                    <td class="px-3 py-3 min-w-[130px]">
+                      <div class="text-body">{{ a.direccion }}</div>
+                      <div v-if="a.empresa" class="text-[11px] text-muted mt-0.5 truncate max-w-[200px]" :title="a.empresa">{{ a.empresa }}</div>
                     </td>
-                    <td class="px-3 py-2.5 text-body max-w-[180px]">
-                      <span class="block truncate" :title="a.concepto || ''">{{ a.concepto || '—' }}</span>
+                    <td class="px-3 py-3 min-w-[120px]">
+                      <div class="font-semibold text-[#1E3A8A] dark:text-blue-300">{{ a.plan }}</div>
+                      <div class="text-[11px] text-muted mt-0.5">{{ a.vinculacion }}</div>
                     </td>
-                    <td class="px-3 py-2.5 text-body max-w-[180px]">
-                      <span class="block truncate" :title="a.servicio || ''">{{ a.servicio || '—' }}</span>
+                    <td class="px-3 py-3 min-w-[150px] max-w-[220px]">
+                      <div class="text-body truncate" :title="a.servicio || ''">{{ a.servicio || '—' }}</div>
+                      <div v-if="a.concepto || a.especialidad" class="text-[11px] text-muted mt-0.5 truncate" :title="[a.concepto, a.especialidad].filter(Boolean).join(' · ')">
+                        {{ [a.concepto, a.especialidad].filter(Boolean).join(' · ') }}
+                      </div>
                     </td>
-                    <td class="px-3 py-2.5 text-body max-w-[160px]">
-                      <span class="block truncate" :title="a.especialidad || ''">{{ a.especialidad || '—' }}</span>
+                    <td class="px-3 py-3 whitespace-nowrap">
+                      <div class="font-semibold" :class="ultimoUsoCls(a.ultimoUsoDias)">{{ ultimoUsoTxt(a.ultimoUsoDias) }}</div>
+                      <div class="text-[11px] text-muted mt-0.5 tabular-nums">{{ a.nServicios }} servicio(s)</div>
                     </td>
-                    <td class="px-3 py-2.5 font-semibold" :class="ultimoUsoCls(a.ultimoUsoDias)">{{ ultimoUsoTxt(a.ultimoUsoDias) }}</td>
-                    <td class="px-3 py-2.5 text-body tabular-nums">{{ a.nServicios }}</td>
-                    <td class="px-3 py-2.5">
-                      <span class="inline-flex items-center gap-1.5">
-                        <Mail :size="12" :class="a.tieneCorreo ? 'text-[#2447F9]' : 'text-slate-300 dark:text-slate-600'" />
-                        {{ a.correo || '—' }}
-                      </span>
-                    </td>
-                    <td class="px-3 py-2.5">
-                      <span class="inline-flex items-center gap-1.5">
-                        <Phone :size="12" :class="a.tieneCelular ? 'text-[#059669]' : 'text-slate-300 dark:text-slate-600'" />
-                        {{ a.telefono || '—' }}
-                      </span>
+                    <td class="px-3 py-3 min-w-[160px]">
+                      <div class="flex items-center gap-1.5" :class="a.tieneCorreo ? 'text-body' : 'text-slate-400 dark:text-slate-600'">
+                        <Mail :size="12" class="shrink-0" :class="a.tieneCorreo ? 'text-[#2447F9]' : ''" />
+                        <span class="truncate max-w-[170px]" :title="a.correo || ''">{{ a.correo || 'Sin correo' }}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 mt-0.5" :class="a.tieneCelular ? 'text-body' : 'text-slate-400 dark:text-slate-600'">
+                        <Phone :size="12" class="shrink-0" :class="a.tieneCelular ? 'text-[#059669]' : ''" />
+                        <span class="tabular-nums">{{ a.telefono || 'Sin celular' }}</span>
+                      </div>
                     </td>
                   </tr>
                   <tr v-if="!filtrados.length">
-                    <td colspan="14" class="px-3 py-12 text-center text-[12px] text-muted">
-                      {{ nFiltros ? 'Ninguna persona coincide con los filtros.' : 'Aplica filtros para cargar la audiencia.' }}
+                    <td colspan="7" class="px-3 py-12 text-center text-[12px] text-muted">
+                      {{ nFiltros ? 'Ninguna persona coincide con los filtros.' : 'Elija filtros a la izquierda y pulse «Aplicar» para cargar la audiencia.' }}
                     </td>
                   </tr>
                 </template>
               </tbody>
             </table>
           </div>
-          <div class="px-3 py-2 border-t border-default text-[10px] text-muted">
-            {{ seleccion.length }} seleccionados · <span class="text-heading font-semibold">{{ conCorreo }}</span> con correo · <span class="text-heading font-semibold">{{ conCelular }}</span> con celular
+          <div class="px-4 py-2 border-t border-default flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+            <span>
+              Mostrando {{ total ? `${nf.format(rangoDesde)}–${nf.format(rangoHasta)}` : '0' }} de {{ nf.format(total) }}
+            </span>
+            <span>
+              De las seleccionadas: <strong class="text-heading tabular-nums">{{ nf.format(conCorreo) }}</strong> con correo ·
+              <strong class="text-heading tabular-nums">{{ nf.format(conCelular) }}</strong> con celular
+            </span>
           </div>
         </div>
       </div>
@@ -274,6 +299,7 @@ const confirmarGuardar = () => {
     </div>
 
     <EnviarSegmentoDialog v-model:visible="enviarVisible" :total="seleccion.length" />
+    <AgregarAGrupoDialog v-model:visible="agregarGrupoVisible" :personas="personasParaGrupo" />
 
     <div v-if="guardarVisible" class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div class="surface-card rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">

@@ -33,7 +33,7 @@ const datoReal = computed<Record<string, { dato: string; datoLabel: string }>>((
       </nav>
       <h2 class="text-[18px] font-bold text-heading">Embudos y segmentación</h2>
       <p class="text-[12px] text-body mt-0.5">
-        Elige una vista para armar una audiencia y actuar sobre ella, o para trabajar los segmentos guardados.
+        Elige una vista para armar una audiencia y actuar sobre ella, o trabajar los segmentos guardados.
       </p>
     </div>
 

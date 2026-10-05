@@ -9,6 +9,7 @@ import dashboardRoutes from '@/features/dashboard/routes'
 import planLigaRoutes from '@/features/plan-liga/routes'
 import contactosRoutes from '@/features/contactos/routes'
 import empresasRoutes from '@/features/empresas/routes'
+import gruposInteresRoutes from '@/features/grupos-interes/routes'
 import proveedoresRoutes from '@/features/proveedores/routes'
 import oportunidadesRoutes from '@/features/oportunidades/routes'
 import embudosRoutes from '@/features/embudos/routes'
@@ -44,6 +45,7 @@ const routes: RouteRecordRaw[] = [
       ...planLigaRoutes,
       ...contactosRoutes,
       ...empresasRoutes,
+      ...gruposInteresRoutes,
       ...proveedoresRoutes,
       ...oportunidadesRoutes,
       ...embudosRoutes,

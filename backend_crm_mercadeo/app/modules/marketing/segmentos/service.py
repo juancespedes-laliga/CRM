@@ -162,6 +162,31 @@ class SegmentosService:
             )
             return ListadoAudienciaSegmento(total=total, items=items)
 
+        # "Todos" (uso_plan None) en Plan Liga = los que han usado el plan MAS los
+        # que no. Si se filtra por concepto/servicio/ultimo_uso se queda solo con
+        # los que han usado: esos filtros hablan de servicios tomados, y quien no
+        # tiene ninguno no puede cumplirlos.
+        if (
+            filtros_normalizados.plan == "plan_liga"
+            and filtros_normalizados.uso_plan is None
+            and not (
+                filtros_normalizados.concepto
+                or filtros_normalizados.servicio
+                or filtros_normalizados.ultimo_uso
+            )
+        ):
+            items, total = self.repository.listar_audiencia_todos(
+                sexo=filtros_normalizados.sexo,
+                edad_min=filtros_normalizados.edad_min,
+                edad_max=filtros_normalizados.edad_max,
+                ciudad=filtros_normalizados.ciudad,
+                departamento=filtros_normalizados.departamento,
+                tipo_vinculacion=filtros_normalizados.tipo_vinculacion,
+                pagina=filtros_normalizados.pagina,
+                por_pagina=filtros_normalizados.por_pagina,
+            )
+            return ListadoAudienciaSegmento(total=total, items=items)
+
         listar = (
             self.repository.listar_audiencia_no_plan_liga
             if filtros_normalizados.plan == "no_plan_liga"

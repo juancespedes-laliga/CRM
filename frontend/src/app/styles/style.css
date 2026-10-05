@@ -8,6 +8,11 @@
 
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/preflight.css" layer(tailwind-base);
+/* Reset de Ant Design dentro de la capa base (antes se importaba suelto en
+   plugins/antd.ts). Sin capa, su regla "button, input, select, textarea { font-size: inherit }"
+   le ganaba a TODAS las utilidades de Tailwind (los estilos sin capa siempre ganan a los de
+   una capa) y los text-[11px]/text-[12px] de botones, campos y selects se ignoraban. */
+@import "ant-design-vue/dist/reset.css" layer(tailwind-base);
 @import "tailwindcss/utilities.css" layer(tailwind-utilities);
 
 @source "../../**/*.vue";

@@ -132,23 +132,38 @@ watch(() => route.path, (path, pathAnterior) => {
   tabs.value.splice(idxAnterior !== -1 ? idxAnterior : 0, 1, item)
 }, { immediate: true })
 
+// Última ruta visitada dentro de cada pestaña (con su query). Un módulo puede tener
+// sub-vistas (ej. Embudos: /embudos, /embudos/afiliado, /embudos/grupos, /segmentos) y
+// todas comparten una sola pestaña: al volver a ella se retoma la sub-vista donde se
+// estaba (con sus filtros, que siguen vivos por el keep-alive) en vez de caer de nuevo
+// en la pantalla de inicio del módulo.
+const ultimaRutaPorVista = ref<Partial<Record<Vista, string>>>({})
+watch(() => route.fullPath, (fullPath) => {
+  ultimaRutaPorVista.value[rutaAVista(route.path)] = fullPath
+}, { immediate: true })
+const rutaDeVista = (key: Vista) => ultimaRutaPorVista.value[key] ?? '/' + key
+
 const navigateTo = (item: Tab) => {
-  router.push('/' + item.key)
+  // Si el módulo ya tiene pestaña abierta, se retoma donde quedó; si no, entra por su inicio.
+  const abierta = tabs.value.some(t => t.key === item.key)
+  router.push(abierta ? rutaDeVista(item.key) : '/' + item.key)
   sidebarMobileOpen.value = false
 }
 
 const goToTab = (idx: number) => {
-  router.push('/' + tabs.value[idx].key)
+  router.push(rutaDeVista(tabs.value[idx].key))
 }
 
 const closeTab = (idx: number, e: MouseEvent) => {
   e.stopPropagation()
   if (tabs.value.length === 1) return
   const wasActive = idx === activeTabIdx.value
-  tabs.value.splice(idx, 1)
+  const [cerrada] = tabs.value.splice(idx, 1)
+  // Al cerrar la pestaña se olvida su sub-vista: si se vuelve a abrir, entra por el inicio.
+  delete ultimaRutaPorVista.value[cerrada.key]
   if (wasActive) {
     const nextIdx = Math.min(idx, tabs.value.length - 1)
-    router.push('/' + tabs.value[nextIdx].key)
+    router.push(rutaDeVista(tabs.value[nextIdx].key))
   }
 }
 
@@ -231,9 +246,8 @@ const refrescarVistaActual = () => {
          SIDEBAR  —  lighter royal blue
     ═══════════════════════════════════════════════ -->
     <aside
-      class="flex flex-col shrink-0 overflow-hidden transition-all duration-300 z-30 fixed md:relative inset-y-0 left-0 md:translate-x-0"
+      class="sidebar-marca flex flex-col shrink-0 overflow-hidden transition-all duration-300 z-30 fixed md:relative inset-y-0 left-0 md:translate-x-0"
       :class="sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full'"
-      style="background-color: #295FD3"
       :style="{ width: sidebarCollapsed ? '64px' : '224px' }"
     >
       <!-- Logo -->
@@ -241,15 +255,14 @@ const refrescarVistaActual = () => {
         <!-- Expandido -->
         <div v-if="!sidebarCollapsed" class="flex flex-col items-center justify-center py-5 px-4 gap-3">
           <div class="text-center">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-white/50 leading-none">Plataforma</div>
+            <div class="text-[10px] font-bold uppercase tracking-widest text-white/60 leading-none">Plataforma</div>
             <div class="text-[16px] font-black text-white tracking-wide mt-1">CRM Mercadeo</div>
           </div>
-          <img
-            src="/logo-liga-50.png"
-            alt="La Liga"
-            class="w-full object-contain select-none pointer-events-none"
-            style="max-height: 130px"
-          />
+          <div class="placa-logo w-full rounded-xl bg-white px-3 py-2.5">
+            <div class="logo-recorte">
+              <img src="/logo-liga-50.png" alt="La Liga" class="select-none pointer-events-none" />
+            </div>
+          </div>
         </div>
         <!-- Colapsado -->
         <div v-else class="flex items-center justify-center h-16 bg-white/10">
@@ -272,7 +285,7 @@ const refrescarVistaActual = () => {
           <!-- Section label -->
           <div
             v-if="group.label && !sidebarCollapsed"
-            class="px-4 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-white opacity-100 select-none"
+            class="px-4 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/60 select-none"
           >
             {{ group.label }}
           </div>
@@ -284,7 +297,7 @@ const refrescarVistaActual = () => {
             :title="sidebarCollapsed ? item.label : undefined"
             class="flex items-center gap-3 rounded-lg mx-2 px-2 py-2 transition-all text-left w-[calc(100%-16px)] group/item"
             :class="!isConfigRoute && vistaActiva === item.key
-          ? 'bg-white/20 text-white'
+          ? 'item-activo text-white'
           : 'text-white hover:text-white hover:bg-white/10'"
           >
             <component
@@ -332,7 +345,7 @@ const refrescarVistaActual = () => {
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
 
       <!-- ── Top header ────────────────────────────────────────── -->
-      <header class="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2 md:gap-3 z-10">
+      <header class="barra-superior relative h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2 md:gap-3 z-10">
         <div class="flex items-center gap-2 md:gap-3 min-w-0">
           <!-- Hamburguesa: solo móvil, abre el sidebar como drawer -->
           <button
@@ -369,11 +382,12 @@ const refrescarVistaActual = () => {
         <div class="flex items-center gap-2 shrink-0">
           <button
             @click="refrescarVistaActual"
-            class="h-9 px-3.5 rounded-lg bg-[#EC4899] hover:bg-[#D61F69] flex items-center gap-1.5 text-white shadow transition-all"
+            class="boton-brillo relative overflow-hidden h-9 px-3.5 rounded-lg flex items-center gap-1.5 text-white transition-all"
             title="Actualizar"
           >
-            <span class="text-[12px] font-bold hidden sm:inline">Actualizar</span>
-            <RefreshCw :size="14" />
+            <span class="destello" aria-hidden="true"></span>
+            <span class="relative text-[12px] font-bold hidden sm:inline">Actualizar</span>
+            <RefreshCw :size="14" class="relative" />
           </button>
 
           <!-- Toggle de tema: un clic directo -->
@@ -469,7 +483,7 @@ const refrescarVistaActual = () => {
 
       <!-- ── Content ───────────────────────────────────────────── -->
       <main
-        class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6"
+        class="area-trabajo flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6"
       >
         <router-view v-slot="{ Component, route: rutaActiva }">
           <keep-alive :max="8">
@@ -482,6 +496,82 @@ const refrescarVistaActual = () => {
 </template>
 
 <style scoped>
+/* ── Estilo compartido con el login (features/auth/pages/Login.vue) ───────────── */
+/* Menú lateral: degradado azul + luces difusas + textura de puntos. Las capas decorativas
+   van en ::before/::after con z-index -1 dentro de un contexto aislado (isolation), así
+   quedan detrás del contenido sin tener que reordenar el HTML del menú. */
+.sidebar-marca {
+  isolation: isolate;
+  background: linear-gradient(160deg, #1e40af 0%, #1d4ed8 45%, #1e3a8a 100%);
+}
+.sidebar-marca::before {
+  content: '';
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.35), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(167, 139, 250, 0.35), transparent 45%),
+    radial-gradient(circle at 60% 45%, rgba(96, 165, 250, 0.25), transparent 55%);
+}
+.sidebar-marca::after {
+  content: '';
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.12;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+  background-size: 20px 20px;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 70%);
+}
+.placa-logo { box-shadow: 0 10px 26px -12px rgba(15, 23, 42, 0.55), 0 0 22px -6px rgba(244, 114, 182, 0.45); }
+.logo-recorte { aspect-ratio: 1630 / 415; overflow: hidden; }
+.logo-recorte img { display: block; width: 117.8%; max-width: none; margin: -19.94% 0 0 -9.51%; }
+
+/* Opción activa del menú: vidrio con resplandor y una franja de luz a la izquierda */
+.item-activo {
+  position: relative;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 22px -10px rgba(147, 197, 253, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.item-activo::before {
+  content: '';
+  position: absolute; left: -8px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #f9a8d4, #fde68a);
+  box-shadow: 0 0 10px rgba(249, 168, 212, 0.9);
+}
+
+/* Barra superior: línea de acento rosa → azul en el borde inferior */
+.barra-superior::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0.55), rgba(37, 99, 235, 0.55), rgba(167, 139, 250, 0.45));
+}
+
+/* Botón Actualizar: degradado rosa con resplandor y destello al pasar el mouse */
+.boton-brillo {
+  background: linear-gradient(90deg, #ec4899, #db2777);
+  box-shadow: 0 8px 20px -8px rgba(236, 72, 153, 0.8);
+}
+.boton-brillo:hover {
+  box-shadow: 0 10px 24px -8px rgba(236, 72, 153, 0.95);
+  transform: translateY(-1px);
+}
+.destello {
+  position: absolute; top: 0; bottom: 0; left: -45%; width: 35%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: skewX(-20deg);
+  transition: left .7s ease;
+  pointer-events: none;
+}
+.boton-brillo:hover .destello { left: 115%; }
+
+/* Área de trabajo: tinte muy suave (rosa arriba a la derecha, azul abajo a la izquierda) */
+.area-trabajo {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(236, 72, 153, 0.05), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(37, 99, 235, 0.05), transparent 40%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .destello { display: none; }
+}
+
 /* Antes el menú usaba scrollbar-none (invisible): cuando había más módulos de los que caben
    en pantalla, no había ninguna señal de que se podía hacer scroll. Esta barra delgada, clara
    sobre el fondo azul del menú, queda siempre visible como indicación (no solo al pasar el mouse). */

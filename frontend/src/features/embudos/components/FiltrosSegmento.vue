@@ -124,10 +124,11 @@ const serviciosFiltrados = computed(() => {
 })
 const serviciosRestantes = computed(() => serviciosDelConcepto.value.length - serviciosFiltrados.value.length)
 
-const CHIP = 'text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all'
+// Botones de opción con esquinas suaves (mismo estilo que los botones de Grupos de interés).
+const CHIP = 'h-7 px-2.5 text-[11px] font-semibold rounded-md border transition-colors'
 const chipCls = (on: boolean) => on
   ? 'bg-[#2447F9] border-[#2447F9] text-white'
-  : 'border-slate-300 dark:border-slate-600 text-body hover:border-[#2447F9]'
+  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-body hover:border-slate-400 dark:hover:border-slate-500'
 </script>
 
 <template>
@@ -164,7 +165,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Plan Plan Liga')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('plan')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Plan
-            <span v-if="f.planLiga" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.planLiga" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('plan') }" />
         </button>
@@ -184,7 +185,7 @@ const chipCls = (on: boolean) => on
       <section v-show="f.planLiga === 'Plan Liga' && visible('Uso del plan Con uso Sin uso')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('usoPlan')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Uso del plan
-            <span v-if="f.usoPlan" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.usoPlan" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('usoPlan') }" />
         </button>
@@ -194,6 +195,9 @@ const chipCls = (on: boolean) => on
             <button @click="f.usoPlan = f.usoPlan === 'con_uso' ? '' : 'con_uso'" :class="[CHIP, chipCls(f.usoPlan === 'con_uso')]">Con uso</button>
             <button @click="f.usoPlan = f.usoPlan === 'sin_uso' ? '' : 'sin_uso'" :class="[CHIP, chipCls(f.usoPlan === 'sin_uso')]">Sin uso</button>
           </div>
+          <p v-if="f.usoPlan === ''" class="text-[10px] text-muted mt-2">
+            Incluye a quienes han usado el plan y a quienes no. Si además filtra por concepto, servicio o último uso, solo salen quienes lo han usado.
+          </p>
           <p v-if="f.usoPlan === 'sin_uso'" class="text-[10px] text-muted mt-2">
             Activos de Plan Liga sin ningún servicio registrado. Los filtros de concepto, servicio y último uso no aplican aquí.
           </p>
@@ -204,7 +208,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Sexo')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('sexo')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Sexo
-            <span v-if="f.sexo" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.sexo" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('sexo') }" />
         </button>
@@ -220,7 +224,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Rango de edad')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('edad')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Rango de edad
-            <span v-if="f.edadMin || f.edadMax" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.edadMin || f.edadMax" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('edad') }" />
         </button>
@@ -237,7 +241,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Departamento')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('departamento')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Departamento
-            <span v-if="f.departamento" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.departamento" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('departamento') }" />
         </button>
@@ -262,7 +266,7 @@ const chipCls = (on: boolean) => on
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('ciudad')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">
             Ciudad / municipio
-            <span v-if="f.ciudades.length" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.ciudades.length" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('ciudad') }" />
         </button>
@@ -287,7 +291,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Concepto')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('concepto')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Concepto
-            <span v-if="f.conceptos.length" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.conceptos.length" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('concepto') }" />
         </button>
@@ -310,7 +314,7 @@ const chipCls = (on: boolean) => on
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('servicio')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">
             Servicio
-            <span v-if="f.servicios.length" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.servicios.length" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('servicio') }" />
         </button>
@@ -334,7 +338,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Último uso de servicios')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('ultimoUso')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Último uso
-            <span v-if="f.ultimoUso" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.ultimoUso" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('ultimoUso') }" />
         </button>
@@ -349,7 +353,7 @@ const chipCls = (on: boolean) => on
       <section v-show="visible('Tipo de vinculación')">
         <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="toggleSeccion('vinculacion')">
           <span class="text-[10px] font-bold text-subtle uppercase tracking-wide flex items-center gap-1.5">Tipo de vinculación
-            <span v-if="f.vinculacion" class="w-1.5 h-1.5 rounded-full bg-[#2447F9]"></span>
+            <span v-if="f.vinculacion" class="w-1.5 h-1.5 rounded-sm bg-[#2447F9]"></span>
           </span>
           <ChevronDown :size="14" class="text-slate-400 transition-transform shrink-0" :class="{ 'rotate-180': abierta('vinculacion') }" />
         </button>

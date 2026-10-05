@@ -111,7 +111,7 @@ const abrirEnSegmentador = (s: Segmento) => {
         <SlidersHorizontal :size="12" /> Alcanzables:
         <button v-for="[v, l] in [['', 'Todos'], ['correo', 'Por correo'], ['celular', 'Por celular']]" :key="v"
           @click="soloAlcanzables = v as any"
-          class="px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all"
+          class="h-6 px-2 rounded-md border text-[10px] font-semibold transition-all"
           :class="soloAlcanzables === v ? 'bg-[#2447F9] border-[#2447F9] text-white' : 'border-default text-body hover:border-[#2447F9]'"
         >{{ l }}</button>
       </div>
@@ -146,7 +146,7 @@ const abrirEnSegmentador = (s: Segmento) => {
         </div>
 
         <div class="flex flex-wrap gap-1.5 mt-3">
-          <span v-for="c in s.criterios" :key="c" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{{ c }}</span>
+          <span v-for="c in s.criterios" :key="c" class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{{ c }}</span>
         </div>
 
         <div class="flex items-center gap-4 mt-3 text-[11px] text-muted">

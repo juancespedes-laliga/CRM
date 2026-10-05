@@ -140,7 +140,7 @@ const buscar = async () => {
           </div>
         </div>
         <span
-          class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full"
+          class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-md"
           :class="resultado.haUsado
             ? 'bg-[#D1FAE5] text-[#059669] dark:bg-emerald-950/50 dark:text-emerald-400'
             : 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400'"
