@@ -257,6 +257,7 @@ export async function reemplazarTitular(idTitular: number, data: ReemplazoPerson
     usuarioServinteCreado: r.usuario_servinte_creado,
     marcadoEnIncle: r.marcado_en_incle,
     registrosIncleMarcadosAnterior: r.registros_incle_marcados_anterior,
+    beneficiarioPromovido: r.beneficiario_promovido ?? false,
   }
 }
 

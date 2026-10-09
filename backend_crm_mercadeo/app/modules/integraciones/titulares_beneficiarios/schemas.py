@@ -184,6 +184,8 @@ class ReemplazoTitularResultado(BaseModel):
     usuario_servinte_creado: bool
     marcado_en_incle: bool
     registros_incle_marcados_anterior: int
+    # True si el titular nuevo era beneficiario del mismo grupo (su fila quedo inactiva).
+    beneficiario_promovido: bool = False
 
 
 class TitularCrear(EntradaMayusculas):

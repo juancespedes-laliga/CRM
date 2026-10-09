@@ -300,6 +300,19 @@ class TitularesBeneficiariosRepository:
         fila = self.db.execute(stmt).mappings().first()
         return dict(fila) if fila is not None else None
 
+    def buscar_beneficiario_del_grupo(
+        self, id_titular: int, tipo: str, documento: str
+    ) -> int | None:
+        """ID del beneficiario (activo o inactivo) con ese documento dentro del
+        grupo del titular, o None si no pertenece a ese grupo."""
+        return self.db.scalar(
+            select(PlanLigaBeneficiario.id).where(
+                PlanLigaBeneficiario.planliga_id == id_titular,
+                PlanLigaBeneficiario.tipo == tipo,
+                PlanLigaBeneficiario.documento == documento,
+            )
+        )
+
     def buscar_titulares_por_documento(self, documento: str) -> list[dict]:
         stmt = select(
             PlanLiga.id.label("ID_TITULAR"),
@@ -623,15 +636,30 @@ class TitularesBeneficiariosRepository:
         return True
 
     def reemplazar_titular(
-        self, id_titular_anterior: int, datos: dict
+        self,
+        id_titular_anterior: int,
+        datos: dict,
+        id_beneficiario_promovido: int | None = None,
     ) -> tuple[int, int] | None:
         """Da de alta un titular nuevo (nueva persona) heredando plan y cupo
         del anterior, reasigna los beneficiarios del anterior al nuevo y
-        desactiva el anterior. Retorna (id_nuevo, beneficiarios_reasignados)
-        o None si el anterior no existe o ya esta inactivo."""
+        desactiva el anterior. Si el nuevo titular era beneficiario del mismo
+        grupo (id_beneficiario_promovido), su fila de beneficiario se inactiva
+        y se deja asociada al titular anterior como historial: no se reasigna
+        (solo se mueven los activos) y no se puede reactivar porque su titular
+        queda inactivo. Retorna (id_nuevo, beneficiarios_reasignados) o None si
+        el anterior no existe o ya esta inactivo."""
         anterior = self.db.get(PlanLiga, id_titular_anterior)
         if anterior is None or anterior.estado != ESTADO_ACTIVO:
             return None
+
+        if id_beneficiario_promovido is not None:
+            beneficiario = self.db.get(PlanLigaBeneficiario, id_beneficiario_promovido)
+            if beneficiario is None or beneficiario.planliga_id != id_titular_anterior:
+                return None
+            beneficiario.estado = ESTADO_INACTIVO
+            beneficiario.actualizado = datetime.now()
+            self.db.flush()
 
         campos_nuevos = {
             atributo: datos.get(campo)

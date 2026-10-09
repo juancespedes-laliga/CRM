@@ -288,6 +288,23 @@ export function usePlanLiga() {
   // su lugar (más Servinte). Por eso, a diferencia de actualizarTitular, se refresca el
   // listado completo en vez de parchar en memoria: cambian estado del anterior, aparece
   // un titular nuevo con otro id, y puede no seguir cayendo en la página actual.
+  // Beneficiarios del grupo (activos e inactivos) para el modal de reemplazo de titular:
+  // si el documento escrito es de uno de ellos, el modal llena sus datos. Best-effort: si
+  // falla, el reemplazo sigue funcionando escribiendo los datos a mano.
+  const beneficiariosGrupoReemplazo = ref<Beneficiario[]>([])
+  const cargarBeneficiariosGrupoReemplazo = async (titularId: number) => {
+    beneficiariosGrupoReemplazo.value = []
+    try {
+      const [activos, inactivos] = await Promise.all([
+        getBeneficiariosTitular(titularId, 'A'),
+        getBeneficiariosTitular(titularId, 'I'),
+      ])
+      beneficiariosGrupoReemplazo.value = [...activos, ...inactivos]
+    } catch {
+      beneficiariosGrupoReemplazo.value = []
+    }
+  }
+
   const reemplazarTitularAccion = async (t: Titular, data: ReemplazoPersonaDraft): Promise<boolean> => {
     reemplazandoTitular.value = true
     errorReemplazarTitular.value = null
@@ -500,6 +517,7 @@ export function usePlanLiga() {
     crearTitular, actualizarTitular, toggleEstadoTitular, editarFechaIngresoTitular,
     guardandoTitular, errorGuardarTitular,
     reemplazarTitularAccion, reemplazandoTitular, errorReemplazarTitular, resultadoReemplazoTitular,
+    beneficiariosGrupoReemplazo, cargarBeneficiariosGrupoReemplazo,
     beneficiariosDeTitular, crearBeneficiario, actualizarBeneficiario,
     guardandoBeneficiario, errorGuardarBeneficiario,
     activarEstadoBeneficiario, desactivarEstadoBeneficiario,

@@ -40,6 +40,7 @@ const {
   crearTitular, actualizarTitular, toggleEstadoTitular, editarFechaIngresoTitular,
   guardandoTitular, errorGuardarTitular,
   reemplazarTitularAccion, reemplazandoTitular, errorReemplazarTitular, resultadoReemplazoTitular,
+  beneficiariosGrupoReemplazo, cargarBeneficiariosGrupoReemplazo,
   crearBeneficiario, actualizarBeneficiario,
   guardandoBeneficiario, errorGuardarBeneficiario,
   activarEstadoBeneficiario, desactivarEstadoBeneficiario, errorEstadoBeneficiario, guardandoEstadoBeneficiario,
@@ -145,6 +146,7 @@ const abrirReemplazarTitular = (t: Titular) => {
   titularReemplazando.value = t
   draftReemplazoTitular.value = { ...REEMPLAZO_PERSONA_DRAFT_VACIO }
   modalReemplazarTitularVisible.value = true
+  cargarBeneficiariosGrupoReemplazo(t.id)
 }
 const confirmarReemplazarTitular = async () => {
   if (!titularReemplazando.value) return
@@ -152,7 +154,10 @@ const confirmarReemplazarTitular = async () => {
   const r = resultadoReemplazoTitular.value
   if (ok && r) {
     modalReemplazarTitularVisible.value = false
-    avisoReemplazo.value = `Titular reemplazado correctamente. Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
+    avisoReemplazo.value = (r.beneficiarioPromovido
+      ? `Titular reemplazado. ${r.titularNuevo.nombre} pasó de beneficiario a titular. `
+      : 'Titular reemplazado correctamente. ')
+      + `Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
       + mensajeServinteIncle(r.usuarioServinteCreado, r.marcadoEnIncle, r.registrosIncleMarcadosAnterior)
   }
 }
@@ -512,6 +517,7 @@ const modalImportVisible = ref(false)
       v-model:visible="modalReemplazarTitularVisible"
       v-model:draft="draftReemplazoTitular"
       tipo="titular"
+      :beneficiarios-grupo="beneficiariosGrupoReemplazo"
       :nombre-actual="titularReemplazando?.nombre"
       :documento-actual="titularReemplazando?.documento"
       :guardando="reemplazandoTitular"

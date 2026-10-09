@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { X, AlertTriangle, AlertCircle, RefreshCw } from 'lucide-vue-next'
-import type { ReemplazoPersonaDraft } from '../types/plan-liga'
+import { X, AlertTriangle, AlertCircle, RefreshCw, UserCheck } from 'lucide-vue-next'
+import type { Beneficiario, ReemplazoPersonaDraft } from '../types/plan-liga'
 import ReemplazoPersonaForm from '../forms/ReemplazoPersonaForm.vue'
 
 const props = defineProps<{
@@ -10,6 +10,9 @@ const props = defineProps<{
   documentoActual?: string
   /** Solo aplica a beneficiario: para dar contexto de a qué titular pertenece. */
   titularNombre?: string
+  /** Solo aplica a titular: beneficiarios del grupo (activos e inactivos). Si el documento
+   *  escrito coincide con uno, se llenan sus datos y el backend lo promueve a titular. */
+  beneficiariosGrupo?: Beneficiario[]
   guardando?: boolean
   error?: string | null
 }>()
@@ -21,7 +24,29 @@ const draft = defineModel<ReemplazoPersonaDraft>('draft', { required: true })
 const confirmado = ref(false)
 // Cada vez que se abre el diálogo para un caso nuevo, exige reconfirmar: no se hereda
 // el "entiendo las consecuencias" de un reemplazo anterior.
-watch(visible, (v) => { if (v) confirmado.value = false })
+watch(visible, (v) => { if (v) { confirmado.value = false; beneficiarioEncontrado.value = null } })
+
+const beneficiarioEncontrado = ref<Beneficiario | null>(null)
+const alSalirDocumento = (documento: string) => {
+  if (props.tipo !== 'titular' || !props.beneficiariosGrupo) return
+  const doc = documento.trim()
+  const b = doc ? props.beneficiariosGrupo.find(x => x.documento.trim() === doc) : undefined
+  beneficiarioEncontrado.value = b ?? null
+  if (!b) return
+  draft.value = {
+    tipoDocumento: b.tipoDocumento || draft.value.tipoDocumento,
+    documento: b.documento,
+    nombre: b.nombre,
+    fechaNacimiento: b.fechaNacimiento,
+    sexo: b.sexo,
+    correo: b.correo,
+    telefono: b.telefono,
+    direccion: b.direccion,
+    ciudad: b.ciudad,
+    departamento: b.departamento,
+    empresa: b.empresa,
+  }
+}
 
 const formRef = ref<InstanceType<typeof ReemplazoPersonaForm>>()
 
@@ -60,7 +85,19 @@ const cerrar = () => { visible.value = false }
           <p class="text-[11px] text-red-600 dark:text-red-400 font-medium">{{ props.error }}</p>
         </div>
 
-        <ReemplazoPersonaForm ref="formRef" v-model="draft" @valid-submit="emit('submit')" />
+        <p v-if="props.tipo === 'titular' && props.beneficiariosGrupo?.length && !beneficiarioEncontrado" class="mb-4 text-[11px] text-slate-500 dark:text-slate-400">
+          Si el nuevo titular es un beneficiario de este grupo, escribe solo su <strong>documento</strong> y sus datos se llenan solos.
+        </p>
+
+        <div v-if="beneficiarioEncontrado" class="mb-4 flex items-start gap-2.5 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-xl px-3.5 py-3">
+          <UserCheck :size="15" class="text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+          <p class="text-[11px] text-sky-800 dark:text-sky-300 leading-relaxed">
+            <strong>{{ beneficiarioEncontrado.nombre }}</strong> es beneficiario(a) de este grupo. Al confirmar, quedará como
+            titular y su registro de beneficiario se inactivará (queda como historial en el grupo anterior).
+          </p>
+        </div>
+
+        <ReemplazoPersonaForm ref="formRef" v-model="draft" @valid-submit="emit('submit')" @documento-blur="alSalirDocumento" />
 
         <label class="mt-6 flex items-start gap-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 cursor-pointer">
           <input v-model="confirmado" type="checkbox" class="mt-0.5 w-4 h-4 accent-amber-600 cursor-pointer" />

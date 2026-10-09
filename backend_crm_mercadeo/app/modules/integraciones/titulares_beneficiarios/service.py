@@ -300,11 +300,22 @@ class TitularesBeneficiariosService:
         if anterior["ESTADO"] != ESTADO_ACTIVO:
             raise TitularInactivoError(id_titular, accion="reemplazar el titular")
 
+        # Si el nuevo titular es un beneficiario de este mismo grupo (ej. el titular
+        # fallecio y un beneficiario toma su lugar) se permite: su fila de
+        # beneficiario queda inactiva en el grupo anterior como historial. Cualquier
+        # otro duplicado se rechaza.
+        id_beneficiario_promovido = None
         duplicado = self.repository.existe_documento(data.TIPO_DOCUMENTO, data.DOCUMENTO)
-        if duplicado is not None:
+        if duplicado == "BENEFICIARIO":
+            id_beneficiario_promovido = self.repository.buscar_beneficiario_del_grupo(
+                id_titular, data.TIPO_DOCUMENTO, data.DOCUMENTO
+            )
+        if duplicado is not None and id_beneficiario_promovido is None:
             raise DocumentoDuplicadoError(data.DOCUMENTO, duplicado)
 
-        resultado = self.repository.reemplazar_titular(id_titular, data.model_dump())
+        resultado = self.repository.reemplazar_titular(
+            id_titular, data.model_dump(), id_beneficiario_promovido
+        )
         if resultado is None:
             raise TitularInactivoError(id_titular, accion="reemplazar el titular")
         id_nuevo, num_beneficiarios = resultado
@@ -329,6 +340,12 @@ class TitularesBeneficiariosService:
         marcado_incle = self.legacy_repository.marcar_nuevo_titular_incle(
             data.TIPO_DOCUMENTO, data.DOCUMENTO, nombre_completo
         )
+        # Un beneficiario promovido ya estaba en INCLE (marcar_nuevo_titular_incle no
+        # hace nada); si estaba inactivo quedo con CLEEST = 1, asi que se reactiva.
+        if id_beneficiario_promovido is not None:
+            self.legacy_repository.desmarcar_registros_incle(
+                data.TIPO_DOCUMENTO, data.DOCUMENTO
+            )
 
         fila = self.repository.obtener_titular(id_nuevo)
         return ReemplazoTitularResultado(
@@ -338,6 +355,7 @@ class TitularesBeneficiariosService:
             usuario_servinte_creado=usuario_creado,
             marcado_en_incle=marcado_incle,
             registros_incle_marcados_anterior=num_incle_marcados,
+            beneficiario_promovido=id_beneficiario_promovido is not None,
         )
 
     def reemplazar_beneficiario(
