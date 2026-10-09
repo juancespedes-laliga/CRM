@@ -77,7 +77,7 @@ const cuposTitular = (t: Titular, activosLocal: number) => ({
                    columna de Inscripción, aunque los puntos por sí solos ya envolvieran. -->
               <span class="text-[11px] font-bold block" :class="cuposTitular(t, activosPorTitular(t.id)).activos >= cuposTitular(t, activosPorTitular(t.id)).cupo ? 'text-[#EC4899]' : 'text-slate-600 dark:text-slate-300'">{{ cuposTitular(t, activosPorTitular(t.id)).activos }}/{{ cuposTitular(t, activosPorTitular(t.id)).cupo }}</span>
               <CuposIndicador :activos="cuposTitular(t, activosPorTitular(t.id)).activos" :max="cuposTitular(t, activosPorTitular(t.id)).cupo" variant="dots" class="mt-1" />
-              <button @click="emit('beneficiarios', t)" class="text-[10px] text-[#2447F9] dark:text-blue-400 hover:underline mt-1 block cursor-pointer">Ver beneficiarios</button>
+              <button @click="emit('beneficiarios', t)" class="text-[13px] leading-tight text-slate-900 font-normal dark:text-white hover:underline mt-1.5 block text-center cursor-pointer">Ver beneficiarios</button>
             </td>
             <td class="px-3 py-3.5 align-top text-[11px] text-slate-500 dark:text-slate-400">{{ t.fechaInscripcion }}</td>
             <td class="px-3 py-3.5 align-top">

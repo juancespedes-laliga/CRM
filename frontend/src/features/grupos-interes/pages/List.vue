@@ -186,13 +186,13 @@ const fecha = (iso: string) => iso.split('-').reverse().join('/')
           <div v-if="puedeGestionar" class="px-5 py-2.5 border-t border-default flex items-center gap-1.5 text-[11px] text-muted">
             <Filter :size="12" class="shrink-0" />
             ¿Prefiere elegir personas por plan, edad o ciudad?
-            <button @click="router.push('/embudos/afiliado')" class="font-semibold text-[#2447F9] dark:text-blue-300 hover:underline">Agregar con filtros</button>
+            <button @click="router.push('/embudos/afiliado')" class="font-bold text-slate-900 dark:text-white hover:underline">Agregar con filtros</button>
           </div>
         </div>
 
         <!-- Grupo vacío: la carga por Excel es el camino principal -->
         <div v-if="!cargandoDetalle && miembros.length === 0" class="surface-card rounded-lg border border-dashed border-slate-300 dark:border-slate-600 px-6 py-12 text-center">
-          <div class="w-11 h-11 mx-auto rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300 flex items-center justify-center">
+          <div class="w-11 h-11 mx-auto rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 font-bold dark:text-white flex items-center justify-center">
             <UsersRound :size="20" />
           </div>
           <h4 class="text-[14px] font-bold text-heading mt-4">Este grupo aún no tiene miembros</h4>

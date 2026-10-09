@@ -103,7 +103,7 @@ const guardar = async () => {
       <div>
         <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
           Servicios Plan Liga
-          <span class="bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ servicios.length }}</span>
+          <span class="bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ servicios.length }}</span>
         </h2>
         <p class="text-[12px] text-muted mt-0.5">Categorías de servicio registradas en el portal</p>
       </div>
@@ -137,7 +137,7 @@ const guardar = async () => {
             <Layers :size="16" />
           </div>
           <span class="text-[12px] font-semibold text-heading flex-1">{{ s }}</span>
-          <span class="flex items-center gap-1 text-[11px] font-semibold text-[#2447F9] dark:text-blue-400 shrink-0">
+          <span class="flex items-center gap-1 text-[11px] font-bold text-slate-900 dark:text-white shrink-0">
             {{ categoriaExpandida === s ? 'Ver menos' : 'Ver más' }}
             <component :is="categoriaExpandida === s ? ChevronDown : ChevronRight" :size="14" />
           </span>
@@ -175,7 +175,7 @@ const guardar = async () => {
               v-if="puedeGestionar"
               type="button"
               @click="abrirNuevoPlan(s)"
-              class="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl border border-dashed border-[#2447F9]/40 dark:border-blue-400/30 text-[11px] font-semibold text-[#2447F9] dark:text-blue-400 hover:bg-[#EEF2FF] dark:hover:bg-blue-950/30 transition-all cursor-pointer"
+              class="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl border border-dashed border-[#2447F9]/40 dark:border-blue-400/30 text-[11px] font-bold text-slate-900 dark:text-white hover:bg-[#EEF2FF] dark:hover:bg-blue-950/30 transition-all cursor-pointer"
             >
               <Plus :size="13" /> Agregar plan a "{{ s }}"
             </button>

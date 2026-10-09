@@ -55,7 +55,7 @@ const estadoProximoPaso = computed<'vencido' | 'hoy' | 'proximo' | 'realizado' |
         <div class="flex items-center gap-2 flex-shrink-0">
           <span class="text-[10px] text-muted">{{ actividad.fecha }}</span>
           <div class="flex items-center gap-1">
-            <div class="w-5 h-5 rounded-full bg-[#EEF2FF] dark:bg-blue-950/50 text-[#2447F9] dark:text-blue-300 text-[7px] font-bold flex items-center justify-center">
+            <div class="w-5 h-5 rounded-full bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[7px] font-bold flex items-center justify-center">
               {{ actividad.usuario.split(' ').map(n => n[0]).join('') }}
             </div>
             <span class="text-[10px] text-muted">{{ actividad.usuario }}</span>
@@ -83,7 +83,7 @@ const estadoProximoPaso = computed<'vencido' | 'hoy' | 'proximo' | 'realizado' |
 
       <div v-if="oportunidad" class="flex items-center gap-1.5 mb-1">
         <Target :size="11" class="text-[#2447F9] dark:text-blue-400 flex-shrink-0" />
-        <span class="text-[11px] text-[#2447F9] dark:text-blue-400 font-semibold">{{ oportunidad.servicio }}</span>
+        <span class="text-[11px] text-slate-900 dark:text-white font-bold">{{ oportunidad.servicio }}</span>
         <span class="text-[10px] text-muted">· {{ clienteLabel(oportunidad) }}</span>
       </div>
 
@@ -97,7 +97,7 @@ const estadoProximoPaso = computed<'vencido' | 'hoy' | 'proximo' | 'realizado' |
           {{ estadoProximoPaso === 'realizado' ? 'Próx. paso realizado:' : 'Próx. paso:' }}
         </span>
         <span class="text-[11px] font-medium truncate"
-          :class="estadoProximoPaso === 'vencido' ? 'text-red-600 dark:text-red-400' : estadoProximoPaso === 'hoy' ? 'text-amber-700 dark:text-amber-400' : estadoProximoPaso === 'realizado' ? 'text-emerald-700 dark:text-emerald-400 line-through' : 'text-[#2447F9] dark:text-blue-400'">{{ actividad.proximoPaso }}</span>
+          :class="estadoProximoPaso === 'vencido' ? 'text-red-600 dark:text-red-400' : estadoProximoPaso === 'hoy' ? 'text-amber-700 dark:text-amber-400' : estadoProximoPaso === 'realizado' ? 'text-emerald-700 dark:text-emerald-400 line-through' : 'text-slate-900 font-bold dark:text-white'">{{ actividad.proximoPaso }}</span>
         <span v-if="actividad.proximoPasoFecha && estadoProximoPaso !== 'realizado'" class="text-[10px] text-muted ml-auto flex-shrink-0">
           {{ estadoProximoPaso === 'vencido' ? 'Venció' : 'Para' }} {{ actividad.proximoPasoFecha }}
         </span>

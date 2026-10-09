@@ -58,7 +58,7 @@ const clienteSecundario = (o: Oportunidad) => {
             </td>
             <td class="px-4 py-3.5">
               <div class="flex items-center gap-1.5">
-                <div class="w-6 h-6 rounded-full bg-[#EEF2FF] dark:bg-blue-950/50 text-[#2447F9] dark:text-blue-400 text-[8px] font-bold flex items-center justify-center flex-shrink-0">
+                <div class="w-6 h-6 rounded-full bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0">
                   {{ o.responsable.split(' ').map(n => n[0]).join('') }}
                 </div>
                 <span class="text-[11px] text-body truncate max-w-[90px]">{{ o.responsable }}</span>

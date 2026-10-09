@@ -395,7 +395,7 @@ onMounted(() => {
                 </td>
                 <td class="px-4 py-2.5">
                   <span v-if="t.YA_ENVIADO" class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">Ya enviado</span>
-                  <span v-else class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#2447F9] dark:bg-blue-950/50 dark:text-blue-400">Pendiente</span>
+                  <span v-else class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-slate-900 dark:bg-blue-950/50 dark:text-white">Pendiente</span>
                 </td>
               </tr>
               <tr v-if="!cargando && items.length === 0">
@@ -576,7 +576,7 @@ onMounted(() => {
                   >{{ textoDias(e.titulares[0].DIAS) }} · {{ e.titulares[0].FECHA_FIN_TXT }}</span>
                 </td>
                 <td class="px-4 py-2.5 text-right">
-                  <span class="text-[11px] font-semibold text-[#2447F9] dark:text-blue-400">Ver detalle →</span>
+                  <span class="text-[11px] font-bold text-slate-900 dark:text-white">Ver detalle →</span>
                 </td>
               </tr>
               <tr v-if="!cargandoEmpresas && empresas.length === 0">

@@ -126,7 +126,7 @@ const abrirEnSegmentador = (s: Segmento) => {
       </select>
     </div>
 
-    <div v-if="aviso" class="rounded-xl bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300 text-[12px] font-semibold px-4 py-3">{{ aviso }}</div>
+    <div v-if="aviso" class="rounded-xl bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 dark:text-white text-[12px] font-bold px-4 py-3">{{ aviso }}</div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div v-for="s in segmentos" :key="s.id" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-5">
@@ -165,7 +165,7 @@ const abrirEnSegmentador = (s: Segmento) => {
           <button @click="pedirAccion(s, 'Tarea')" class="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:border-[#C9A227] hover:text-[#C9A227] transition-all">
             <ClipboardList :size="13" /> Tarea
           </button>
-          <button @click="abrirEnSegmentador(s)" class="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-[#2447F9] dark:text-blue-300 hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all ml-auto">
+          <button @click="abrirEnSegmentador(s)" class="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-slate-900 dark:text-white hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all ml-auto">
             Abrir en Audiencias <ArrowRight :size="13" />
           </button>
         </div>

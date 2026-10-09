@@ -149,7 +149,7 @@ function togglePantallaCompleta() {
         ><component :is="enPantallaCompleta ? Minimize2 : Maximize2" :size="14" /></button>
         <button
           @click="enviar"
-          class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#2447F9]/30 bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-[#2447F9] dark:text-blue-300 hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all"
+          class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#2447F9]/30 bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-slate-900 dark:text-white hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all"
         ><Send :size="13" /> Enviar</button>
         <button
           @click="guardar"

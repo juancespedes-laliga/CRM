@@ -128,12 +128,12 @@ async function enviar() {
               <button
                 @click="modo = 'persona'"
                 class="flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[11px] font-semibold transition-all"
-                :class="modo === 'persona' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300' : 'border-default bg-white dark:bg-slate-800 text-body'"
+                :class="modo === 'persona' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 font-bold dark:text-white' : 'border-default bg-white dark:bg-slate-800 text-body'"
               ><User :size="13" /> Una persona</button>
               <button
                 @click="modo = 'grupo'"
                 class="flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[11px] font-semibold transition-all"
-                :class="modo === 'grupo' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300' : 'border-default bg-white dark:bg-slate-800 text-body'"
+                :class="modo === 'grupo' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 font-bold dark:text-white' : 'border-default bg-white dark:bg-slate-800 text-body'"
               ><Users :size="13" /> Grupo de correos</button>
             </div>
           </div>

@@ -46,7 +46,7 @@ const onCambio = (m: MiembroGrupo, e: Event) => {
           <tr v-for="m in visibles" :key="m.id" class="border-b border-default last:border-0 surface-hover transition-colors">
             <td class="px-4 py-3">
               <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300 text-[10px] font-bold flex items-center justify-center shrink-0">{{ iniciales(m.nombre) }}</div>
+                <div class="w-8 h-8 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 dark:text-white text-[10px] font-bold flex items-center justify-center shrink-0">{{ iniciales(m.nombre) }}</div>
                 <span class="text-[12px] font-semibold text-heading">{{ m.nombre }}</span>
               </div>
             </td>

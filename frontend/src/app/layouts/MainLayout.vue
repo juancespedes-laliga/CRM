@@ -454,11 +454,11 @@ const refrescarVistaActual = () => {
           @dragover.prevent
           @drop.prevent="soltarTab(idx)"
           @dragend="tabArrastrandoIdx = null"
-          class="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-semibold border-b-2 transition-all shrink-0 group/tab rounded-t-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing"
+          class="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-bold border-b-2 transition-all shrink-0 group/tab rounded-t-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing"
           :class="[
             idx === activeTabIdx
-              ? 'border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-300 bg-[#EEF2FF]/60 dark:bg-blue-950/40'
-              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
+              ? 'border-[#1E3A8A] text-slate-900 dark:text-white bg-[#EEF2FF]/60 dark:bg-blue-950/40'
+              : 'border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
             tabArrastrandoIdx === idx ? 'opacity-40' : '',
           ]"
         >
@@ -467,7 +467,7 @@ const refrescarVistaActual = () => {
           <span
             v-if="tabs.length > 1"
             class="w-5 h-5 rounded flex items-center justify-center ml-0.5 opacity-0 group-hover/tab:opacity-100 hover:!bg-slate-200 dark:hover:!bg-slate-700 transition-all"
-            :class="idx === activeTabIdx ? 'text-[#1E3A8A] dark:text-blue-300 hover:bg-[#DBEAFE]' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100'"
+            :class="idx === activeTabIdx ? 'text-slate-900 font-bold dark:text-white hover:bg-[#DBEAFE]' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100'"
             @click.stop="closeTab(idx, $event)"
           >
             <X :size="11" />

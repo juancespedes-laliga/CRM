@@ -277,7 +277,7 @@ const textoEdadActiva = computed(() => {
 
       <button
         type="button" @click="alternarMenuPrincipal"
-        :class="['btn-ajustes-trigger h-full px-2.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none shrink-0', filtrosAbiertos || conteoFiltrosActivos > 0 ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 shadow-xs' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700']"
+        :class="['btn-ajustes-trigger h-full px-2.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none shrink-0', filtrosAbiertos || conteoFiltrosActivos > 0 ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-slate-900 font-bold dark:text-white shadow-xs' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700']"
       >
         <span>⚙️</span>
         <span v-if="conteoFiltrosActivos > 0" class="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
@@ -290,10 +290,10 @@ const textoEdadActiva = computed(() => {
     <div class="flex border border-slate-200/60 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-900 rounded-lg gap-0.5">
       <button
         @click="filtroEstadoLocal = 'todos'"
-        :class="['flex-1 py-1.5 px-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5', filtroEstadoLocal !== 'Prospecto' ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200']"
+        :class="['flex-1 py-1.5 px-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5', filtroEstadoLocal !== 'Prospecto' ? 'bg-white dark:bg-slate-800 text-slate-900 font-bold dark:text-white shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200']"
       >
         <span>Contactos</span>
-        <span :class="['px-1.5 py-0.5 font-mono text-[9px] rounded-md font-bold', filtroEstadoLocal !== 'Prospecto' ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300']">
+        <span :class="['px-1.5 py-0.5 font-mono text-[9px] rounded-md font-bold', filtroEstadoLocal !== 'Prospecto' ? 'bg-blue-100 dark:bg-blue-900/60 text-slate-900 font-bold dark:text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300']">
           {{ contactosFiltrados.length }}
         </span>
       </button>
@@ -313,7 +313,7 @@ const textoEdadActiva = computed(() => {
   <div class="px-3 pt-2 pb-1 shrink-0 bg-white dark:bg-slate-800">
     <div
       @click="alternarCargaMasiva"
-      :class="['btn-carga-trigger w-full flex justify-between items-center py-2 px-3 border rounded-xl cursor-pointer select-none transition-all text-left', cargaMasivaAbierta ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold shadow-xs' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700']"
+      :class="['btn-carga-trigger w-full flex justify-between items-center py-2 px-3 border rounded-xl cursor-pointer select-none transition-all text-left', cargaMasivaAbierta ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-slate-900 dark:text-white font-bold shadow-xs' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700']"
     >
       <span class="text-[11px] font-black uppercase tracking-wider">Carga Masiva de Archivos</span>
       <span class="text-[10px] font-mono">
@@ -358,7 +358,7 @@ const textoEdadActiva = computed(() => {
     <div class="border border-slate-200/70 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800">
       <div class="flex justify-between items-center mb-1.5">
         <span class="text-xs font-black text-body">Titulares</span>
-        <button @click="seccionActiva = seccionActiva === 'titulares' ? null : 'titulares'" class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
+        <button @click="seccionActiva = seccionActiva === 'titulares' ? null : 'titulares'" class="text-[10px] text-slate-900 dark:text-white font-bold">
           {{ seccionActiva === 'titulares' ? 'Ocultar' : 'Configurar' }}
         </button>
       </div>
@@ -374,7 +374,7 @@ const textoEdadActiva = computed(() => {
           SUBIR ARCHIVO XLSX
           <input type="file" accept=".xlsx, .xls" class="hidden" @change="manejarArchivo($event, 'titulares')" />
         </label>
-        <button type="button" @click="emit('descargarPlantilla', 'titulares')" class="w-full bg-[#f0f4f9] dark:bg-slate-700 hover:bg-[#e4eafd] dark:hover:bg-slate-600 text-[#0033a0] dark:text-blue-300 font-black text-[10px] py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-600 text-center">
+        <button type="button" @click="emit('descargarPlantilla', 'titulares')" class="w-full bg-[#f0f4f9] dark:bg-slate-700 hover:bg-[#e4eafd] dark:hover:bg-slate-600 text-slate-900 dark:text-white font-black text-[10px] py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-600 text-center">
           DESCARGAR PLANTILLA BASE
         </button>
       </div>
@@ -383,7 +383,7 @@ const textoEdadActiva = computed(() => {
     <div class="border border-slate-200/70 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800">
       <div class="flex justify-between items-center mb-1.5">
         <span class="text-xs font-black text-body">Beneficiarios</span>
-        <button @click="seccionActiva = seccionActiva === 'beneficiarios' ? null : 'beneficiarios'" class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
+        <button @click="seccionActiva = seccionActiva === 'beneficiarios' ? null : 'beneficiarios'" class="text-[10px] text-slate-900 dark:text-white font-bold">
           {{ seccionActiva === 'beneficiarios' ? 'Ocultar' : 'Configurar' }}
         </button>
       </div>
@@ -399,7 +399,7 @@ const textoEdadActiva = computed(() => {
           SUBIR ARCHIVO XLSX
           <input type="file" accept=".xlsx, .xls" class="hidden" @change="manejarArchivo($event, 'beneficiarios')" />
         </label>
-        <button type="button" @click="emit('descargarPlantilla', 'beneficiarios')" class="w-full bg-[#f0f4f9] dark:bg-slate-700 hover:bg-[#e4eafd] dark:hover:bg-slate-600 text-[#0033a0] dark:text-blue-300 font-black text-[10px] py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-600 text-center">
+        <button type="button" @click="emit('descargarPlantilla', 'beneficiarios')" class="w-full bg-[#f0f4f9] dark:bg-slate-700 hover:bg-[#e4eafd] dark:hover:bg-slate-600 text-slate-900 dark:text-white font-black text-[10px] py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-600 text-center">
           DESCARGAR PLANTILLA BASE
         </button>
       </div>
@@ -408,7 +408,7 @@ const textoEdadActiva = computed(() => {
     <div class="border border-slate-200/70 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800">
       <div class="flex justify-between items-center mb-1.5">
         <span class="text-xs font-black text-body">Inscripción</span>
-        <button @click="seccionActiva = seccionActiva === 'inscripcion' ? null : 'inscripcion'" class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
+        <button @click="seccionActiva = seccionActiva === 'inscripcion' ? null : 'inscripcion'" class="text-[10px] text-slate-900 dark:text-white font-bold">
           {{ seccionActiva === 'inscripcion' ? 'Ocultar' : 'Configurar' }}
         </button>
       </div>
@@ -435,7 +435,7 @@ const textoEdadActiva = computed(() => {
           <input type="file" accept=".xlsx, .xls" class="hidden" @change="manejarArchivo($event, 'inscripcion')" />
         </label>
 
-        <button type="button" @click="emit('descargarPlantilla', 'inscripcion')" class="w-full bg-[#f0f4f9] dark:bg-slate-700 hover:bg-[#e4eafd] dark:hover:bg-slate-600 text-[#0033a0] dark:text-blue-300 font-black text-[10px] py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-600 text-center">
+        <button type="button" @click="emit('descargarPlantilla', 'inscripcion')" class="w-full bg-[#f0f4f9] dark:bg-slate-700 hover:bg-[#e4eafd] dark:hover:bg-slate-600 text-slate-900 dark:text-white font-black text-[10px] py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-600 text-center">
           DESCARGAR PLANTILLA BASE
         </button>
       </div>
@@ -444,7 +444,7 @@ const textoEdadActiva = computed(() => {
     <div class="border border-slate-200/70 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800">
       <div class="flex justify-between items-center mb-1.5">
         <span class="text-xs font-black text-body">Remplazo</span>
-        <button @click="seccionActiva = seccionActiva === 'remplazo' ? null : 'remplazo'" class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
+        <button @click="seccionActiva = seccionActiva === 'remplazo' ? null : 'remplazo'" class="text-[10px] text-slate-900 dark:text-white font-bold">
           {{ seccionActiva === 'remplazo' ? 'Ocultar' : 'Configurar' }}
         </button>
       </div>
@@ -472,7 +472,7 @@ const textoEdadActiva = computed(() => {
       :class="[
         'w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex justify-between items-center transition-all cursor-pointer',
         subMenuActivo === 'rol' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-body hover:bg-slate-100 dark:hover:bg-slate-700',
-        filtroRolLocal !== 'todos' && subMenuActivo !== 'rol' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
+        filtroRolLocal !== 'todos' && subMenuActivo !== 'rol' ? 'bg-blue-50 dark:bg-blue-950/40 text-slate-900 dark:text-white font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
       ]"
     >
       <span class="truncate">{{ textoRolActivo }}</span>
@@ -484,7 +484,7 @@ const textoEdadActiva = computed(() => {
       :class="[
         'w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex justify-between items-center transition-all cursor-pointer',
         subMenuActivo === 'estado' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-body hover:bg-slate-100 dark:hover:bg-slate-700',
-        filtroEstadoLocal !== 'todos' && subMenuActivo !== 'estado' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
+        filtroEstadoLocal !== 'todos' && subMenuActivo !== 'estado' ? 'bg-blue-50 dark:bg-blue-950/40 text-slate-900 dark:text-white font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
       ]"
     >
       <span class="truncate">{{ textoEstadoActivo }}</span>
@@ -496,7 +496,7 @@ const textoEdadActiva = computed(() => {
       :class="[
         'w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex justify-between items-center transition-all cursor-pointer',
         subMenuActivo === 'origen' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-body hover:bg-slate-100 dark:hover:bg-slate-700',
-        filtroOrigenLocal !== 'todos' && subMenuActivo !== 'origen' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
+        filtroOrigenLocal !== 'todos' && subMenuActivo !== 'origen' ? 'bg-blue-50 dark:bg-blue-950/40 text-slate-900 dark:text-white font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
       ]"
     >
       <span class="truncate">{{ textoOrigenActivo }}</span>
@@ -508,7 +508,7 @@ const textoEdadActiva = computed(() => {
       :class="[
         'w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex justify-between items-center transition-all cursor-pointer',
         subMenuActivo === 'campana' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-body hover:bg-slate-100 dark:hover:bg-slate-700',
-        filtroCampanaLocal !== 'todos' && subMenuActivo !== 'campana' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
+        filtroCampanaLocal !== 'todos' && subMenuActivo !== 'campana' ? 'bg-blue-50 dark:bg-blue-950/40 text-slate-900 dark:text-white font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
       ]"
     >
       <span class="truncate">{{ textoCampanaActiva }}</span>
@@ -520,7 +520,7 @@ const textoEdadActiva = computed(() => {
       :class="[
         'w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex justify-between items-center transition-all cursor-pointer',
         subMenuActivo === 'edad' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-body hover:bg-slate-100 dark:hover:bg-slate-700',
-        filtroEdadLocal !== 'todos' && subMenuActivo !== 'edad' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
+        filtroEdadLocal !== 'todos' && subMenuActivo !== 'edad' ? 'bg-blue-50 dark:bg-blue-950/40 text-slate-900 dark:text-white font-bold border border-blue-100/50 dark:border-blue-800/50' : ''
       ]"
     >
       <span class="truncate">{{ textoEdadActiva }}</span>

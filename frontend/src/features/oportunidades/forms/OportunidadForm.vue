@@ -86,7 +86,7 @@ function alSeleccionarTitular(item: OpcionBuscador | null) {
           v-for="t in TIPOS_CLIENTE" :key="t.value" type="button"
           @click="cambiarTipoCliente(t.value)"
           class="h-9 rounded-md text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all"
-          :class="draft.tipoCliente === t.value ? 'bg-white dark:bg-slate-700 text-[#2447F9] dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+          :class="draft.tipoCliente === t.value ? 'bg-white dark:bg-slate-700 text-slate-900 font-bold dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
         >
           <component :is="t.icono" :size="13" />
           <span class="truncate">{{ t.label }}</span>

@@ -22,7 +22,7 @@ const router = useRouter()
       @click="route.path !== s.ruta && router.push(s.ruta)"
       class="flex items-center gap-1.5 h-9 px-3 -mb-px border-b-2 text-[12px] font-semibold transition-colors"
       :class="route.path === s.ruta
-        ? 'border-[#2447F9] text-[#2447F9] dark:text-blue-300 dark:border-blue-300'
+        ? 'border-[#2447F9] text-slate-900 font-bold dark:text-white dark:border-blue-300'
         : 'border-transparent text-muted hover:text-heading'"
     >
       <component :is="s.icono" :size="13" /> {{ s.label }}

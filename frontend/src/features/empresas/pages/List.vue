@@ -92,7 +92,7 @@ const exportar = () => exportarEmpresasExcel(
       <div>
         <h2 class="text-[18px] font-bold text-[#0F172A] dark:text-slate-100 flex items-center gap-2">
           Gestión de Empresas
-          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-[#2447F9] dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ empresas.length }}</span>
+          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ empresas.length }}</span>
         </h2>
         <p class="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Empresas vinculadas e industrias</p>
       </div>

@@ -174,7 +174,7 @@ const indicePaso = computed(() => pasos.findIndex((p) => p.key === paso.value))
               <div class="text-[10px] text-muted uppercase font-semibold tracking-wide">Personas válidas</div>
             </div>
             <div class="surface-sunken rounded-xl p-3">
-              <div class="text-[18px] font-bold tabular-nums text-[#2447F9] dark:text-blue-300">{{ nuevas.length }}</div>
+              <div class="text-[18px] font-bold tabular-nums text-slate-900 dark:text-white">{{ nuevas.length }}</div>
               <div class="text-[10px] text-muted uppercase font-semibold tracking-wide">Categorías nuevas</div>
             </div>
             <div class="surface-sunken rounded-xl p-3">
@@ -225,7 +225,7 @@ const indicePaso = computed(() => pasos.findIndex((p) => p.key === paso.value))
                     </div>
                     <div v-else class="space-y-1.5">
                       <div class="flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#2447F9] dark:text-blue-300 bg-[#EEF2FF] dark:bg-blue-950/40 px-2 py-0.5 rounded-md"><Sparkles :size="10" /> Nueva</span>
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-900 dark:text-white bg-[#EEF2FF] dark:bg-blue-950/40 px-2 py-0.5 rounded-md"><Sparkles :size="10" /> Nueva</span>
                         <select :value="d.accion === 'crear' ? 'crear' : String(d.unirConId)" @change="cambiarAccion(d, ($event.target as HTMLSelectElement).value)"
                           class="h-8 px-2 rounded-lg input-surface text-[11px] font-medium text-body outline-none cursor-pointer">
                           <option value="crear">Crear como categoría nueva</option>

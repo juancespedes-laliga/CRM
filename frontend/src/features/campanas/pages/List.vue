@@ -64,7 +64,7 @@ const confirmarEliminar = () => {
       <div>
         <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
           Campañas
-          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-[#2447F9] dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
             {{ plantillas.length }}
           </span>
         </h2>

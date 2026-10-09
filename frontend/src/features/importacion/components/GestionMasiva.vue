@@ -124,7 +124,7 @@ const ejecutarVinculacion = () => {
         >
           <div class="min-w-0 pr-2">
             <span
-              class="text-[8px] uppercase bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded font-black tracking-wider"
+              class="text-[8px] uppercase bg-blue-100 dark:bg-blue-900/60 text-slate-900 dark:text-white border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded font-black tracking-wider"
             >
               Titular de Cuenta
             </span>

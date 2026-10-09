@@ -9,7 +9,7 @@
 
       <div class="escala flex items-center gap-3 relative z-10">
         <div class="bg-white p-1.5 rounded-xl shadow-md">
-          <span class="text-blue-700 font-black text-sm tracking-tight">PL</span>
+          <span class="text-slate-900 font-black text-sm tracking-tight">PL</span>
         </div>
         <div>
           <span class="text-[9px] text-blue-200 block font-bold uppercase tracking-wider leading-none">Plataforma Institucional</span>
@@ -101,7 +101,7 @@
 
           <div class="flex items-center justify-between pt-1">
             <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" v-model="form.rememberMe" class="w-3.5 h-3.5 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 bg-slate-50 dark:bg-slate-800" />
+              <input type="checkbox" v-model="form.rememberMe" class="w-3.5 h-3.5 text-slate-900 font-bold border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 bg-slate-50 dark:bg-slate-800" />
               <span class="text-sm xl:text-base text-slate-500 dark:text-slate-400 font-medium">Recordar sesión</span>
             </label>
           </div>
@@ -123,7 +123,7 @@
 
         <div class="pt-4 [@media(min-width:768px)_and_(max-height:820px)]:pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
           <p class="text-sm xl:text-base text-slate-400 dark:text-slate-500 font-medium">
-            ¿Problemas de acceso? Contacta a <a href="mailto:soporte@fundacionlaliga.org" class="text-blue-600 dark:text-blue-400 font-bold hover:underline">Soporte TI</a>
+            ¿Problemas de acceso? Contacta a <a href="mailto:soporte@fundacionlaliga.org" class="text-slate-900 dark:text-white font-bold hover:underline">Soporte TI</a>
           </p>
         </div>
 

@@ -345,7 +345,7 @@ const modalImportVisible = ref(false)
 
     <div v-if="exportando" class="flex items-center gap-2.5 bg-[#EEF2FF] dark:bg-blue-950/40 border border-[#C7D2FE] dark:border-blue-800 rounded-xl px-4 py-3">
       <Loader2 :size="16" class="animate-spin text-[#2447F9] dark:text-blue-400 shrink-0" />
-      <p class="text-[12px] font-semibold text-[#2447F9] dark:text-blue-300">Generando el archivo, esto puede tardar unos segundos...</p>
+      <p class="text-[12px] font-bold text-slate-900 dark:text-white">Generando el archivo, esto puede tardar unos segundos...</p>
     </div>
 
     <div v-if="avisoReemplazo" class="flex items-center gap-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3">

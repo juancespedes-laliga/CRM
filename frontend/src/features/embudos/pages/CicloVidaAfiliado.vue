@@ -157,7 +157,7 @@ const confirmarGuardar = () => {
               </div>
               <span class="h-5 w-px bg-slate-200 dark:bg-slate-700" />
               <span class="text-[12px] text-muted"><strong class="text-heading tabular-nums">{{ nf.format(seleccion.length) }}</strong> seleccionadas</span>
-              <span v-if="cargandoBloque" class="flex items-center gap-1.5 text-[11px] font-semibold text-[#2447F9]">
+              <span v-if="cargandoBloque" class="flex items-center gap-1.5 text-[11px] font-bold text-slate-900">
                 <Loader2 :size="12" class="animate-spin" /> cargando más…
               </span>
             </div>
@@ -236,7 +236,7 @@ const confirmarGuardar = () => {
                       <div v-if="a.empresa" class="text-[11px] text-muted mt-0.5 truncate max-w-[200px]" :title="a.empresa">{{ a.empresa }}</div>
                     </td>
                     <td class="px-3 py-3 min-w-[120px]">
-                      <div class="font-semibold text-[#1E3A8A] dark:text-blue-300">{{ a.plan }}</div>
+                      <div class="font-bold text-slate-900 dark:text-white">{{ a.plan }}</div>
                       <div class="text-[11px] text-muted mt-0.5">{{ a.vinculacion }}</div>
                     </td>
                     <td class="px-3 py-3 min-w-[150px] max-w-[220px]">

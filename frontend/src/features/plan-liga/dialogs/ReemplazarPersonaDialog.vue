@@ -91,7 +91,7 @@ const cerrar = () => { visible.value = false }
 
         <div v-if="beneficiarioEncontrado" class="mb-4 flex items-start gap-2.5 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-xl px-3.5 py-3">
           <UserCheck :size="15" class="text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
-          <p class="text-[11px] text-sky-800 dark:text-sky-300 leading-relaxed">
+          <p class="text-[11px] text-slate-900 font-bold dark:text-white leading-relaxed">
             <strong>{{ beneficiarioEncontrado.nombre }}</strong> es beneficiario(a) de este grupo. Al confirmar, quedará como
             titular y su registro de beneficiario se inactivará (queda como historial en el grupo anterior).
           </p>

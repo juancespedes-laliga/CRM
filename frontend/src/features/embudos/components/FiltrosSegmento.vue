@@ -136,7 +136,7 @@ const chipCls = (on: boolean) => on
     <div class="px-4 py-3 border-b border-default flex items-center justify-between gap-2 shrink-0">
       <h3 class="text-[12px] font-bold text-heading">Filtros de segmento</h3>
       <div class="flex items-center gap-2">
-        <button type="button" class="text-[10px] font-bold text-[#2447F9] hover:underline" @click="emit('limpiar')">Limpiar</button>
+        <button type="button" class="text-[10px] font-bold text-slate-900 hover:underline" @click="emit('limpiar')">Limpiar</button>
         <button
           type="button"
           class="hidden lg:inline-flex w-7 h-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-[#2447F9] transition-colors"

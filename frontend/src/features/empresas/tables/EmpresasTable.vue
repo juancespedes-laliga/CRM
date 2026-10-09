@@ -36,7 +36,7 @@ const emit = defineEmits<{ editar: [e: Empresa]; historial: [e: Empresa]; borrar
             </td>
             <td class="px-4 py-3.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium">{{ e.nit }}</td>
             <td class="px-4 py-3.5">
-              <span class="text-[11px] font-semibold text-[#1E3A8A] dark:text-blue-300">{{ e.industria }}</span>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-white">{{ e.industria }}</span>
             </td>
             <td class="px-4 py-3.5">
               <div class="flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-300"><MapPin :size="11" class="text-slate-400 dark:text-slate-500" />{{ e.ciudad }}</div>
