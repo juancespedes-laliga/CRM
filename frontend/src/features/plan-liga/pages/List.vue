@@ -154,10 +154,13 @@ const confirmarReemplazarTitular = async () => {
   const r = resultadoReemplazoTitular.value
   if (ok && r) {
     modalReemplazarTitularVisible.value = false
-    avisoReemplazo.value = (r.beneficiarioPromovido
+    // Un beneficiario promovido ya estaba en Servinte/INCLE: no se crea ni se marca de nuevo,
+    // así que "no creado / no marcado" confundiría; se explica en su lugar.
+    avisoReemplazo.value = r.beneficiarioPromovido
       ? `Titular reemplazado. ${r.titularNuevo.nombre} pasó de beneficiario a titular. `
-      : 'Titular reemplazado correctamente. ')
-      + `Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
+        + `Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
+        + 'Ya estaba registrado en Servinte e INCLE como beneficiario y sigue activo.'
+      : `Titular reemplazado correctamente. Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
       + mensajeServinteIncle(r.usuarioServinteCreado, r.marcadoEnIncle, r.registrosIncleMarcadosAnterior)
   }
 }

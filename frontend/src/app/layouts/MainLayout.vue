@@ -246,7 +246,7 @@ const refrescarVistaActual = () => {
          SIDEBAR  —  lighter royal blue
     ═══════════════════════════════════════════════ -->
     <aside
-      class="sidebar-marca flex flex-col shrink-0 overflow-hidden transition-all duration-300 z-30 fixed md:relative inset-y-0 left-0 md:translate-x-0"
+      class="escala-pantalla sidebar-marca flex flex-col shrink-0 overflow-hidden transition-all duration-300 z-30 fixed md:relative inset-y-0 left-0 md:translate-x-0"
       :class="sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full'"
       :style="{ width: sidebarCollapsed ? '64px' : '224px' }"
     >
@@ -255,14 +255,15 @@ const refrescarVistaActual = () => {
         <!-- Expandido -->
         <div v-if="!sidebarCollapsed" class="flex flex-col items-center justify-center py-5 px-4 gap-3">
           <div class="text-center">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-white/60 leading-none">Plataforma</div>
-            <div class="text-[16px] font-black text-white tracking-wide mt-1">CRM Mercadeo</div>
+            <div class="text-[11px] font-bold uppercase tracking-widest text-white/60 leading-none">Plataforma</div>
+            <div class="text-[18px] font-black text-white tracking-wide mt-1">CRM Mercadeo</div>
           </div>
-          <div class="placa-logo w-full rounded-xl bg-white px-3 py-2.5">
-            <div class="logo-recorte">
-              <img src="/logo-liga-50.png" alt="La Liga" class="select-none pointer-events-none" />
-            </div>
-          </div>
+          <img
+            src="/logo-liga-50.png"
+            alt="La Liga"
+            class="w-full object-contain select-none pointer-events-none"
+            style="max-height: 130px"
+          />
         </div>
         <!-- Colapsado -->
         <div v-else class="flex items-center justify-center h-16 bg-white/10">
@@ -276,7 +277,7 @@ const refrescarVistaActual = () => {
       </div>
 
       <!-- Nav -->
-      <nav class="flex-1 overflow-y-auto py-3 scrollbar-sidebar">
+      <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-sidebar">
         <template v-for="group in menuGroupsVisibles" :key="group.label ?? '__root__'">
           <!-- Divider for collapsed state -->
           <div v-if="group.label && sidebarCollapsed" class="px-3 py-2">
@@ -285,7 +286,7 @@ const refrescarVistaActual = () => {
           <!-- Section label -->
           <div
             v-if="group.label && !sidebarCollapsed"
-            class="px-4 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/60 select-none"
+            class="px-4 pt-4 pb-1.5 text-[11px] font-bold uppercase tracking-widest text-white/60 select-none"
           >
             {{ group.label }}
           </div>
@@ -297,18 +298,18 @@ const refrescarVistaActual = () => {
             :title="sidebarCollapsed ? item.label : undefined"
             class="flex items-center gap-3 rounded-lg mx-2 px-2 py-2 transition-all text-left w-[calc(100%-16px)] group/item"
             :class="!isConfigRoute && vistaActiva === item.key
-          ? 'item-activo text-white'
+          ? 'bg-white/20 text-white'
           : 'text-white hover:text-white hover:bg-white/10'"
           >
             <component
               :is="item.icono"
-              :size="16"
+              :size="18"
               class="shrink-0 transition-colors"
               :class="!isConfigRoute && vistaActiva === item.key ? 'text-white' : 'text-white/80'"
             />
             <span
               v-if="!sidebarCollapsed"
-              class="text-[12px] font-semibold truncate flex-1 !text-white"
+              class="text-[13.5px] font-semibold leading-snug break-words min-w-0 flex-1 !text-white"
             >
               {{ item.label }}
             </span>
@@ -333,8 +334,8 @@ const refrescarVistaActual = () => {
           :title="sidebarCollapsed ? 'Cerrar sesión' : undefined"
           class="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-white/10 transition-all group/logout"
         >
-          <LogOut :size="15" class="shrink-0 text-white/80 group-hover/logout:text-white transition-colors" />
-          <span v-if="!sidebarCollapsed" class="text-[12px] font-semibold !text-white">Cerrar sesión</span>
+          <LogOut :size="18" class="shrink-0 text-white/80 group-hover/logout:text-white transition-colors" />
+          <span v-if="!sidebarCollapsed" class="text-[13.5px] font-semibold !text-white">Cerrar sesión</span>
         </button>
       </div>
     </aside>
@@ -345,7 +346,7 @@ const refrescarVistaActual = () => {
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
 
       <!-- ── Top header ────────────────────────────────────────── -->
-      <header class="barra-superior relative h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2 md:gap-3 z-10">
+      <header class="escala-pantalla barra-superior relative h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2 md:gap-3 z-10">
         <div class="flex items-center gap-2 md:gap-3 min-w-0">
           <!-- Hamburguesa: solo móvil, abre el sidebar como drawer -->
           <button
@@ -443,7 +444,7 @@ const refrescarVistaActual = () => {
       </header>
 
       <!-- ── Tab strip ─────────────────────────────────────────── -->
-      <div v-if="!isConfigRoute" class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-3 flex items-end gap-0.5 shrink-0 overflow-x-auto">
+      <div v-if="!isConfigRoute" class="escala-pantalla bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-3 flex items-end gap-0.5 shrink-0 overflow-x-auto">
         <button
           v-for="(tab, idx) in tabs"
           :key="tab.key"
@@ -453,7 +454,7 @@ const refrescarVistaActual = () => {
           @dragover.prevent
           @drop.prevent="soltarTab(idx)"
           @dragend="tabArrastrandoIdx = null"
-          class="flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold border-b-2 transition-all shrink-0 group/tab rounded-t-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing"
+          class="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-semibold border-b-2 transition-all shrink-0 group/tab rounded-t-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing"
           :class="[
             idx === activeTabIdx
               ? 'border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-300 bg-[#EEF2FF]/60 dark:bg-blue-950/40'
@@ -461,21 +462,21 @@ const refrescarVistaActual = () => {
             tabArrastrandoIdx === idx ? 'opacity-40' : '',
           ]"
         >
-          <component :is="tab.icono" :size="12" class="shrink-0" />
-          <span class="max-w-[120px] truncate">{{ tab.label }}</span>
+          <component :is="tab.icono" :size="14" class="shrink-0" />
+          <span class="max-w-[170px] truncate">{{ tab.label }}</span>
           <span
             v-if="tabs.length > 1"
-            class="w-4 h-4 rounded flex items-center justify-center ml-0.5 opacity-0 group-hover/tab:opacity-100 hover:!bg-slate-200 dark:hover:!bg-slate-700 transition-all"
+            class="w-5 h-5 rounded flex items-center justify-center ml-0.5 opacity-0 group-hover/tab:opacity-100 hover:!bg-slate-200 dark:hover:!bg-slate-700 transition-all"
             :class="idx === activeTabIdx ? 'text-[#1E3A8A] dark:text-blue-300 hover:bg-[#DBEAFE]' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100'"
             @click.stop="closeTab(idx, $event)"
           >
-            <X :size="9" />
+            <X :size="11" />
           </span>
         </button>
         <!-- Slot count indicator when at max -->
         <div
           v-if="tabs.length >= MAX_TABS"
-          class="ml-auto px-2 py-2 text-[10px] text-slate-400 dark:text-slate-500 font-semibold shrink-0 self-center"
+          class="ml-auto px-2 py-2 text-[12px] text-slate-400 dark:text-slate-500 font-semibold shrink-0 self-center"
         >
           {{ MAX_TABS }}/{{ MAX_TABS }} pestañas
         </div>
@@ -483,7 +484,7 @@ const refrescarVistaActual = () => {
 
       <!-- ── Content ───────────────────────────────────────────── -->
       <main
-        class="area-trabajo flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6"
+        class="escala-pantalla area-trabajo flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6"
       >
         <router-view v-slot="{ Component, route: rutaActiva }">
           <keep-alive :max="8">
@@ -502,15 +503,15 @@ const refrescarVistaActual = () => {
    quedan detrás del contenido sin tener que reordenar el HTML del menú. */
 .sidebar-marca {
   isolation: isolate;
-  background: linear-gradient(160deg, #1e40af 0%, #1d4ed8 45%, #1e3a8a 100%);
+  background: linear-gradient(160deg, #2556d4 0%, #2b63e0 45%, #1f4bbf 100%);
 }
 .sidebar-marca::before {
   content: '';
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.35), transparent 45%),
-    radial-gradient(circle at 100% 100%, rgba(167, 139, 250, 0.35), transparent 45%),
-    radial-gradient(circle at 60% 45%, rgba(96, 165, 250, 0.25), transparent 55%);
+    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.08), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.12), transparent 40%),
+    radial-gradient(circle at 60% 45%, rgba(96, 165, 250, 0.30), transparent 60%);
 }
 .sidebar-marca::after {
   content: '';
@@ -518,22 +519,6 @@ const refrescarVistaActual = () => {
   background-image: radial-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px);
   background-size: 20px 20px;
   mask-image: linear-gradient(180deg, #000 0%, transparent 70%);
-}
-.placa-logo { box-shadow: 0 10px 26px -12px rgba(15, 23, 42, 0.55), 0 0 22px -6px rgba(244, 114, 182, 0.45); }
-.logo-recorte { aspect-ratio: 1630 / 415; overflow: hidden; }
-.logo-recorte img { display: block; width: 117.8%; max-width: none; margin: -19.94% 0 0 -9.51%; }
-
-/* Opción activa del menú: vidrio con resplandor y una franja de luz a la izquierda */
-.item-activo {
-  position: relative;
-  background: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 22px -10px rgba(147, 197, 253, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
-.item-activo::before {
-  content: '';
-  position: absolute; left: -8px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, #f9a8d4, #fde68a);
-  box-shadow: 0 0 10px rgba(249, 168, 212, 0.9);
 }
 
 /* Barra superior: línea de acento rosa → azul en el borde inferior */

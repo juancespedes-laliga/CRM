@@ -129,3 +129,21 @@
 .p-datepicker-panel {
   z-index: 2000000 !important;
 }
+
+/* Pantallas grandes: la app usa tamanos fijos en px (text-[12px], etc.), que en monitores
+   anchos se ven diminutos. Se agranda todo un poco (letra, iconos, espacios y las ventanas
+   modales, que viven dentro del area de trabajo) a partir de 1440px de ancho; en laptops
+   normales no cambia nada. Se aplica al menu lateral, la barra superior y el area de trabajo
+   (ver MainLayout.vue), no al contenedor de alto fijo. */
+@media (min-width: 1440px) {
+  .escala-pantalla { zoom: 1.06; }
+}
+@media (min-width: 1600px) {
+  .escala-pantalla { zoom: 1.12; }
+}
+@media (min-width: 1920px) {
+  .escala-pantalla { zoom: 1.22; }
+}
+@media (min-width: 2400px) {
+  .escala-pantalla { zoom: 1.4; }
+}
