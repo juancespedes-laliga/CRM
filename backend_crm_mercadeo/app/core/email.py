@@ -1,11 +1,7 @@
 """
-Usa OAuth2 (Gmail API), no SMTP: el refresh_token se consigue una sola vez con
-scripts/obtener_refresh_token_gmail.py y no vence solo (dura hasta que se revoque).
+Usa OAuth2 (Gmail API): el refresh_token 
 
-Sincrono a proposito: el resto del backend (routers/services de titulares_beneficiarios,
-etc.) tambien lo es, y la propia libreria de Google (googleapiclient) es bloqueante de
-todas formas. Los endpoints que sean async y quieran no bloquear el event loop deben
-envolver la llamada en starlette.concurrency.run_in_threadpool."""
+"""
 
 import base64
 from email.mime.text import MIMEText
