@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
-  FileSpreadsheet, Send, CloudUpload, RefreshCw, Search, Loader2, ListPlus, ExternalLink, Mail, Phone, UserRound, X,
+  FileSpreadsheet, Send, CloudUpload, RefreshCw, Search, Loader2, ListPlus, Mail, Phone, UserRound, X,
 } from 'lucide-vue-next'
 import type { InfoContactoMT, ListaMT } from '../types/mailerturbo'
-import { abrirMailerTurbo, buscarContacto } from '../services/mailerturbo.api'
+import { buscarContacto } from '../services/mailerturbo.api'
 import { useCatalogosMailerturbo } from '../composables/useCatalogosMailerturbo'
 import { permisosDeModulo } from '@/features/auth/composables/useAuth'
 import { descargarPlantillaBaseContactos } from '../utils/baseContactos'
@@ -95,21 +95,6 @@ const limpiarBusqueda = () => {
 const claseEstadoCorreo = (estado: string | null) =>
   estado === 'Activo' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
     : 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300'
-
-// ── Abrir la plataforma ya logueado ──────────────────────────────────
-const abriendo = ref(false)
-const errorAbrir = ref<string | null>(null)
-async function abrirPlataforma() {
-  abriendo.value = true
-  errorAbrir.value = null
-  try {
-    await abrirMailerTurbo()
-  } catch (e) {
-    errorAbrir.value = e instanceof Error ? e.message : 'No se pudo abrir MailerTurbo.'
-  } finally {
-    abriendo.value = false
-  }
-}
 
 // ── Diálogos ─────────────────────────────────────────────────────────
 const campanaVisible = ref(false)
@@ -322,18 +307,6 @@ const PASOS = [
               </dl>
             </div>
           </div>
-        </div>
-
-        <!-- Plataforma -->
-        <div class="surface-card rounded-2xl shadow-sm p-4 space-y-2">
-          <h3 class="text-[13px] font-bold text-heading">Plataforma MailerTurbo</h3>
-          <p class="text-[11px] text-muted">Para ver el detalle de cada lista y sus contactos, abre la plataforma con la sesión ya iniciada.</p>
-          <button
-            @click="abrirPlataforma"
-            :disabled="abriendo"
-            class="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
-          ><Loader2 v-if="abriendo" :size="13" class="animate-spin" /><ExternalLink v-else :size="13" /> Abrir MailerTurbo</button>
-          <p v-if="errorAbrir" class="text-[11px] text-red-500">{{ errorAbrir }}</p>
         </div>
       </div>
     </div>
