@@ -97,6 +97,7 @@ const tabs = ref<Tab[]>([])
 const rutaAVista = (path: string): Vista => {
   const p = path.replace(/^\//, '') || 'dashboard'
   if (p === 'embudos' || p.startsWith('embudos/') || p === 'segmentos') return 'embudos'
+  if (p.startsWith('campanas/')) return 'campanas'
   return p as Vista
 }
 

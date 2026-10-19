@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onActivated, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, ChevronLeft, RefreshCw, SlidersHorizontal, PanelLeftOpen, Send, X, Mail, Phone, Bookmark, Check, Loader2, Info, UsersRound } from 'lucide-vue-next'
+import { ChevronRight, ChevronLeft, RefreshCw, SlidersHorizontal, PanelLeftOpen, Send, X, Mail, Phone, Bookmark, Check, Loader2, Info, UsersRound, CloudUpload, MessageCircle, CheckCheck } from 'lucide-vue-next'
 import { clonarFiltro, resumirFiltros } from '../constants/ciclo-afiliado.constants'
 import { getSegmentoPreseleccionado } from '../composables/useSegmentoPreseleccionado'
 import { useSegmentosGuardados } from '../composables/useSegmentosGuardados'
@@ -12,15 +12,22 @@ import UsoPlanPanel from '../components/UsoPlanPanel.vue'
 import AudienciasSubnav from '../components/AudienciasSubnav.vue'
 import AgregarAGrupoDialog from '@/features/grupos-interes/dialogs/AgregarAGrupoDialog.vue'
 import type { PersonaParaGrupo } from '@/features/grupos-interes/types/grupo'
+import EnviarCampanaDialog from '@/features/mailerturbo/dialogs/EnviarCampanaDialog.vue'
+import SubirContactosDialog from '@/features/mailerturbo/dialogs/SubirContactosDialog.vue'
+import type { AudienciaCompletaMT, ContactoMT } from '@/features/mailerturbo/types/mailerturbo'
+import { filtroSegmentoACuerpo } from '../services/segmentos.api'
+import { esCorreoValido } from '@/features/campanas/constants/campanas.constants'
 
 const router = useRouter()
 const nf = new Intl.NumberFormat('es-CO')
 
 const {
   f, fApp, sel, filtrados, seleccion, todoSel, nFiltros,
+  todaLaAudiencia, excluidos, nSeleccionadas,
   total, pagina, totalPaginas, rangoDesde, rangoHasta,
   cargando, cargandoBloque, error,
   aplicar: aplicarFiltro, limpiar, precargar, toggleRow, toggleTodo,
+  seleccionarTodaLaAudiencia, quitarSeleccion,
   paginaAnterior, paginaSiguiente,
 } = useSegmentador()
 
@@ -64,7 +71,49 @@ const personasParaGrupo = computed<PersonaParaGrupo[]>(() => seleccion.value.map
   documento: a.documento, nombre: a.nombre, correo: a.correo, telefono: a.telefono, ciudad: ciudadDe(a.direccion),
 })))
 
+// WhatsApp sigue siendo vista previa (EnviarSegmentoDialog); el correo va por MailerTurbo.
 const enviarVisible = ref(false)
+
+// Personas seleccionadas con correo válido -> contactos de MailerTurbo (sin repetir correo).
+const contactosMailer = computed<ContactoMT[]>(() => {
+  const vistos = new Set<string>()
+  const contactos: ContactoMT[] = []
+  for (const a of seleccion.value) {
+    const correo = (a.correo ?? '').trim().toLowerCase()
+    if (!esCorreoValido(correo) || vistos.has(correo)) continue
+    vistos.add(correo)
+    contactos.push({
+      nombre: a.nombre,
+      apellido: '',
+      correo,
+      telefono: (a.telefono ?? '').replace(/\D/g, ''),
+      documento: a.documento || undefined,
+      ciudad: ciudadDe(a.direccion) || undefined,
+    })
+  }
+  return contactos
+})
+// Con "Seleccionar toda la audiencia" no se mandan las filas cargadas sino el
+// filtro: el backend consulta a todas las personas (ver filtroSegmentoACuerpo).
+const audienciaMailer = computed<AudienciaCompletaMT | undefined>(() =>
+  todaLaAudiencia.value
+    ? {
+        filtros: {
+          ...filtroSegmentoACuerpo(fApp.value),
+          excluir_documentos: excluidos.value.map(a => a.documento).filter(Boolean),
+        },
+        total: nSeleccionadas.value,
+      }
+    : undefined,
+)
+const puedeEnviarCorreo = computed(() =>
+  todaLaAudiencia.value ? nSeleccionadas.value > 0 : contactosMailer.value.length > 0,
+)
+const origenMailer = computed(() =>
+  `Audiencia${criteriosAplicados.value.length ? `: ${criteriosAplicados.value.join(' · ')}` : ''}`,
+)
+const enviarCorreoVisible = ref(false)
+const subirMailerVisible = ref(false)
 
 const { guardar } = useSegmentosGuardados()
 const guardarVisible = ref(false)
@@ -156,7 +205,25 @@ const confirmarGuardar = () => {
                 <span class="text-[12px] text-muted">personas</span>
               </div>
               <span class="h-5 w-px bg-slate-200 dark:bg-slate-700" />
-              <span class="text-[12px] text-muted"><strong class="text-heading tabular-nums">{{ nf.format(seleccion.length) }}</strong> seleccionadas</span>
+              <span class="text-[12px] text-muted"><strong class="text-heading tabular-nums">{{ nf.format(nSeleccionadas) }}</strong> seleccionadas</span>
+              <button
+                v-if="!todaLaAudiencia && total > 0"
+                type="button"
+                :disabled="cargando"
+                class="flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#2447F9]/40 bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-[#2447F9] dark:text-blue-300 hover:bg-[#E0E7FF] transition-colors disabled:opacity-50"
+                title="Incluye también las páginas que todavía no se han cargado"
+                @click="seleccionarTodaLaAudiencia"
+              ><CheckCheck :size="12" /> Seleccionar toda la audiencia ({{ nf.format(total) }})</button>
+              <span
+                v-else-if="todaLaAudiencia"
+                class="flex items-center gap-1 h-7 px-2.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[11px] font-bold text-emerald-700 dark:text-emerald-300"
+              ><CheckCheck :size="12" /> Toda la audiencia</span>
+              <button
+                v-if="nSeleccionadas > 0"
+                type="button"
+                class="text-[11px] font-semibold text-muted hover:text-[#2447F9]"
+                @click="quitarSeleccion"
+              >Quitar selección</button>
               <span v-if="cargandoBloque" class="flex items-center gap-1.5 text-[11px] font-bold text-slate-900">
                 <Loader2 :size="12" class="animate-spin" /> cargando más…
               </span>
@@ -173,11 +240,23 @@ const confirmarGuardar = () => {
                 class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
               ><UsersRound :size="13" /> Agregar a grupo de interés</button>
               <button
+                @click="subirMailerVisible = true"
+                :disabled="!puedeEnviarCorreo || cargando"
+                title="Crear/actualizar estas personas en una lista de MailerTurbo"
+                class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              ><CloudUpload :size="13" /> Subir a MailerTurbo</button>
+              <button
                 @click="enviarVisible = true"
                 :disabled="!seleccion.length || cargando"
-                title="Vista previa: el envío real de correos/WhatsApp todavía no está conectado."
+                title="Vista previa: el envío real de WhatsApp todavía no está conectado."
+                class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              ><MessageCircle :size="13" /> WhatsApp</button>
+              <button
+                @click="enviarCorreoVisible = true"
+                :disabled="!puedeEnviarCorreo || cargando"
+                title="Campaña de correo por MailerTurbo a las personas seleccionadas con correo"
                 class="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold shadow-sm hover:bg-[#1D3DD9] transition-colors disabled:opacity-50"
-              ><Send :size="13" /> Enviar</button>
+              ><Send :size="13" /> Enviar correo</button>
             </div>
           </div>
           <div v-if="criteriosAplicados.length" class="px-4 py-2 border-t border-default flex items-center gap-1.5 flex-wrap">
@@ -189,7 +268,7 @@ const confirmarGuardar = () => {
         </div>
 
         <p class="flex items-center gap-1.5 text-[11px] text-muted shrink-0">
-          <Info :size="12" class="shrink-0" /> «Enviar» es una vista previa: el envío real de correos y WhatsApp aún no está conectado a un proveedor.
+          <Info :size="12" class="shrink-0" /> El correo se envía con MailerTurbo a las personas seleccionadas que tengan correo; WhatsApp todavía es una vista previa.
         </p>
 
         <div v-if="error" class="rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[12px] font-semibold px-4 py-3 shrink-0">
@@ -299,6 +378,8 @@ const confirmarGuardar = () => {
     </div>
 
     <EnviarSegmentoDialog v-model:visible="enviarVisible" :total="seleccion.length" />
+    <EnviarCampanaDialog v-model:visible="enviarCorreoVisible" :contactos="contactosMailer" :audiencia="audienciaMailer" :origen="origenMailer" />
+    <SubirContactosDialog v-model:visible="subirMailerVisible" :contactos="contactosMailer" :audiencia="audienciaMailer" :origen="origenMailer" />
     <AgregarAGrupoDialog v-model:visible="agregarGrupoVisible" :personas="personasParaGrupo" />
 
     <div v-if="guardarVisible" class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">

@@ -8,6 +8,9 @@ import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import PlantillaListItem from '../components/PlantillaListItem.vue'
 import EditorPlantillaDialog from '../dialogs/EditorPlantillaDialog.vue'
 import EnviarPlantillaDialog from '../dialogs/EnviarPlantillaDialog.vue'
+import CampanasSubnav from '../components/CampanasSubnav.vue'
+import MigasCampanas from '../components/MigasCampanas.vue'
+import EnviarCampanaDialog from '@/features/mailerturbo/dialogs/EnviarCampanaDialog.vue'
 
 // "gestionar" cubre crear y editar; no hay accion "eliminar" real en backend.
 const { gestionar: puedeGestionar } = permisosDeModulo('campanas')
@@ -41,6 +44,10 @@ const payloadEnvio = computed(() =>
     : null,
 )
 const abrirEnvio = (p: Plantilla) => { plantillaGuardada.value = p; enviarVisible.value = true }
+
+// Envío masivo de la plantilla como campaña de MailerTurbo (listas, Excel/CSV).
+const enviarMailerVisible = ref(false)
+const abrirEnvioMailer = (p: Plantilla) => { plantillaGuardada.value = p; enviarMailerVisible.value = true }
 // El boton "Enviar" del editor guarda (espera a que quede en la BD) y solo
 // despues abre el dialogo de envio, para no mandar una version vieja.
 const onEnviarDesdeEditor = async (d: PlantillaDraft) => {
@@ -62,8 +69,9 @@ const confirmarEliminar = () => {
   <div class="space-y-5 font-[Inter,system-ui,sans-serif]">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
+        <MigasCampanas :migas="[{ label: 'Plantillas' }]" class="mb-1.5" />
         <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
-          Campañas
+          Plantillas
           <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
             {{ plantillas.length }}
           </span>
@@ -79,6 +87,8 @@ const confirmarEliminar = () => {
       </button>
     </div>
 
+    <CampanasSubnav />
+
     <div class="surface-card rounded-2xl shadow-sm overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
         <h3 class="text-[13px] font-bold text-heading">Plantillas de correo</h3>
@@ -91,6 +101,7 @@ const confirmarEliminar = () => {
           :plantilla="p"
           @editar="abrirEditorPlantilla(p)"
           @enviar="abrirEnvio(p)"
+          @enviar-mailer="abrirEnvioMailer(p)"
           @duplicar="duplicar(p.id)"
           @eliminar="pedirEliminar(p)"
         />
@@ -107,6 +118,7 @@ const confirmarEliminar = () => {
       @enviar="onEnviarDesdeEditor"
     />
     <EnviarPlantillaDialog v-model:visible="enviarVisible" :plantilla="payloadEnvio" />
+    <EnviarCampanaDialog v-model:visible="enviarMailerVisible" :plantilla-crm="payloadEnvio" />
 
     <ConfirmDialog
       v-model:visible="confirmEliminarVisible"

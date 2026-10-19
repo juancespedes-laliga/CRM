@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { FileCode2, Pencil, Send, Copy, Download, Trash2 } from 'lucide-vue-next'
+import { FileCode2, Pencil, Send, Megaphone, Copy, Download, Trash2 } from 'lucide-vue-next'
 import type { Plantilla } from '../types/plantilla'
 import { fmtFechaPlantilla, descargarHtml } from '../constants/campanas.constants'
 import { permisosDeModulo } from '@/features/auth/composables/useAuth'
 
 const props = defineProps<{ plantilla: Plantilla }>()
-const emit = defineEmits<{ editar: []; enviar: []; duplicar: []; eliminar: [] }>()
+const emit = defineEmits<{ editar: []; enviar: []; enviarMailer: []; duplicar: []; eliminar: [] }>()
 
 const { gestionar: puedeGestionar } = permisosDeModulo('campanas')
 
@@ -28,7 +28,8 @@ const descargar = () => descargarHtml(props.plantilla.nombre, props.plantilla.ht
 
     <div v-if="puedeGestionar" class="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all">
       <button @click="emit('editar')" title="Editar" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><Pencil :size="13" /></button>
-      <button @click="emit('enviar')" title="Enviar" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><Send :size="13" /></button>
+      <button @click="emit('enviarMailer')" title="Enviar como campaña (MailerTurbo)" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><Megaphone :size="13" /></button>
+      <button @click="emit('enviar')" title="Enviar por Gmail (pocos destinatarios)"class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><Send :size="13" /></button>
       <button @click="emit('duplicar')" title="Duplicar" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><Copy :size="13" /></button>
       <button @click="descargar" title="Descargar HTML" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><Download :size="13" /></button>
       <button @click="emit('eliminar')" title="Eliminar" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900 transition-all"><Trash2 :size="13" /></button>

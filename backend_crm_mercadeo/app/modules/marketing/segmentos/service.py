@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from .repository import SegmentosRepository
 from .schemas import (
+    AudienciaSegmentoItem,
     CategoriaUsoPlan,
     FiltrosAudiencia,
     ListadoAudienciaSegmento,
@@ -139,7 +140,23 @@ class SegmentosService:
         )
 
     def obtener_audiencia(self, filtros: FiltrosAudiencia) -> ListadoAudienciaSegmento:
-        filtros_normalizados = self._normalizar_filtros(filtros)
+        return self._consultar_audiencia(self._normalizar_filtros(filtros))
+
+    # Toda la audiencia de un filtro, sin paginar (envios masivos, ver
+    # integraciones/mailerturbo). Una sola consulta con un limite alto: paginar
+    # de a 500 repetiria la consulta completa sobre TMPBI1 en cada pagina.
+    # model_copy no revalida, asi que el limite puede pasar el le=500 del schema.
+    def obtener_audiencia_completa(
+        self, filtros: FiltrosAudiencia, limite: int = 50_000
+    ) -> list[AudienciaSegmentoItem]:
+        normalizados = self._normalizar_filtros(filtros)
+        return self._consultar_audiencia(
+            normalizados.model_copy(update={"pagina": 1, "por_pagina": limite})
+        ).items
+
+    def _consultar_audiencia(
+        self, filtros_normalizados: FiltrosAudiencia
+    ) -> ListadoAudienciaSegmento:
 
         # "sin_uso" sale de una consulta distinta (INTRANET_PLANLIGA /
         # INTRANET_PLANLIGA_BENEFICIARIO, no TMPBI1) con menos filtros

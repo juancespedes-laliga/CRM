@@ -268,6 +268,17 @@ export function filtroSegmentoAQuery(
   return q
 }
 
+/** El mismo filtro, como objeto sin paginacion: lo usa MailerTurbo para que el
+ * backend arme TODA la audiencia (no solo los bloques ya cargados aqui). */
+export function filtroSegmentoACuerpo(f: FiltroSegmento): Record<string, string | number> {
+  const cuerpo: Record<string, string | number> = {}
+  filtroSegmentoAQuery(f).forEach((valor, clave) => {
+    if (clave === 'pagina' || clave === 'por_pagina') return
+    cuerpo[clave] = clave === 'edad_min' || clave === 'edad_max' ? Number(valor) : valor
+  })
+  return cuerpo
+}
+
 /** Trae una sola pagina (util para paginacion real del backend). */
 export async function getAudiencias(
   f: FiltroSegmento,

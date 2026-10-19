@@ -1,1 +1,5 @@
 .env
+
+# Credenciales de MailerTurbo (no subir)
+mailerturbo.txt
+.envmailerturbo

@@ -17,7 +17,7 @@ const plantillas = computed<PlantillaRef[]>(() => canal.value === 'correo' ? PLA
 const plantillaElegida = computed(() => plantillas.value.find(x => x.id === plantillaId.value))
 
 watch(visible, (v) => {
-  if (v) { canal.value = 'correo'; plantillaId.value = ''; resultado.value = ''; enviando.value = false; confirmando.value = false }
+  if (v) { canal.value = 'whatsapp'; plantillaId.value = ''; resultado.value = ''; enviando.value = false; confirmando.value = false }
 })
 watch(canal, () => { plantillaId.value = '' })
 
