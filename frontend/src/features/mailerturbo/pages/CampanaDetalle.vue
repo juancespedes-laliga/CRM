@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   RefreshCw, FileSpreadsheet, Search, Loader2, Users, Send, MailX, MailOpen, MousePointerClick, UserMinus,
@@ -31,14 +31,19 @@ const cargandoDestinatarios = ref(false)
 const errorDetalle = ref<string | null>(null)
 const errorDestinatarios = ref<string | null>(null)
 
-async function cargar() {
+const actualizadoEn = ref<Date | null>(null)
+// Refresco sin esqueletos de carga (botón "Actualizar" con datos ya cargados y
+// refresco automático): la vista no parpadea, solo gira el ícono del botón.
+const refrescando = ref(false)
+
+async function cargar(silencioso = false) {
   const id = idCampana.value
-  cargandoDetalle.value = true
-  cargandoDestinatarios.value = true
+  if (silencioso) refrescando.value = true
+  else { cargandoDetalle.value = true; cargandoDestinatarios.value = true }
   errorDetalle.value = null
   errorDestinatarios.value = null
   // El detalle es rápido; los destinatarios pueden tardar con campañas grandes.
-  getDetalleCampana(id)
+  const pDetalle = getDetalleCampana(id)
     .then(c => { campana.value = c })
     .catch(e => { errorDetalle.value = e instanceof Error ? e.message : 'No se pudo cargar la campaña.' })
     .finally(() => { cargandoDetalle.value = false })
@@ -49,9 +54,24 @@ async function cargar() {
   } finally {
     cargandoDestinatarios.value = false
   }
+  await pDetalle
+  refrescando.value = false
+  actualizadoEn.value = new Date()
 }
-onMounted(cargar)
+onMounted(() => cargar())
 watch(idCampana, () => { pagina.value = 1; void cargar() })
+const actualizar = () => cargar(!!campana.value)
+
+// Mientras la campaña se esté enviando (o tenga destinatarios pendientes) se
+// refresca sola cada 30 s.
+const enCurso = computed(() =>
+  ['En proceso', 'Enviando'].includes(campana.value?.estado ?? '')
+  || destinatarios.value.some(d => d.estadoEnvio === 'Pendiente'),
+)
+const ocupado = computed(() => cargandoDetalle.value || cargandoDestinatarios.value || refrescando.value)
+const autoRefresco = setInterval(() => { if (enCurso.value && !ocupado.value) void cargar(true) }, 30_000)
+onUnmounted(() => clearInterval(autoRefresco))
+const fmtHora = (d: Date) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 // ── Métricas (desde los destinatarios; si aún no cargan, desde las estadísticas) ──
 const conteos = computed(() => {
@@ -113,7 +133,7 @@ const desdeEstadisticas = computed(() => route.query.desde === 'estadisticas')
 const migas = computed(() => [
   desdeEstadisticas.value
     ? { label: 'Estadísticas', ruta: '/campanas/estadisticas' }
-    : { label: 'MailerTurbo', ruta: '/campanas/mailerturbo' },
+    : { label: 'Listas y campañas', ruta: '/campanas/mailerturbo' },
   { label: campana.value?.nombre || `Campaña #${idCampana.value}` },
 ])
 
@@ -171,6 +191,7 @@ function exportarVista() {
 const COLOR_ESTADO: Record<string, string> = {
   Enviada: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
   Enviando: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  'En proceso': 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
   'En espera': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
   Programada: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
   Borrador: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
@@ -206,11 +227,14 @@ const fmtCorta = (f: string | null) => (f ? new Date(f.replace(' ', 'T')).toLoca
         <p v-if="errorDetalle" class="text-[12px] text-red-600 dark:text-red-400 mt-1">{{ errorDetalle }}</p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
+        <span v-if="actualizadoEn" class="text-[10px] text-subtle text-right leading-tight">
+          Actualizado {{ fmtHora(actualizadoEn) }}<template v-if="enCurso"><br>se actualiza sola cada 30 s</template>
+        </span>
         <button
-          @click="cargar"
-          :disabled="cargandoDetalle || cargandoDestinatarios"
+          @click="actualizar"
+          :disabled="ocupado"
           class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
-        ><RefreshCw :size="13" :class="{ 'animate-spin': cargandoDetalle || cargandoDestinatarios }" /> Actualizar</button>
+        ><RefreshCw :size="13" :class="{ 'animate-spin': ocupado }" /> Actualizar</button>
         <button
           @click="exportarTodo"
           :disabled="!campana || cargandoDestinatarios || !destinatarios.length"

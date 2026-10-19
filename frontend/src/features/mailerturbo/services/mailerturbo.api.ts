@@ -35,7 +35,10 @@ async function lanzarErrorConDetalle(response: Response, mensajeError: string): 
 async function pedir<T>(ruta: string, mensajeError: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
+    // no-store: "Actualizar" siempre debe traer el estado actual de MailerTurbo,
+    // nunca una respuesta guardada por el navegador.
     response = await fetch(`${BASE}${ruta}`, {
+      cache: 'no-store',
       ...init,
       headers: { ...authHeader(), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) },
     })
@@ -151,6 +154,15 @@ export async function getCampanas(pagina = 1, porPagina = 20, q = ''): Promise<P
     `/campanas?${params}`, 'No se pudieron cargar las campañas de MailerTurbo.',
   )
   return { campanas: data.campanas.map(mapCampana), total: data.total, totalPaginas: data.total_paginas }
+}
+
+/** Todas las campañas (para estadísticas): recorre las páginas de a 200. */
+export async function getTodasLasCampanas(): Promise<CampanaMT[]> {
+  const primera = await getCampanas(1, 200)
+  const resto = await Promise.all(
+    Array.from({ length: Math.min(primera.totalPaginas, 25) - 1 }, (_, i) => getCampanas(i + 2, 200)),
+  )
+  return [primera, ...resto].flatMap(p => p.campanas)
 }
 
 export async function getDetalleCampana(id: number): Promise<DetalleCampanaMT> {

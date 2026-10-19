@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Megaphone, Send, CloudUpload, RefreshCw, Search, Loader2, ListPlus, ExternalLink, ChevronRight, ChevronLeft, BarChart3, X,
@@ -67,9 +67,11 @@ const pagina = ref(1)
 const busquedaCampana = ref('')
 const cargandoCampanas = ref(false)
 const errorCampanas = ref<string | null>(null)
+const actualizadoEn = ref<Date | null>(null)
 
-async function cargarCampanas(p = pagina.value) {
-  cargandoCampanas.value = true
+// silencioso: sin esqueleto de carga (lo usa el refresco automático).
+async function cargarCampanas(p = pagina.value, silencioso = false) {
+  if (!silencioso) cargandoCampanas.value = true
   errorCampanas.value = null
   try {
     const r = await getCampanas(p, porPagina.value, busquedaCampana.value)
@@ -77,6 +79,7 @@ async function cargarCampanas(p = pagina.value) {
     totalCampanas.value = r.total
     totalPaginas.value = Math.max(1, r.totalPaginas)
     pagina.value = p
+    actualizadoEn.value = new Date()
   } catch (e) {
     errorCampanas.value = e instanceof Error ? e.message : 'No se pudieron cargar las campañas.'
   } finally {
@@ -95,9 +98,19 @@ const limpiarBusqueda = () => { busquedaCampana.value = ''; void cargarCampanas(
 const actualizarTodo = () => { void cargar(true); void cargarCampanas() }
 onMounted(() => { void cargar(); void cargarCampanas(1) })
 
+// Mientras alguna campaña de la página se esté enviando, se refresca sola cada 30 s.
+const ESTADOS_EN_CURSO = ['En proceso', 'Enviando']
+const hayEnCurso = computed(() => campanas.value.some(c => ESTADOS_EN_CURSO.includes(c.estado)))
+const autoRefresco = setInterval(() => {
+  if (hayEnCurso.value && !cargandoCampanas.value) void cargarCampanas(pagina.value, true)
+}, 30_000)
+onUnmounted(() => clearInterval(autoRefresco))
+const fmtHora = (d: Date) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
 const COLOR_ESTADO: Record<string, string> = {
   Enviada: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
   Enviando: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  'En proceso': 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
   'En espera': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
   Programada: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
   Borrador: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
@@ -130,11 +143,11 @@ const onEnviada = () => { void cargarCampanas(1) }
   <div class="space-y-5 font-[Inter,system-ui,sans-serif]">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <MigasCampanas :migas="[{ label: 'MailerTurbo' }]" class="mb-1.5" />
+        <MigasCampanas :migas="[{ label: 'Listas y campañas' }]" class="mb-1.5" />
         <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
-          <Megaphone :size="19" class="text-[#2447F9]" /> Campañas de MailerTurbo
+          <Megaphone :size="19" class="text-[#2447F9]" /> Listas y campañas
         </h2>
-        <p class="text-[12px] text-body mt-0.5">Envíos masivos de correo con MailerTurbo: listas de contactos, campañas y resultados.</p>
+        <p class="text-[12px] text-body mt-0.5">Envíos masivos de correo: listas de contactos, campañas y resultados.</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <button
@@ -225,10 +238,6 @@ const onEnviada = () => { void cargarCampanas(1) }
                 <div class="text-[10px] text-muted tabular-nums">{{ nf.format(l.totalActivos) }} activos</div>
               </div>
             </div>
-            <!-- proporción de activos -->
-            <div class="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden" :title="`${fmtPct(l.totalCorreos ? (l.totalActivos / l.totalCorreos) * 100 : 0)} activos`">
-              <div class="h-full rounded-full bg-[#2a78d6] dark:bg-[#3987e5]" :style="{ width: `${l.totalCorreos ? (l.totalActivos / l.totalCorreos) * 100 : 0}%` }" />
-            </div>
           </li>
           <li v-if="!listasFiltradas.length" class="px-4 py-8 text-center text-[12px] text-muted">No hay listas.</li>
         </ul>
@@ -247,6 +256,9 @@ const onEnviada = () => { void cargarCampanas(1) }
           <div>
             <h3 class="text-[13px] font-bold text-heading">Campañas</h3>
             <p class="text-[11px] text-muted">{{ nf.format(totalCampanas) }} en total, las más recientes primero. Clic en una para ver sus destinatarios.</p>
+            <p v-if="actualizadoEn" class="text-[10px] text-subtle mt-0.5">
+              Actualizado a las {{ fmtHora(actualizadoEn) }}<template v-if="hayEnCurso"> · hay campañas enviándose, se actualiza sola cada 30 s</template>
+            </p>
           </div>
           <div class="flex items-center gap-2 h-9 px-3 rounded-lg input-surface w-full sm:w-64">
             <Search :size="13" class="text-muted shrink-0" />
@@ -264,7 +276,7 @@ const onEnviada = () => { void cargarCampanas(1) }
                 <th class="px-4 py-2.5 font-semibold">Campaña</th>
                 <th class="px-3 py-2.5 font-semibold">Estado</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Envíos</th>
-                <th class="px-3 py-2.5 font-semibold min-w-[130px]">Aperturas</th>
+                <th class="px-3 py-2.5 font-semibold text-right">Aperturas</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Clics</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Rebotes</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Bajas</th>
@@ -295,14 +307,9 @@ const onEnviada = () => { void cargarCampanas(1) }
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-md" :class="claseEstado(c.estado)">{{ c.estado }}</span>
                   </td>
                   <td class="px-3 py-2.5 text-right tabular-nums font-semibold text-heading">{{ nf.format(c.totalEnvios) }}</td>
-                  <td class="px-3 py-2.5 tabular-nums">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-body">{{ nf.format(c.totalVistas) }}</span>
-                      <span class="text-[10px] font-semibold text-muted">{{ fmtPct(c.porcentajeVistas) }}</span>
-                    </div>
-                    <div class="mt-1 h-1 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                      <div class="h-full rounded-full bg-[#2a78d6] dark:bg-[#3987e5]" :style="{ width: `${Math.min(100, c.porcentajeVistas)}%` }" />
-                    </div>
+                  <td class="px-3 py-2.5 text-right tabular-nums">
+                    <div class="text-body">{{ nf.format(c.totalVistas) }}</div>
+                    <div class="text-[10px] text-muted">{{ fmtPct(c.porcentajeVistas) }}</div>
                   </td>
                   <td class="px-3 py-2.5 text-right tabular-nums">
                     <div class="text-body">{{ nf.format(c.totalClicks) }}</div>

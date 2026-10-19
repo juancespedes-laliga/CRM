@@ -23,6 +23,11 @@
   --mt-s1: #2a78d6;
   --mt-s2: #eb6834;
   --mt-s3: #1baf7a;
+  /* Slots 4-5 solo para las tortas (validadas por pares adyacentes) + "Otros" neutro.
+     Varios quedan < 3:1 sobre blanco: la leyenda de la torta siempre muestra valor y %. */
+  --mt-s4: #eda100;
+  --mt-s5: #e87ba4;
+  --mt-otros: #b6bcc6;
   /* Franjas alternas por columna (como columnas de una tabla). */
   --mt-franja-a: #f6f7f8;
   --mt-franja-b: #eceeef;
@@ -31,6 +36,9 @@
   --mt-s1: #3987e5;
   --mt-s2: #d95926;
   --mt-s3: #199e70;
+  --mt-s4: #c98500;
+  --mt-s5: #d55181;
+  --mt-otros: #5b6577;
   --mt-franja-a: #223047;
   --mt-franja-b: #283750;
   --mt-serie: #3987e5;

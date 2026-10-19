@@ -6,7 +6,8 @@ import '../../styles/graficos.css'
 // Líneas sobre franjas alternas (una franja por categoría del eje x). Hasta 3
 // series con color fijo por posición; la leyenda permite ocultar una sin que las
 // demás cambien de color. Hover = resalta la franja + tooltip con todas las series.
-export interface SerieLineas { id: string; nombre: string; valores: number[] }
+/** null = sin dato (p. ej. un día sin envíos): la línea se corta, no cae a 0. */
+export interface SerieLineas { id: string; nombre: string; valores: (number | null)[] }
 export interface CategoriaLineas { id: string | number; etiqueta: string; titulo?: string; sub?: string }
 
 const props = withDefaults(defineProps<{
@@ -20,7 +21,7 @@ const emit = defineEmits<{ seleccionar: [CategoriaLineas] }>()
 
 const COLORES = ['var(--mt-s1)', 'var(--mt-s2)', 'var(--mt-s3)']
 const nf = new Intl.NumberFormat('es-CO')
-const fmt = (v: number) => (props.formato === 'pct' ? `${v.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%` : nf.format(Math.round(v)))
+const fmt = (v: number | null | undefined) => v == null ? '—' : (props.formato === 'pct' ? `${v.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%` : nf.format(Math.round(v)))
 const fmtEje = (v: number) => (props.formato === 'pct' ? `${v}%` : v >= 10_000 ? `${nf.format(v / 1000)} k` : nf.format(v))
 
 // ── Tamaño ───────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ const anchoColumna = computed(() => plotAncho.value / Math.max(1, n.value))
 const x = (i: number) => M.izq + anchoColumna.value * (i + 0.5)
 
 const maxY = computed(() => {
-  const m = Math.max(0, ...visibles.value.flatMap(s => s.valores))
+  const m = Math.max(0, ...visibles.value.flatMap(s => s.valores.filter((v): v is number => v != null)))
   if (m <= 0) return props.formato === 'pct' ? 10 : 1
   const paso = Math.pow(10, Math.floor(Math.log10(m)))
   const tope = [1, 2, 2.5, 5, 10].map(f => f * paso).find(v => v >= m) ?? 10 * paso
@@ -64,8 +65,28 @@ const maxY = computed(() => {
 const y = (v: number) => M.arr + plotAlto.value * (1 - v / maxY.value)
 const ticks = computed(() => [0, 0.25, 0.5, 0.75, 1].map(f => +(maxY.value * f).toFixed(2)))
 
-const ruta = (valores: number[]) =>
-  valores.slice(0, n.value).map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+// Tramos continuos: cada hueco (null) corta la línea, salvo que se pida unirlos.
+const hayHuecos = computed(() => props.series.some(s => s.valores.slice(0, n.value).some(v => v == null)))
+const unirHuecos = ref(false)
+const ruta = (valores: (number | null)[]) => {
+  let d = ''
+  let previoNulo = true
+  valores.slice(0, n.value).forEach((v, i) => {
+    if (v == null) { if (!unirHuecos.value) previoNulo = true; return }
+    d += `${previoNulo ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)} `
+    previoNulo = false
+  })
+  return d
+}
+// Puntos con dato: con huecos se marcan todos (si no, los sueltos ni se verían).
+const marcados = (valores: (number | null)[]) =>
+  hayHuecos.value || n.value === 1
+    ? valores.slice(0, n.value).flatMap((v, i) => (v != null ? [{ i, v }] : []))
+    : []
+const ultimo = (valores: (number | null)[]) => {
+  for (let i = Math.min(valores.length, n.value) - 1; i >= 0; i--) if (valores[i] != null) return valores[i] as number
+  return null
+}
 
 // Etiquetas del eje x sin choques: como mucho una cada ~64px.
 const cadaX = computed(() => Math.max(1, Math.ceil(64 / anchoColumna.value)))
@@ -73,9 +94,18 @@ const cadaX = computed(() => Math.max(1, Math.ceil(64 / anchoColumna.value)))
 // Etiquetas directas al final de cada línea, separadas si se pisan.
 const etiquetasFinales = computed(() => {
   if (!n.value) return []
-  const items = visibles.value.map(s => ({ id: s.id, nombre: s.nombre, color: s.color, valor: s.valores[n.value - 1] ?? 0, y: y(s.valores[n.value - 1] ?? 0) }))
+  const items = visibles.value.flatMap(s => {
+    const v = ultimo(s.valores)
+    return v == null ? [] : [{ id: s.id, nombre: s.nombre, color: s.color, valor: v, y: y(v) }]
+  })
   items.sort((a, b) => a.y - b.y)
   for (let i = 1; i < items.length; i++) if (items[i].y - items[i - 1].y < 14) items[i].y = items[i - 1].y + 14
+  // Si se salen por abajo, se reacomodan desde el fondo hacia arriba.
+  const fondo = M.arr + plotAlto.value
+  for (let i = items.length - 1; i >= 0; i--) {
+    const tope = i === items.length - 1 ? fondo : items[i + 1].y - 14
+    if (items[i].y > tope) items[i].y = tope
+  }
   return items
 })
 
@@ -115,6 +145,10 @@ const verTabla = ref(false)
           <span class="w-3.5 h-[3px] rounded-full" :style="{ background: s.color }" /> {{ s.nombre }}
         </button>
       </div>
+      <div class="flex items-center gap-2">
+      <label v-if="hayHuecos && !verTabla" class="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer" title="Une los puntos saltando los periodos sin envíos (no inventa datos: solo facilita ver la tendencia)">
+        <input v-model="unirHuecos" type="checkbox" class="accent-[#2447F9]" /> Unir huecos
+      </label>
       <button
         type="button"
         class="flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold text-muted hover:text-heading hover:bg-slate-50 dark:hover:bg-slate-700/50"
@@ -122,6 +156,7 @@ const verTabla = ref(false)
       >
         <component :is="verTabla ? ChartLine : Table2" :size="12" /> {{ verTabla ? 'Ver gráfica' : 'Ver tabla' }}
       </button>
+      </div>
     </div>
 
     <!-- Tabla (vista accesible / para copiar los números) -->
@@ -136,7 +171,7 @@ const verTabla = ref(false)
         <tbody>
           <tr v-for="(c, i) in categorias" :key="c.id" class="border-b border-slate-100 dark:border-slate-700/60">
             <td class="px-3 py-1.5 text-body">{{ c.titulo ?? c.etiqueta }}<span v-if="c.sub" class="text-muted"> · {{ c.sub }}</span></td>
-            <td v-for="s in seriesConColor" :key="s.id" class="px-3 py-1.5 text-right tabular-nums text-heading">{{ fmt(s.valores[i] ?? 0) }}</td>
+            <td v-for="s in seriesConColor" :key="s.id" class="px-3 py-1.5 text-right tabular-nums text-heading">{{ fmt(s.valores[i]) }}</td>
           </tr>
         </tbody>
       </table>
@@ -207,15 +242,15 @@ const verTabla = ref(false)
           stroke-linejoin="round"
           stroke-linecap="round"
         />
-        <!-- punto único (una sola categoría) -->
-        <template v-if="n === 1">
-          <circle v-for="s in visibles" :key="`p-${s.id}`" :cx="x(0)" :cy="y(s.valores[0] ?? 0)" r="4" :fill="s.color" stroke="var(--mt-superficie)" stroke-width="2" />
+        <!-- puntos con dato cuando hay huecos -->
+        <template v-for="s in visibles" :key="`p-${s.id}`">
+          <circle v-for="p in marcados(s.valores)" :key="p.i" :cx="x(p.i)" :cy="y(p.v)" r="4.5" :fill="s.color" stroke="var(--mt-superficie)" stroke-width="2" />
         </template>
 
         <!-- marcadores del punto con hover -->
         <template v-if="hover !== null">
           <circle
-            v-for="s in visibles"
+            v-for="s in visibles.filter(s => s.valores[hover!] != null)"
             :key="`h-${s.id}`"
             :cx="x(hover)"
             :cy="y(s.valores[hover] ?? 0)"
@@ -257,7 +292,7 @@ const verTabla = ref(false)
         <div v-if="categorias[hover].sub" class="opacity-70 mb-1">{{ categorias[hover].sub }}</div>
         <div v-for="s in visibles" :key="`tt-${s.id}`" class="flex items-center justify-between gap-4">
           <span class="flex items-center gap-1.5"><span class="w-2.5 h-[3px] rounded-full" :style="{ background: s.color }" />{{ s.nombre }}</span>
-          <strong class="tabular-nums">{{ fmt(s.valores[hover] ?? 0) }}</strong>
+          <strong class="tabular-nums">{{ s.valores[hover] == null ? 'sin envíos' : fmt(s.valores[hover]) }}</strong>
         </div>
         <div v-if="clicable" class="opacity-60 mt-1">Clic para ver el detalle</div>
       </div>

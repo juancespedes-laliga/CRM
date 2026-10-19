@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onActivated, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, ChevronLeft, RefreshCw, SlidersHorizontal, PanelLeftOpen, Send, X, Mail, Phone, Bookmark, Check, Loader2, Info, UsersRound, CloudUpload, MessageCircle, CheckCheck } from 'lucide-vue-next'
+import { ChevronRight, ChevronLeft, RefreshCw, SlidersHorizontal, PanelLeftOpen, Send, X, Mail, Phone, Bookmark, Check, Loader2, Info, CloudUpload, MessageCircle, CheckCheck } from 'lucide-vue-next'
 import { clonarFiltro, resumirFiltros } from '../constants/ciclo-afiliado.constants'
 import { getSegmentoPreseleccionado } from '../composables/useSegmentoPreseleccionado'
 import { useSegmentosGuardados } from '../composables/useSegmentosGuardados'
@@ -9,9 +9,6 @@ import { useSegmentador } from '../composables/useSegmentador'
 import FiltrosSegmento from '../components/FiltrosSegmento.vue'
 import EnviarSegmentoDialog from '../components/EnviarSegmentoDialog.vue'
 import UsoPlanPanel from '../components/UsoPlanPanel.vue'
-import AudienciasSubnav from '../components/AudienciasSubnav.vue'
-import AgregarAGrupoDialog from '@/features/grupos-interes/dialogs/AgregarAGrupoDialog.vue'
-import type { PersonaParaGrupo } from '@/features/grupos-interes/types/grupo'
 import EnviarCampanaDialog from '@/features/mailerturbo/dialogs/EnviarCampanaDialog.vue'
 import SubirContactosDialog from '@/features/mailerturbo/dialogs/SubirContactosDialog.vue'
 import type { AudienciaCompletaMT, ContactoMT } from '@/features/mailerturbo/types/mailerturbo'
@@ -64,12 +61,7 @@ const detallePersona = (a: { sexo: string | null; edad: number | null }) =>
 // Filtros APLICADOS (no el borrador del panel) como etiquetas legibles en la barra superior.
 const criteriosAplicados = computed(() => resumirFiltros(fApp.value))
 
-// Personas seleccionadas -> grupo de interés (ver features/grupos-interes).
-const agregarGrupoVisible = ref(false)
 const ciudadDe = (direccion: string) => (direccion === '—' ? '' : direccion.split(' · ')[0])
-const personasParaGrupo = computed<PersonaParaGrupo[]>(() => seleccion.value.map(a => ({
-  documento: a.documento, nombre: a.nombre, correo: a.correo, telefono: a.telefono, ciudad: ciudadDe(a.direccion),
-})))
 
 // WhatsApp sigue siendo vista previa (EnviarSegmentoDialog); el correo va por MailerTurbo.
 const enviarVisible = ref(false)
@@ -149,11 +141,9 @@ const confirmarGuardar = () => {
         <RefreshCw :size="19" class="text-[#EC4899]" /> Audiencias
       </h2>
       <p class="text-[12px] text-body mt-0.5">
-        Arma una audiencia con filtros de Plan Liga (o no Plan Liga) y actúa sobre ella, o trabaja con grupos de interés: listas fijas con categorías propias.
+        Arma una audiencia con filtros de Plan Liga (o no Plan Liga) y actúa sobre ella.
       </p>
     </div>
-
-    <AudienciasSubnav />
 
     <!-- Solo cuando el filtro APLICADO (fApp, no el borrador f) es "Plan Liga": el
     resumen/buscador es especifico de esa audiencia, no tiene sentido con "No plan
@@ -234,11 +224,6 @@ const confirmarGuardar = () => {
                 :disabled="!seleccion.length || cargando"
                 class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
               ><Bookmark :size="13" /> Guardar segmento</button>
-              <button
-                @click="agregarGrupoVisible = true"
-                :disabled="!seleccion.length || cargando"
-                class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-              ><UsersRound :size="13" /> Agregar a grupo de interés</button>
               <button
                 @click="subirMailerVisible = true"
                 :disabled="!puedeEnviarCorreo || cargando"
@@ -380,7 +365,6 @@ const confirmarGuardar = () => {
     <EnviarSegmentoDialog v-model:visible="enviarVisible" :total="seleccion.length" />
     <EnviarCampanaDialog v-model:visible="enviarCorreoVisible" :contactos="contactosMailer" :audiencia="audienciaMailer" :origen="origenMailer" />
     <SubirContactosDialog v-model:visible="subirMailerVisible" :contactos="contactosMailer" :audiencia="audienciaMailer" :origen="origenMailer" />
-    <AgregarAGrupoDialog v-model:visible="agregarGrupoVisible" :personas="personasParaGrupo" />
 
     <div v-if="guardarVisible" class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div class="surface-card rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">

@@ -49,10 +49,10 @@ const abrirEnvio = (p: Plantilla) => { plantillaGuardada.value = p; enviarVisibl
 const enviarMailerVisible = ref(false)
 const abrirEnvioMailer = (p: Plantilla) => { plantillaGuardada.value = p; enviarMailerVisible.value = true }
 // El boton "Enviar" del editor guarda (espera a que quede en la BD) y solo
-// despues abre el dialogo de envio, para no mandar una version vieja.
+// despues abre el envio masivo (MailerTurbo), para no mandar una version vieja.
 const onEnviarDesdeEditor = async (d: PlantillaDraft) => {
   await guardarPlantilla(d)
-  enviarVisible.value = true
+  enviarMailerVisible.value = true
 }
 
 // Eliminar

@@ -6,7 +6,7 @@ import { useTema } from '@/shared/composables/useTema'
 
 import {
   LayoutDashboard, Heart, Users, Building2, Truck,
-  BookOpen, Target, Filter, Wrench, Upload, Zap, Send,
+  BookOpen, Target, Filter, Wrench, Upload, Send,
   ChevronLeft, ChevronRight, LogOut, Settings,
   RefreshCw, X, Menu, Moon, Sun, CalendarClock, CalendarRange
 } from 'lucide-vue-next'
@@ -72,7 +72,6 @@ const menuGroups: MenuGroup[] = [
   ]},
   { label: 'Marketing', items: [
     { key: 'campanas',         label: 'Campañas',                  icono: Send,            modulo: 'campanas'        },
-    { key: 'automatizaciones', label: 'Automatizaciones',           icono: Zap,             modulo: 'automatizaciones'},
   ]},
   { label: 'Operaciones', items: [
     { key: 'relacionamiento',  label: 'Bitácora',                  icono: BookOpen,        modulo: 'bitacora'        },

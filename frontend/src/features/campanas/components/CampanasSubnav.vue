@@ -3,10 +3,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { BarChart3, FileCode2, Megaphone } from 'lucide-vue-next'
 
 // Sub-vistas de Campañas: plantillas del editor del CRM, envíos masivos por
-// MailerTurbo y sus estadísticas.
+// MailerTurbo ("Listas y campañas") y sus estadísticas.
 const SUBVISTAS = [
   { ruta: '/campanas', label: 'Plantillas', icono: FileCode2 },
-  { ruta: '/campanas/mailerturbo', label: 'MailerTurbo', icono: Megaphone },
+  { ruta: '/campanas/mailerturbo', label: 'Listas y campañas', icono: Megaphone },
   { ruta: '/campanas/estadisticas', label: 'Estadísticas', icono: BarChart3 },
 ]
 

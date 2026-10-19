@@ -171,7 +171,7 @@ const exportarContactos = () => exportarContactosExcel(contactosFiltrados.value)
     <!-- ── Pestañas ──────────────────────────────────────────────── -->
     <nav class="flex items-center gap-1 border-b border-slate-200 dark:border-slate-700" aria-label="Vistas de contactos">
       <button
-        v-for="t in ([{ v: 'crm', label: 'Contactos del CRM', icono: Users }, { v: 'mailerturbo', label: 'MailerTurbo', icono: Megaphone }] as const)"
+        v-for="t in ([{ v: 'crm', label: 'Contactos del CRM', icono: Users }, { v: 'mailerturbo', label: 'Contactos envíos masivos', icono: Megaphone }] as const)"
         :key="t.v"
         type="button"
         @click="irAVista(t.v)"
