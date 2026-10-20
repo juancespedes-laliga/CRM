@@ -8,9 +8,32 @@ import { BLOQUES_CORREO } from '../constants/bloques-correo'
 
 const props = defineProps<{ plantilla: Plantilla | null }>()
 
+// Fuentes "web-safe": vienen preinstaladas en Windows/Mac, así que los
+// clientes de correo (Gmail, Outlook…) las respetan. Cualquier otra fuente
+// (Google Fonts, etc.) no se puede incrustar en un correo y cada cliente la
+// reemplaza por su fuente por defecto — por eso el font-family libre se
+// cambia aquí por una lista cerrada de opciones que SÍ se van a ver.
+const FUENTES_CORREO = [
+  { id: 'Arial, Helvetica, sans-serif', label: 'Arial' },
+  { id: 'Helvetica, Arial, sans-serif', label: 'Helvetica' },
+  { id: "'Verdana', Geneva, sans-serif", label: 'Verdana' },
+  { id: "'Tahoma', Geneva, sans-serif", label: 'Tahoma' },
+  { id: "'Trebuchet MS', Helvetica, sans-serif", label: 'Trebuchet MS' },
+  { id: "Georgia, 'Times New Roman', Times, serif", label: 'Georgia' },
+  { id: "'Times New Roman', Times, serif", label: 'Times New Roman' },
+  { id: "'Courier New', Courier, monospace", label: 'Courier New' },
+]
+
 // Sectores del panel de estilos (a la derecha).
 const SECTORES_ESTILO = [
-  { name: 'Tipografía', open: true, buildProps: ['font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align'] },
+  {
+    name: 'Tipografía',
+    open: true,
+    buildProps: ['font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align'],
+    properties: [
+      { property: 'font-family', type: 'select', defaults: FUENTES_CORREO[0].id, options: FUENTES_CORREO },
+    ],
+  },
   { name: 'Fondo y borde', open: false, buildProps: ['background-color', 'border-radius', 'border'] },
   { name: 'Espaciado', open: false, buildProps: ['padding', 'margin'] },
   { name: 'Tamaño', open: false, buildProps: ['width', 'height', 'max-width'] },
@@ -91,9 +114,18 @@ onMounted(async () => {
       blockManager: { blocks: BLOQUES_CORREO, appendOnClick: true },
       selectorManager: { componentFirst: true },
       // Un solo tamaño por ahora: el ancho de correo (680 px), sin selector.
+      // widthMedia: '' a proposito -> sin esto, GrapesJS trata cualquier
+      // dispositivo con `width` como un breakpoint responsive y envuelve
+      // TODO cambio de estilo en `@media (max-width: 680px){...}`. Como aca
+      // solo hay un tamaño fijo (no es responsive de verdad), eso hacia que
+      // los cambios de color/estilo quedaran en un <style> aparte que
+      // inlinearCss no mete inline, y en muchos clientes de correo (o al
+      // abrir el .html en una ventana normal, mas ancha que 680px) esa regla
+      // nunca se aplicaba: se veia el color original de la plantilla, como
+      // si el cambio no se hubiera guardado.
       deviceManager: {
         default: 'correo',
-        devices: [{ id: 'correo', name: 'Correo', width: '680px' }],
+        devices: [{ id: 'correo', name: 'Correo', width: '680px', widthMedia: '' }],
       },
       styleManager: { sectors: SECTORES_ESTILO },
     })
@@ -126,7 +158,15 @@ onMounted(async () => {
     })
     // Cuando cambia el contenido (agregar/quitar/mover/editar bloques) se
     // reajusta el zoom para que el correo siga cabiendo sin necesidad de scroll.
-    ed.on('component:add component:remove component:update:components canvas:drop', reajustar)
+    // component:styleUpdate (cambiar color/fondo/etc desde el panel de estilos)
+    // se agrega aparte: sin este evento el lienzo no se repinta al cambiar
+    // solo un estilo (el dato SÍ queda actualizado -> se ve bien al exportar/
+    // descargar, pero visualmente en el editor parecía que "no pegó" el
+    // cambio hasta hacer otra accion).
+    ed.on(
+      'component:add component:remove component:update:components canvas:drop component:styleUpdate',
+      reajustar,
+    )
     window.addEventListener('resize', onResize)
     document.addEventListener('fullscreenchange', onFullscreen)
 
@@ -147,12 +187,28 @@ onBeforeUnmount(() => {
   editor.value = undefined
 })
 
+// Este editor tiene un solo tamaño de correo (dispositivo "correo", sin
+// widthMedia): nunca debería haber reglas con media query. Plantillas
+// guardadas ANTES de ese ajuste sí pueden traer alguna atrapada en
+// `@media (max-width: 680px)` dentro de su `proyecto` -> como el lienzo del
+// editor mide justo eso, la condición siempre se cumple ahí y esa regla
+// vieja le gana visualmente a la nueva aunque el panel de estilos ya
+// muestre el valor correcto. Se limpian al cargar para que no vuelvan a
+// aparecer.
+function limpiarReglasResponsive() {
+  const ed = editor.value
+  if (!ed) return
+  const conMedia = ed.Css.getAll().filter((r) => !!r.get('mediaText'))
+  conMedia.forEach((r) => ed.Css.remove(r))
+}
+
 function cargar(p: Plantilla | null) {
   const ed = editor.value
   if (!ed) return
   if (p?.proyecto) {
     try {
       ed.loadProjectData(p.proyecto as Parameters<Editor['loadProjectData']>[0])
+      limpiarReglasResponsive()
       return
     } catch { /* proyecto corrupto: cae al documento HTML */ }
   }

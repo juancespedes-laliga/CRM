@@ -24,12 +24,12 @@ export const PLANTILLA_HTML_INICIAL = `<table style="width:100%;background:#f4f2
       <tr><td style="padding:32px 28px 8px 28px">
         <h1 style="font-size:22px;color:#0F172A;margin:0 0 12px 0">Hola {{nombre}}</h1>
         <p style="font-size:14px;line-height:1.6;color:#334155;margin:0 0 20px 0">
-          Escribe aquí el contenido del correo. Puedes usar variables como
-          {{empresa}} o {{ciudad}} y se reemplazan al enviar.
+          Querido afiliado, tenemos información importante para ti. Te contamos las
+          novedades y beneficios que tenemos disponibles este mes.
         </p>
       </td></tr>
       <tr><td align="center" style="padding:8px 28px 32px 28px">
-        <a href="https://laligacontraelcancer.co" style="background:#EC4899;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block">
+        <a href="https://laligaamasalvarvidas.co" style="background:#EC4899;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block">
           Más información
         </a>
       </td></tr>
@@ -74,10 +74,62 @@ export const descargarHtml = (nombre: string, html: string) => {
   URL.revokeObjectURL(url)
 }
 
+// Propiedad -> propiedad abreviada equivalente (o viceversa). Al fusionar
+// estilos, fijar una debe reemplazar a la otra: si no, un elemento con
+// `background:#2447F9` en el HTML base y un cambio del editor a
+// `background-color: green` termina con AMBAS declaraciones en el mismo
+// `style="…"`. En el navegador (vista previa/editor) se ve bien porque el
+// último valor gana, pero varios clientes de correo (Outlook en particular)
+// no resuelven igual esa duplicidad y se quedan con el color viejo — el
+// usuario ve "no toma en cuenta mis cambios, manda la plantilla base".
+const PROPIEDAD_EQUIVALENTE: Record<string, string> = {
+  background: 'background-color',
+  'background-color': 'background',
+}
+
+// Aplica UNA regla (selector + declaraciones) como estilo inline a los
+// elementos que matchea dentro de `tpl`. Se funde por propiedad (mapa) en vez
+// de concatenar el texto: así cada propiedad queda UNA sola vez en el style
+// final, sin depender de que el cliente de correo respete el orden de
+// declaraciones duplicadas.
+const aplicarReglaInline = (rule: CSSStyleRule, tpl: HTMLTemplateElement) => {
+  let els: NodeListOf<HTMLElement>
+  try { els = tpl.content.querySelectorAll(rule.selectorText) } catch { return }
+  els.forEach((el) => {
+    const props = new Map<string, string>()
+    const prev = el.getAttribute('style')
+    if (prev) {
+      for (const decl of prev.split(';')) {
+        const i = decl.indexOf(':')
+        if (i === -1) continue
+        const prop = decl.slice(0, i).trim().toLowerCase()
+        const val = decl.slice(i + 1).trim()
+        if (prop && val) props.set(prop, val)
+      }
+    }
+    for (let i = 0; i < rule.style.length; i++) {
+      const prop = rule.style.item(i)
+      const equivalente = PROPIEDAD_EQUIVALENTE[prop]
+      if (equivalente) props.delete(equivalente)
+      props.set(prop, rule.style.getPropertyValue(prop).trim())
+    }
+    const styleFinal = [...props.entries()].map(([p, v]) => `${p}: ${v}`).join('; ')
+    el.setAttribute('style', styleFinal)
+  })
+}
+
 // Pasa las reglas del CSS del editor a estilos INLINE en cada elemento del HTML,
 // para que la plantilla quede en UN solo HTML autocontenido (que es además lo
-// que mejor soportan los clientes de correo). Las @media (estilos de móvil) no
-// se pueden hacer inline: se devuelven aparte para dejarlas en un <style>.
+// que mejor soportan los clientes de correo).
+//
+// Este editor tiene un solo tamaño de correo fijo (no es responsive de
+// verdad, ver deviceManager en EditorHtmlGrapes.vue), así que las reglas
+// dentro de un `@media` (que GrapesJS a veces genera igual, por su propio
+// manejo interno de "dispositivo") TAMBIÉN se pasan inline, igual que las
+// normales, en vez de dejarlas aparte en un <style>: si no, cualquier cambio
+// de estilo que caiga en un @media se ve bien al descargar/abrir en un
+// navegador ancho (el media no aplica ahí) pero se pierde en el correo real
+// (los clientes de correo no siempre evalúan igual el media, o lo ignoran).
 export const inlinearCss = (html: string, css: string): { html: string; restoCss: string } => {
   if (!css.trim()) return { html, restoCss: '' }
   let sheet: CSSStyleSheet
@@ -92,15 +144,14 @@ export const inlinearCss = (html: string, css: string): { html: string; restoCss
   const resto: string[] = []
   for (const rule of Array.from(sheet.cssRules)) {
     if (rule instanceof CSSStyleRule) {
-      let els: NodeListOf<HTMLElement>
-      try { els = tpl.content.querySelectorAll(rule.selectorText) } catch { continue }
-      els.forEach((el) => {
-        const prev = el.getAttribute('style')?.trim() ?? ''
-        const sep = prev && !prev.endsWith(';') ? '; ' : prev ? ' ' : ''
-        el.setAttribute('style', prev + sep + rule.style.cssText)
-      })
+      aplicarReglaInline(rule, tpl)
+    } else if (rule instanceof CSSMediaRule) {
+      for (const anidada of Array.from(rule.cssRules)) {
+        if (anidada instanceof CSSStyleRule) aplicarReglaInline(anidada, tpl)
+        else resto.push(anidada.cssText)
+      }
     } else {
-      resto.push(rule.cssText) // @media, @font-face, etc.
+      resto.push(rule.cssText) // @font-face, etc.
     }
   }
   return { html: tpl.innerHTML, restoCss: resto.join('\n') }

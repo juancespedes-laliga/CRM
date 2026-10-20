@@ -233,9 +233,26 @@ class TitularesBeneficiariosService:
             marcado_en_incle=marcado_incle,
         )
 
-    def actualizar_titular(self, id_titular: int, data: TitularUpdate) -> TitularDetalle:
-        cambios = data.model_dump(exclude_unset=True)
-        if not self.repository.actualizar_titular(id_titular, cambios):
+    def actualizar_titular(
+        self, id_titular: int, data: TitularUpdate, username: str | None = None
+    ) -> TitularDetalle:
+        cambios = data.model_dump(
+            exclude_unset=True, exclude={"CAMBIAR_PLAN", "TIPO_PLAN_ID"}
+        )
+        # Cambio del plan contratado: igual que en la renovacion (activar_titular),
+        # requiere el permiso planliga:elegir_plan y no permite bajar a un plan
+        # cuyo cupo sea menor a los beneficiarios activos que ya tiene el titular.
+        cambiar_plan = data.CAMBIAR_PLAN and self._puede_elegir_plan(username)
+        if cambiar_plan:
+            cupo_nuevo_plan = self.repository.cupo_de_plan(data.TIPO_PLAN_ID)
+            beneficiarios_activos = self.repository.contar_beneficiarios(id_titular)
+            if beneficiarios_activos > cupo_nuevo_plan:
+                raise CupoPlanInsuficienteError(
+                    id_titular, beneficiarios_activos, cupo_nuevo_plan
+                )
+        if not self.repository.actualizar_titular(
+            id_titular, cambios, cambiar_plan, data.TIPO_PLAN_ID
+        ):
             raise TitularNotFoundError(id_titular)
         fila = self.repository.obtener_titular(id_titular)
         return TitularDetalle(**fila)
@@ -614,6 +631,7 @@ class TitularesBeneficiariosService:
     def listar_renovaciones_mes(self, anio: int, mes: int) -> ListadoRenovacionesMes:
         filas = self.repository.listar_renovaciones_mes(anio, mes)
         items = [RenovacionMesItem(**fila) for fila in filas]
+        vencen = [RenovacionMesItem(**fila) for fila in self.repository.listar_vencen_mes(anio, mes)]
         renovados = sum(1 for i in items if i.RENOVADO == "S")
         activos = sum(1 for i in items if i.ESTADO == ESTADO_ACTIVO)
         resumen = ResumenRenovacionesMes(
@@ -624,8 +642,9 @@ class TitularesBeneficiariosService:
             altas_nuevas=len(items) - renovados,
             activos=activos,
             inactivos=len(items) - activos,
+            vencen=len(vencen),
         )
-        return ListadoRenovacionesMes(resumen=resumen, items=items)
+        return ListadoRenovacionesMes(resumen=resumen, items=items, vencen=vencen)
 
     def establecer_color_titular(self, id_titular: int, color: str, username: str | None) -> None:
         usuario_id = self.repository.obtener_usuario_id(username) if username else None

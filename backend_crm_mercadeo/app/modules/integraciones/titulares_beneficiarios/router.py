@@ -341,9 +341,10 @@ def get_titular(
 def update_titular(
     id_titular: int,
     data: TitularUpdate,
+    username: str = Depends(get_current_username),
     service: TitularesBeneficiariosService = Depends(get_titulares_beneficiarios_service),
 ) -> TitularDetalle:
-    return service.actualizar_titular(id_titular, data)
+    return service.actualizar_titular(id_titular, data, username)
 
 
 @router.post(

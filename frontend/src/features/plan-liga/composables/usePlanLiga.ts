@@ -207,9 +207,13 @@ export function usePlanLiga() {
     guardandoTitular.value = true
     errorGuardarTitular.value = null
     try {
-      const actualizado = await updateTitular(id, data)
-      const idx = titulares.value.findIndex(t => t.id === id)
-      if (idx !== -1) titulares.value[idx] = actualizado
+      await updateTitular(id, data)
+      // Se recarga el listado en vez de parchar en memoria: el "Plan Contratado"
+      // y el conteo de cupos de la tabla solo los arma el mapper del listado
+      // (ver mapTitularListado), no el detalle. Sin esto, cambiar el plan al
+      // editar no se vería reflejado en la fila. cargarTitulares respeta la
+      // página y los filtros actuales, así que el titular editado sigue visible.
+      await cargarTitulares()
       return true
     } catch (e) {
       errorGuardarTitular.value = e instanceof Error ? e.message : 'No se pudo actualizar el titular.'
