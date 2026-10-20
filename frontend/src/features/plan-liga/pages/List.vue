@@ -40,6 +40,7 @@ const {
   crearTitular, actualizarTitular, toggleEstadoTitular, editarFechaIngresoTitular,
   guardandoTitular, errorGuardarTitular,
   reemplazarTitularAccion, reemplazandoTitular, errorReemplazarTitular, resultadoReemplazoTitular,
+  beneficiariosGrupoReemplazo, cargarBeneficiariosGrupoReemplazo,
   crearBeneficiario, actualizarBeneficiario,
   guardandoBeneficiario, errorGuardarBeneficiario,
   activarEstadoBeneficiario, desactivarEstadoBeneficiario, errorEstadoBeneficiario, guardandoEstadoBeneficiario,
@@ -153,6 +154,7 @@ const abrirReemplazarTitular = (t: Titular) => {
   titularReemplazando.value = t
   draftReemplazoTitular.value = { ...REEMPLAZO_PERSONA_DRAFT_VACIO }
   modalReemplazarTitularVisible.value = true
+  cargarBeneficiariosGrupoReemplazo(t.id)
 }
 const confirmarReemplazarTitular = async () => {
   if (!titularReemplazando.value) return
@@ -160,7 +162,13 @@ const confirmarReemplazarTitular = async () => {
   const r = resultadoReemplazoTitular.value
   if (ok && r) {
     modalReemplazarTitularVisible.value = false
-    avisoReemplazo.value = `Titular reemplazado correctamente. Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
+    // Un beneficiario promovido ya estaba en Servinte/INCLE: no se crea ni se marca de nuevo,
+    // así que "no creado / no marcado" confundiría; se explica en su lugar.
+    avisoReemplazo.value = r.beneficiarioPromovido
+      ? `Titular reemplazado. ${r.titularNuevo.nombre} pasó de beneficiario a titular. `
+        + `Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
+        + 'Ya estaba registrado en Servinte e INCLE como beneficiario y sigue activo.'
+      : `Titular reemplazado correctamente. Beneficiarios reasignados: ${r.beneficiariosReasignados}. `
       + mensajeServinteIncle(r.usuarioServinteCreado, r.marcadoEnIncle, r.registrosIncleMarcadosAnterior)
   }
 }
@@ -345,7 +353,7 @@ const modalImportVisible = ref(false)
 
     <div v-if="exportando" class="flex items-center gap-2.5 bg-[#EEF2FF] dark:bg-blue-950/40 border border-[#C7D2FE] dark:border-blue-800 rounded-xl px-4 py-3">
       <Loader2 :size="16" class="animate-spin text-[#2447F9] dark:text-blue-400 shrink-0" />
-      <p class="text-[12px] font-semibold text-[#2447F9] dark:text-blue-300">Generando el archivo, esto puede tardar unos segundos...</p>
+      <p class="text-[12px] font-bold text-slate-900 dark:text-white">Generando el archivo, esto puede tardar unos segundos...</p>
     </div>
 
     <div v-if="avisoReemplazo" class="flex items-center gap-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3">
@@ -520,6 +528,7 @@ const modalImportVisible = ref(false)
       v-model:visible="modalReemplazarTitularVisible"
       v-model:draft="draftReemplazoTitular"
       tipo="titular"
+      :beneficiarios-grupo="beneficiariosGrupoReemplazo"
       :nombre-actual="titularReemplazando?.nombre"
       :documento-actual="titularReemplazando?.documento"
       :guardando="reemplazandoTitular"

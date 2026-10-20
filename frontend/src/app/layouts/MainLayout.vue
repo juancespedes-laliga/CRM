@@ -6,7 +6,7 @@ import { useTema } from '@/shared/composables/useTema'
 
 import {
   LayoutDashboard, Heart, Users, Building2, Truck,
-  BookOpen, Target, Filter, Wrench, Upload, Zap, Send,
+  BookOpen, Target, Filter, Wrench, Upload, Send,
   ChevronLeft, ChevronRight, LogOut, Settings,
   RefreshCw, X, Menu, Moon, Sun, CalendarClock, CalendarRange
 } from 'lucide-vue-next'
@@ -72,7 +72,6 @@ const menuGroups: MenuGroup[] = [
   ]},
   { label: 'Marketing', items: [
     { key: 'campanas',         label: 'Campañas',                  icono: Send,            modulo: 'campanas'        },
-    { key: 'automatizaciones', label: 'Automatizaciones',           icono: Zap,             modulo: 'automatizaciones'},
   ]},
   { label: 'Operaciones', items: [
     { key: 'relacionamiento',  label: 'Bitácora',                  icono: BookOpen,        modulo: 'bitacora'        },
@@ -97,6 +96,7 @@ const tabs = ref<Tab[]>([])
 const rutaAVista = (path: string): Vista => {
   const p = path.replace(/^\//, '') || 'dashboard'
   if (p === 'embudos' || p.startsWith('embudos/') || p === 'segmentos') return 'embudos'
+  if (p.startsWith('campanas/')) return 'campanas'
   return p as Vista
 }
 
@@ -132,23 +132,38 @@ watch(() => route.path, (path, pathAnterior) => {
   tabs.value.splice(idxAnterior !== -1 ? idxAnterior : 0, 1, item)
 }, { immediate: true })
 
+// Última ruta visitada dentro de cada pestaña (con su query). Un módulo puede tener
+// sub-vistas (ej. Embudos: /embudos, /embudos/afiliado, /embudos/grupos, /segmentos) y
+// todas comparten una sola pestaña: al volver a ella se retoma la sub-vista donde se
+// estaba (con sus filtros, que siguen vivos por el keep-alive) en vez de caer de nuevo
+// en la pantalla de inicio del módulo.
+const ultimaRutaPorVista = ref<Partial<Record<Vista, string>>>({})
+watch(() => route.fullPath, (fullPath) => {
+  ultimaRutaPorVista.value[rutaAVista(route.path)] = fullPath
+}, { immediate: true })
+const rutaDeVista = (key: Vista) => ultimaRutaPorVista.value[key] ?? '/' + key
+
 const navigateTo = (item: Tab) => {
-  router.push('/' + item.key)
+  // Si el módulo ya tiene pestaña abierta, se retoma donde quedó; si no, entra por su inicio.
+  const abierta = tabs.value.some(t => t.key === item.key)
+  router.push(abierta ? rutaDeVista(item.key) : '/' + item.key)
   sidebarMobileOpen.value = false
 }
 
 const goToTab = (idx: number) => {
-  router.push('/' + tabs.value[idx].key)
+  router.push(rutaDeVista(tabs.value[idx].key))
 }
 
 const closeTab = (idx: number, e: MouseEvent) => {
   e.stopPropagation()
   if (tabs.value.length === 1) return
   const wasActive = idx === activeTabIdx.value
-  tabs.value.splice(idx, 1)
+  const [cerrada] = tabs.value.splice(idx, 1)
+  // Al cerrar la pestaña se olvida su sub-vista: si se vuelve a abrir, entra por el inicio.
+  delete ultimaRutaPorVista.value[cerrada.key]
   if (wasActive) {
     const nextIdx = Math.min(idx, tabs.value.length - 1)
-    router.push('/' + tabs.value[nextIdx].key)
+    router.push(rutaDeVista(tabs.value[nextIdx].key))
   }
 }
 
@@ -231,9 +246,8 @@ const refrescarVistaActual = () => {
          SIDEBAR  —  lighter royal blue
     ═══════════════════════════════════════════════ -->
     <aside
-      class="flex flex-col shrink-0 overflow-hidden transition-all duration-300 z-30 fixed md:relative inset-y-0 left-0 md:translate-x-0"
+      class="escala-pantalla sidebar-marca flex flex-col shrink-0 overflow-hidden transition-all duration-300 z-30 fixed md:relative inset-y-0 left-0 md:translate-x-0"
       :class="sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full'"
-      style="background-color: #295FD3"
       :style="{ width: sidebarCollapsed ? '64px' : '224px' }"
     >
       <!-- Logo -->
@@ -241,8 +255,8 @@ const refrescarVistaActual = () => {
         <!-- Expandido -->
         <div v-if="!sidebarCollapsed" class="flex flex-col items-center justify-center py-5 px-4 gap-3">
           <div class="text-center">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-white/50 leading-none">Plataforma</div>
-            <div class="text-[16px] font-black text-white tracking-wide mt-1">CRM Mercadeo</div>
+            <div class="text-[11px] font-bold uppercase tracking-widest text-white/60 leading-none">Plataforma</div>
+            <div class="text-[18px] font-black text-white tracking-wide mt-1">CRM Mercadeo</div>
           </div>
           <img
             src="/logo-liga-50.png"
@@ -263,7 +277,7 @@ const refrescarVistaActual = () => {
       </div>
 
       <!-- Nav -->
-      <nav class="flex-1 overflow-y-auto py-3 scrollbar-sidebar">
+      <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-sidebar">
         <template v-for="group in menuGroupsVisibles" :key="group.label ?? '__root__'">
           <!-- Divider for collapsed state -->
           <div v-if="group.label && sidebarCollapsed" class="px-3 py-2">
@@ -272,7 +286,7 @@ const refrescarVistaActual = () => {
           <!-- Section label -->
           <div
             v-if="group.label && !sidebarCollapsed"
-            class="px-4 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-white opacity-100 select-none"
+            class="px-4 pt-4 pb-1.5 text-[11px] font-bold uppercase tracking-widest text-white/60 select-none"
           >
             {{ group.label }}
           </div>
@@ -289,13 +303,13 @@ const refrescarVistaActual = () => {
           >
             <component
               :is="item.icono"
-              :size="16"
+              :size="18"
               class="shrink-0 transition-colors"
               :class="!isConfigRoute && vistaActiva === item.key ? 'text-white' : 'text-white/80'"
             />
             <span
               v-if="!sidebarCollapsed"
-              class="text-[12px] font-semibold truncate flex-1 !text-white"
+              class="text-[13.5px] font-semibold leading-snug break-words min-w-0 flex-1 !text-white"
             >
               {{ item.label }}
             </span>
@@ -320,8 +334,8 @@ const refrescarVistaActual = () => {
           :title="sidebarCollapsed ? 'Cerrar sesión' : undefined"
           class="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-white/10 transition-all group/logout"
         >
-          <LogOut :size="15" class="shrink-0 text-white/80 group-hover/logout:text-white transition-colors" />
-          <span v-if="!sidebarCollapsed" class="text-[12px] font-semibold !text-white">Cerrar sesión</span>
+          <LogOut :size="18" class="shrink-0 text-white/80 group-hover/logout:text-white transition-colors" />
+          <span v-if="!sidebarCollapsed" class="text-[13.5px] font-semibold !text-white">Cerrar sesión</span>
         </button>
       </div>
     </aside>
@@ -332,7 +346,7 @@ const refrescarVistaActual = () => {
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
 
       <!-- ── Top header ────────────────────────────────────────── -->
-      <header class="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2 md:gap-3 z-10">
+      <header class="escala-pantalla barra-superior relative h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2 md:gap-3 z-10">
         <div class="flex items-center gap-2 md:gap-3 min-w-0">
           <!-- Hamburguesa: solo móvil, abre el sidebar como drawer -->
           <button
@@ -369,11 +383,12 @@ const refrescarVistaActual = () => {
         <div class="flex items-center gap-2 shrink-0">
           <button
             @click="refrescarVistaActual"
-            class="h-9 px-3.5 rounded-lg bg-[#EC4899] hover:bg-[#D61F69] flex items-center gap-1.5 text-white shadow transition-all"
+            class="boton-brillo relative overflow-hidden h-9 px-3.5 rounded-lg flex items-center gap-1.5 text-white transition-all"
             title="Actualizar"
           >
-            <span class="text-[12px] font-bold hidden sm:inline">Actualizar</span>
-            <RefreshCw :size="14" />
+            <span class="destello" aria-hidden="true"></span>
+            <span class="relative text-[12px] font-bold hidden sm:inline">Actualizar</span>
+            <RefreshCw :size="14" class="relative" />
           </button>
 
           <!-- Toggle de tema: un clic directo -->
@@ -429,7 +444,7 @@ const refrescarVistaActual = () => {
       </header>
 
       <!-- ── Tab strip ─────────────────────────────────────────── -->
-      <div v-if="!isConfigRoute" class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-3 flex items-end gap-0.5 shrink-0 overflow-x-auto">
+      <div v-if="!isConfigRoute" class="escala-pantalla bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-3 flex items-end gap-0.5 shrink-0 overflow-x-auto">
         <button
           v-for="(tab, idx) in tabs"
           :key="tab.key"
@@ -439,29 +454,29 @@ const refrescarVistaActual = () => {
           @dragover.prevent
           @drop.prevent="soltarTab(idx)"
           @dragend="tabArrastrandoIdx = null"
-          class="flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold border-b-2 transition-all shrink-0 group/tab rounded-t-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing"
+          class="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-bold border-b-2 transition-all shrink-0 group/tab rounded-t-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing"
           :class="[
             idx === activeTabIdx
-              ? 'border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-300 bg-[#EEF2FF]/60 dark:bg-blue-950/40'
-              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
+              ? 'border-[#1E3A8A] text-slate-900 dark:text-white bg-[#EEF2FF]/60 dark:bg-blue-950/40'
+              : 'border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
             tabArrastrandoIdx === idx ? 'opacity-40' : '',
           ]"
         >
-          <component :is="tab.icono" :size="12" class="shrink-0" />
-          <span class="max-w-[120px] truncate">{{ tab.label }}</span>
+          <component :is="tab.icono" :size="14" class="shrink-0" />
+          <span class="max-w-[170px] truncate">{{ tab.label }}</span>
           <span
             v-if="tabs.length > 1"
-            class="w-4 h-4 rounded flex items-center justify-center ml-0.5 opacity-0 group-hover/tab:opacity-100 hover:!bg-slate-200 dark:hover:!bg-slate-700 transition-all"
-            :class="idx === activeTabIdx ? 'text-[#1E3A8A] dark:text-blue-300 hover:bg-[#DBEAFE]' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100'"
+            class="w-5 h-5 rounded flex items-center justify-center ml-0.5 opacity-0 group-hover/tab:opacity-100 hover:!bg-slate-200 dark:hover:!bg-slate-700 transition-all"
+            :class="idx === activeTabIdx ? 'text-slate-900 font-bold dark:text-white hover:bg-[#DBEAFE]' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100'"
             @click.stop="closeTab(idx, $event)"
           >
-            <X :size="9" />
+            <X :size="11" />
           </span>
         </button>
         <!-- Slot count indicator when at max -->
         <div
           v-if="tabs.length >= MAX_TABS"
-          class="ml-auto px-2 py-2 text-[10px] text-slate-400 dark:text-slate-500 font-semibold shrink-0 self-center"
+          class="ml-auto px-2 py-2 text-[12px] text-slate-400 dark:text-slate-500 font-semibold shrink-0 self-center"
         >
           {{ MAX_TABS }}/{{ MAX_TABS }} pestañas
         </div>
@@ -469,7 +484,7 @@ const refrescarVistaActual = () => {
 
       <!-- ── Content ───────────────────────────────────────────── -->
       <main
-        class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6"
+        class="escala-pantalla area-trabajo flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6"
       >
         <router-view v-slot="{ Component, route: rutaActiva }">
           <keep-alive :max="8">
@@ -482,6 +497,66 @@ const refrescarVistaActual = () => {
 </template>
 
 <style scoped>
+/* ── Estilo compartido con el login (features/auth/pages/Login.vue) ───────────── */
+/* Menú lateral: degradado azul + luces difusas + textura de puntos. Las capas decorativas
+   van en ::before/::after con z-index -1 dentro de un contexto aislado (isolation), así
+   quedan detrás del contenido sin tener que reordenar el HTML del menú. */
+.sidebar-marca {
+  isolation: isolate;
+  background: linear-gradient(160deg, #2556d4 0%, #2b63e0 45%, #1f4bbf 100%);
+}
+.sidebar-marca::before {
+  content: '';
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.08), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.12), transparent 40%),
+    radial-gradient(circle at 60% 45%, rgba(96, 165, 250, 0.30), transparent 60%);
+}
+.sidebar-marca::after {
+  content: '';
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.12;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+  background-size: 20px 20px;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 70%);
+}
+
+/* Barra superior: línea de acento rosa → azul en el borde inferior */
+.barra-superior::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0.55), rgba(37, 99, 235, 0.55), rgba(167, 139, 250, 0.45));
+}
+
+/* Botón Actualizar: degradado rosa con resplandor y destello al pasar el mouse */
+.boton-brillo {
+  background: linear-gradient(90deg, #ec4899, #db2777);
+  box-shadow: 0 8px 20px -8px rgba(236, 72, 153, 0.8);
+}
+.boton-brillo:hover {
+  box-shadow: 0 10px 24px -8px rgba(236, 72, 153, 0.95);
+  transform: translateY(-1px);
+}
+.destello {
+  position: absolute; top: 0; bottom: 0; left: -45%; width: 35%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: skewX(-20deg);
+  transition: left .7s ease;
+  pointer-events: none;
+}
+.boton-brillo:hover .destello { left: 115%; }
+
+/* Área de trabajo: tinte muy suave (rosa arriba a la derecha, azul abajo a la izquierda) */
+.area-trabajo {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(236, 72, 153, 0.05), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(37, 99, 235, 0.05), transparent 40%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .destello { display: none; }
+}
+
 /* Antes el menú usaba scrollbar-none (invisible): cuando había más módulos de los que caben
    en pantalla, no había ninguna señal de que se podía hacer scroll. Esta barra delgada, clara
    sobre el fondo azul del menú, queda siempre visible como indicación (no solo al pasar el mouse). */

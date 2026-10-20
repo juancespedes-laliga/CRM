@@ -43,7 +43,7 @@ const emit = defineEmits<{
                 </div>
                 <div>
                   <div class="text-[12px] font-semibold text-heading truncate max-w-[200px]">{{ r.archivo }}</div>
-                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" :class="r.tipo === 'Excel' ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'">{{ r.tipo }}</span>
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" :class="r.tipo === 'Excel' ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' : 'bg-blue-100 dark:bg-blue-900/60 text-slate-900 font-bold dark:text-white'">{{ r.tipo }}</span>
                 </div>
               </div>
             </td>

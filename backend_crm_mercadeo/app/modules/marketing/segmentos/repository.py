@@ -289,6 +289,22 @@ WHERE (:sexo IS NULL OR UPPER(SEXO) = UPPER(:sexo))
   )
 """
 
+# Audiencia "todos" de Plan Liga: los que han usado el plan (_SQL_AUDIENCIA) MAS
+# los que no (_SQL_AUDIENCIA_SIN_USO). Las dos devuelven las mismas columnas en
+# el mismo orden y no se cruzan entre si (una exige servicio con TARIFA = 'PL' en
+# TMPBI1 y la otra exige NO tenerlo), asi que UNION ALL no duplica personas. El
+# ORDER BY ULTIMO_USO DESC NULLS LAST de _SQL_PAGINA deja primero a los que han
+# usado el plan y al final a los que no (ULTIMO_USO = NULL).
+_SQL_AUDIENCIA_TODOS = f"""
+SELECT * FROM (
+{_SQL_AUDIENCIA}
+)
+UNION ALL
+SELECT * FROM (
+{_SQL_AUDIENCIA_SIN_USO}
+)
+"""
+
 # COUNT(*) OVER() (sin PARTITION BY) calcula el total de filas que cumplen
 # el filtro ANTES de recortar con OFFSET/FETCH -- Oracle evalua las funciones
 # de ventana sobre el resultado completo y recien al final aplica el recorte
@@ -560,6 +576,34 @@ class SegmentosRepository:
             "tipo_vinculacion": tipo_vinculacion,
         }
         return self._ejecutar_pagina(_SQL_AUDIENCIA_SIN_USO, params, pagina, por_pagina)
+
+    def listar_audiencia_todos(
+        self,
+        sexo: str | None = None,
+        edad_min: int | None = None,
+        edad_max: int | None = None,
+        ciudad: str | None = None,
+        departamento: str | None = None,
+        tipo_vinculacion: str | None = None,
+        pagina: int = 1,
+        por_pagina: int = 10,
+    ) -> tuple[list[AudienciaSegmentoItem], int]:
+        """Activos de Plan Liga con y sin uso del plan (ver _SQL_AUDIENCIA_TODOS).
+        concepto/servicio/ultimo_uso van en None: _SQL_AUDIENCIA los referencia
+        como binds, pero en esta audiencia no se filtra por ellos (el servicio
+        llama a listar_audiencia cuando vienen, porque solo aplican a quien uso)."""
+        params = {
+            "sexo": sexo,
+            "edad_min": edad_min,
+            "edad_max": edad_max,
+            "ciudad": ciudad,
+            "departamento": departamento,
+            "tipo_vinculacion": tipo_vinculacion,
+            "concepto": None,
+            "servicio": None,
+            "ultimo_uso": None,
+        }
+        return self._ejecutar_pagina(_SQL_AUDIENCIA_TODOS, params, pagina, por_pagina)
 
     def _valores_distintos(self, sql: str) -> list[str]:
         filas = self.db.execute(text(sql)).scalars().all()

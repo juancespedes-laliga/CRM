@@ -17,7 +17,7 @@ const plantillas = computed<PlantillaRef[]>(() => canal.value === 'correo' ? PLA
 const plantillaElegida = computed(() => plantillas.value.find(x => x.id === plantillaId.value))
 
 watch(visible, (v) => {
-  if (v) { canal.value = 'correo'; plantillaId.value = ''; resultado.value = ''; enviando.value = false; confirmando.value = false }
+  if (v) { canal.value = 'whatsapp'; plantillaId.value = ''; resultado.value = ''; enviando.value = false; confirmando.value = false }
 })
 watch(canal, () => { plantillaId.value = '' })
 
@@ -66,7 +66,7 @@ async function enviar() {
               <button
                 @click="canal = 'correo'"
                 class="flex items-center justify-center gap-1.5 h-9 rounded-lg border text-[11px] font-bold transition-all"
-                :class="canal === 'correo' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300' : 'border-default bg-white dark:bg-slate-800 text-body'"
+                :class="canal === 'correo' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 font-bold dark:text-white' : 'border-default bg-white dark:bg-slate-800 text-body'"
               ><Mail :size="13" /> Correo</button>
               <button
                 @click="canal = 'whatsapp'"

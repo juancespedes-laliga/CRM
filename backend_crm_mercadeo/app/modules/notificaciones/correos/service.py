@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.core.email import enviar_correo, enviar_correo_plantilla
+from app.core.email import enviar_correo, enviar_correo_plantilla, verificar_cupo
 from app.core.exceptions import ForbiddenError
 from app.models import Importacion
 from app.modules.notificaciones.correos.repository import CorreosRepository
@@ -235,6 +235,7 @@ class CorreosService:
         Se manda un correo individual por persona (no van en copia entre sí).
         """
         self._verificar_permiso_campana(username)
+        verificar_cupo(len(data.destinatarios))
 
         enviados = 0
         fallos: list[CampanaFallo] = []
@@ -291,6 +292,9 @@ class CorreosService:
         else:
             a_enviar = [i for i in items if not i.YA_ENVIADO]
         omitidos = len(items) - len(a_enviar)
+        # Antes de mandar nada: si no caben en el cupo de hoy no se envia ninguno
+        # (y no se marca el rango como cubierto).
+        verificar_cupo(len(a_enviar))
 
         enviados = 0
         fallos: list[FalloEnvio] = []

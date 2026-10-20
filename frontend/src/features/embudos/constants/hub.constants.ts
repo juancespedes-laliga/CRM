@@ -12,7 +12,7 @@ export interface HubCard {
 export const HUB_CARDS: HubCard[] = [
   {
     titulo: 'Audiencias',
-    descripcion: 'Arma una audiencia con filtros y actúa por correo o WhatsApp.',
+    descripcion: 'Arma una audiencia con filtros y actúa por correo o WhatsApp. Incluye los grupos de interés.',
     ruta: '/embudos/afiliado',
     icono: RefreshCw, color: '#EC4899', bg: '#FCE7F3',
   },

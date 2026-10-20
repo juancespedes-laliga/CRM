@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Search, Plus, Download, X } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Search, Plus, Download, X, Send, CloudUpload, Users, Megaphone } from 'lucide-vue-next'
 import type { Contacto, ContactoDraft } from '../types/contacto'
 import { CONTACTO_DRAFT_VACIO, ESTADO_CONTACTO_OPTIONS, TIPO_CONTACTO_OPTIONS } from '../constants/contactos.constants'
 import { useContactos } from '../composables/useContactos'
@@ -10,9 +11,16 @@ import SeguimientoDialog from '../dialogs/SeguimientoDialog.vue'
 import HistorialDrawer from '../dialogs/HistorialDrawer.vue'
 import ContactosTable from '../tables/ContactosTable.vue'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
-import { permisosDeModulo } from '@/features/auth/composables/useAuth'
+import { permisosDeModulo, tienePermiso } from '@/features/auth/composables/useAuth'
+import ContactosMailerTurbo from '@/features/mailerturbo/components/ContactosMailerTurbo.vue'
+import EnviarCampanaDialog from '@/features/mailerturbo/dialogs/EnviarCampanaDialog.vue'
+import SubirContactosDialog from '@/features/mailerturbo/dialogs/SubirContactosDialog.vue'
+import type { ContactoMT } from '@/features/mailerturbo/types/mailerturbo'
+import { esCorreoValido } from '@/features/campanas/constants/campanas.constants'
 
 const { gestionar: puedeGestionar, eliminar: puedeEliminar } = permisosDeModulo('contactos')
+const mt = permisosDeModulo('mailerturbo')
+const mtEnviar = tienePermiso('mailerturbo:enviar')
 
 const {
   contactos, cargandoContactos, errorContactos, cargarContactos,
@@ -85,6 +93,41 @@ const modalSegVisible   = ref(false)
 const contactoSegActual = ref<Contacto | null>(null)
 const abrirSeguimiento = (c: Contacto) => { contactoSegActual.value = c; modalSegVisible.value = true }
 
+// ─── Pestañas: contactos del CRM / MailerTurbo (?vista=mailerturbo) ───────────
+const route = useRoute()
+const router = useRouter()
+const vista = computed<'crm' | 'mailerturbo'>(() => (route.query.vista === 'mailerturbo' && mt.ver ? 'mailerturbo' : 'crm'))
+const irAVista = (v: 'crm' | 'mailerturbo') => {
+  if (v !== vista.value) router.replace({ query: { ...route.query, vista: v === 'crm' ? undefined : v } })
+}
+
+// ─── Correo masivo (MailerTurbo) a los contactos filtrados ──────────────────
+// Respeta búsqueda y filtros activos, igual que Exportar. Solo los que tienen
+// correo válido, sin repetir.
+const contactosMailer = computed<ContactoMT[]>(() => {
+  const vistos = new Set<string>()
+  const lista: ContactoMT[] = []
+  for (const c of contactosFiltrados.value) {
+    const correo = (c.correo ?? '').trim().toLowerCase()
+    if (!esCorreoValido(correo) || vistos.has(correo)) continue
+    vistos.add(correo)
+    lista.push({
+      nombre: c.nombre,
+      apellido: '',
+      correo,
+      telefono: (c.telefono ?? '').replace(/\D/g, ''),
+      documento: c.documento || undefined,
+      ciudad: c.ciudad || undefined,
+    })
+  }
+  return lista
+})
+const origenMailer = computed(() =>
+  `Gestión de Contactos · ${contactosMailer.value.length} con correo${buscar.value || filtrosActivos.value > 0 ? ' (filtrados)' : ''}`,
+)
+const enviarCorreoVisible = ref(false)
+const subirMailerVisible = ref(false)
+
 // ─── Exportar a Excel ───────────────────────────────────────────────────────
 // Exporta lo que el usuario está viendo en la tabla (respeta búsqueda y filtros activos),
 // no siempre el listado completo de contactos.
@@ -99,11 +142,25 @@ const exportarContactos = () => exportarContactosExcel(contactosFiltrados.value)
       <div>
         <h2 class="text-[18px] font-bold text-[#0F172A] dark:text-slate-100 flex items-center gap-2">
           Gestión de Contactos
-          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-[#2447F9] dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ contactos.length }}</span>
+          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ contactos.length }}</span>
         </h2>
         <p class="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Administra contactos, cargos, etiquetas y seguimientos</p>
       </div>
-      <div class="flex items-center gap-2">
+      <div v-if="vista === 'crm'" class="flex items-center gap-2 flex-wrap">
+        <button
+          v-if="mt.gestionar"
+          @click="subirMailerVisible = true"
+          :disabled="!contactosMailer.length"
+          title="Crear/actualizar los contactos filtrados (con correo) en una lista de MailerTurbo"
+          class="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+        ><CloudUpload :size="13" /> Subir a MailerTurbo</button>
+        <button
+          v-if="mtEnviar"
+          @click="enviarCorreoVisible = true"
+          :disabled="!contactosMailer.length"
+          title="Campaña de correo por MailerTurbo a los contactos filtrados que tienen correo"
+          class="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-[#2447F9]/40 bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-[#2447F9] dark:text-blue-300 hover:bg-[#E0E7FF] transition-all disabled:opacity-50"
+        ><Send :size="13" /> Enviar correo ({{ contactosMailer.length }})</button>
         <button @click="exportarContactos" class="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
           <Download :size="13" /> Exportar
         </button>
@@ -113,6 +170,25 @@ const exportarContactos = () => exportarContactosExcel(contactosFiltrados.value)
       </div>
     </div>
 
+    <!-- ── Pestañas ──────────────────────────────────────────────── -->
+    <nav v-if="mt.ver" class="flex items-center gap-1 border-b border-slate-200 dark:border-slate-700" aria-label="Vistas de contactos">
+      <button
+        v-for="t in ([{ v: 'crm', label: 'Contactos del CRM', icono: Users }, { v: 'mailerturbo', label: 'Contactos envíos masivos', icono: Megaphone }] as const)"
+        :key="t.v"
+        type="button"
+        @click="irAVista(t.v)"
+        class="flex items-center gap-1.5 h-9 px-3 -mb-px border-b-2 text-[12px] font-semibold transition-colors"
+        :class="vista === t.v
+          ? 'border-[#2447F9] text-slate-900 font-bold dark:text-white dark:border-blue-300'
+          : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+      >
+        <component :is="t.icono" :size="13" /> {{ t.label }}
+      </button>
+    </nav>
+
+    <ContactosMailerTurbo v-if="vista === 'mailerturbo'" />
+
+    <template v-else>
     <!-- ── Toolbar ───────────────────────────────────────────────── -->
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3">
       <div class="flex flex-col xl:flex-row gap-3 items-start xl:items-center">
@@ -187,6 +263,10 @@ const exportarContactos = () => exportarContactosExcel(contactosFiltrados.value)
       @borrar="pedirBorrarContacto"
       @update:pagina-actual="paginaActual = $event"
     />
+    </template>
+
+    <EnviarCampanaDialog v-model:visible="enviarCorreoVisible" :contactos="contactosMailer" :origen="origenMailer" />
+    <SubirContactosDialog v-model:visible="subirMailerVisible" :contactos="contactosMailer" :origen="origenMailer" />
 
     <ContactoFormDialog
       v-model:visible="modalVisible"

@@ -214,16 +214,28 @@ onMounted(cargar)
 
     <!-- Resumen: cada tarjeta filtra la tabla -->
     <div v-if="resumen" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <button
-        v-for="c in tarjetas" :key="c.vista"
-        @click="vista = c.vista"
-        class="surface-card rounded-2xl shadow-sm p-4 text-left border-2 transition-all hover:shadow-md"
-        :class="vista === c.vista ? c.activo : 'border-transparent'"
-      >
-        <div class="text-[22px] font-bold leading-none" :class="c.color">{{ c.valor }}</div>
-        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">{{ c.titulo }}</div>
-        <p class="text-[10px] text-muted mt-1 leading-snug">{{ c.texto }}</p>
-      </button>
+      <div class="surface-card rounded-2xl shadow-sm p-4">
+        <div class="text-[22px] font-bold text-heading leading-none">{{ resumen.total }}</div>
+        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Total del mes</div>
+        <p class="text-[10px] text-muted mt-1 leading-snug">Titulares con fecha de ingreso en {{ MESES[mes - 1] }}.</p>
+      </div>
+      <div class="surface-card rounded-2xl shadow-sm p-4">
+        <div class="text-[22px] font-bold text-emerald-600 dark:text-emerald-400 leading-none">{{ resumen.renovados }}</div>
+        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Renovaciones (RENOVADO = S)</div>
+        <p class="text-[10px] text-muted mt-1 leading-snug">Ya eran titulares antes y volvieron a activar el plan.</p>
+      </div>
+      <div class="surface-card rounded-2xl shadow-sm p-4">
+        <div class="text-[22px] font-bold text-slate-900 dark:text-white leading-none">{{ resumen.altas_nuevas }}</div>
+        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Altas nuevas (RENOVADO = N)</div>
+        <p class="text-[10px] text-muted mt-1 leading-snug">Se registraron en Plan Liga por primera vez.</p>
+      </div>
+      <div class="surface-card rounded-2xl shadow-sm p-4">
+        <div class="text-[22px] font-bold text-heading leading-none">
+          {{ resumen.activos }}<span class="text-[13px] text-muted"> / {{ resumen.inactivos }}</span>
+        </div>
+        <div class="text-[10px] font-semibold text-subtle uppercase tracking-wide mt-1">Activos / Inactivos</div>
+        <p class="text-[10px] text-muted mt-1 leading-snug">De esos mismos, cuántos siguen activos hoy vs. ya se dieron de baja.</p>
+      </div>
     </div>
 
     <div v-if="error" class="rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-[12px] text-red-600 dark:text-red-400">
@@ -277,12 +289,10 @@ onMounted(cargar)
               </td>
               <td class="px-4 py-2.5">
                 <span
-                  class="text-[11px] font-semibold"
-                  :class="t.COLOR
-                    ? (t.RENOVADO === 'S' ? 'text-emerald-700' : 'text-[#1d3bd1]')
-                    : t.RENOVADO === 'S'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-[#2447F9] dark:text-blue-400'"
+                  class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                  :class="t.RENOVADO === 'S'
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
+                    : 'bg-blue-50 text-slate-900 font-bold dark:bg-blue-950/50 dark:text-white'"
                 >{{ t.RENOVADO === 'S' ? 'Renovación' : 'Alta nueva' }}</span>
               </td>
               <td class="px-4 py-2.5">

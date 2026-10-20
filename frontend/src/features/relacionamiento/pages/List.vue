@@ -81,7 +81,7 @@ const confirmarEliminar = async () => {
       <div>
         <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
           Bitácora de Relacionamiento
-          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-[#2447F9] dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ actividades.length }}</span>
+          <span class="bg-[#EEF2FF] dark:bg-blue-950/50 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ actividades.length }}</span>
         </h2>
         <p class="text-[12px] text-body mt-0.5">Historial completo de interacciones · llamadas, correos, reuniones</p>
       </div>

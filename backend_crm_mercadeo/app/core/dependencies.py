@@ -81,4 +81,27 @@ def get_current_username(
     return username
 
 
-__all__ = ["get_db", "get_current_username", "get_username_liviano"]
+def requiere_permiso(permiso: str):
+    """Dependencia que exige el permiso "modulo:accion" (INTRANET_PERMISOS_APP)
+    al usuario del token; 403 si no lo tiene. Uso:
+    `dependencies=[Depends(requiere_permiso("mailerturbo:ver"))]`."""
+
+    def _verificar(
+        username: str = Depends(get_current_username),
+        db: Session = Depends(get_db),
+    ) -> str:
+        from app.modules.auth.repository import AuthRepository
+
+        repo = AuthRepository(db)
+        usuario = repo.obtener_por_usuario(username)
+        if usuario is None or permiso not in repo.obtener_permisos(usuario.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"No tienes permiso para esta accion ({permiso}).",
+            )
+        return username
+
+    return _verificar
+
+
+__all__ = ["get_db", "get_current_username", "get_username_liviano", "requiere_permiso"]

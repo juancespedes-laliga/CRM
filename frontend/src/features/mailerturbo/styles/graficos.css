@@ -1,0 +1,73 @@
+/* Tokens de las gráficas de MailerTurbo. La app pone .dark en <html> (useTema).
+   Embudo = rampa ordinal azul (validada: monotonía, contraste del extremo claro
+   >= 2:1 sobre blanco y sobre slate-800). Estados = paleta de estado fija, siempre
+   acompañada de ícono + texto. */
+.mt-viz {
+  --mt-serie: #2a78d6;
+  --mt-serie-suave: #cde2fb;
+  --mt-embudo-1: #184f95;
+  --mt-embudo-2: #256abf;
+  --mt-embudo-3: #3987e5;
+  --mt-embudo-4: #86b6ef;
+  --mt-bien: #0ca30c;
+  --mt-alerta: #fab219;
+  --mt-serio: #ec835a;
+  --mt-critico: #d03b3b;
+  --mt-grid: #eef0f3;
+  --mt-eje: #cbd2db;
+  --mt-superficie: #ffffff;
+  --mt-pista: #f1f4f8;
+  /* Series de las gráficas de líneas (orden fijo; validado todos-los-pares en
+     claro y oscuro). La 3ª queda < 3:1 sobre blanco: por eso las líneas llevan
+     etiqueta directa al final + leyenda + tooltip. */
+  --mt-s1: #2a78d6;
+  --mt-s2: #eb6834;
+  --mt-s3: #1baf7a;
+  /* Slots 4-5 solo para las tortas (validadas por pares adyacentes) + "Otros" neutro.
+     Varios quedan < 3:1 sobre blanco: la leyenda de la torta siempre muestra valor y %. */
+  --mt-s4: #eda100;
+  --mt-s5: #e87ba4;
+  --mt-otros: #b6bcc6;
+  /* Franjas alternas por columna (como columnas de una tabla). */
+  --mt-franja-a: #f6f7f8;
+  --mt-franja-b: #eceeef;
+}
+.dark .mt-viz {
+  --mt-s1: #3987e5;
+  --mt-s2: #d95926;
+  --mt-s3: #199e70;
+  --mt-s4: #c98500;
+  --mt-s5: #d55181;
+  --mt-otros: #5b6577;
+  --mt-franja-a: #223047;
+  --mt-franja-b: #283750;
+  --mt-serie: #3987e5;
+  --mt-serie-suave: #1c3a63;
+  --mt-embudo-1: #9ec5f4;
+  --mt-embudo-2: #5598e7;
+  --mt-embudo-3: #2a78d6;
+  --mt-embudo-4: #1c5cab;
+  --mt-grid: #2b3a50;
+  --mt-eje: #44546b;
+  --mt-superficie: #1e293b;
+  --mt-pista: #273449;
+}
+
+.mt-tooltip {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
+  white-space: nowrap;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 11px;
+  line-height: 1.35;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 0.18);
+}
+.dark .mt-tooltip {
+  background: #f8fafc;
+  color: #0f172a;
+}

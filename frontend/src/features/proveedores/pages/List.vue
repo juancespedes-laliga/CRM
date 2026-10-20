@@ -79,7 +79,7 @@ const exportar = () => exportarProveedoresExcel(
       <div>
         <h2 class="text-[18px] font-bold text-heading flex items-center gap-2">
           Gestión de Proveedores
-          <span class="bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ proveedores.length }}</span>
+          <span class="bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 dark:text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">{{ proveedores.length }}</span>
         </h2>
         <p class="text-[12px] text-muted mt-0.5">Proveedores registrados por categoría y estado</p>
       </div>

@@ -3,12 +3,13 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import MainLayout from '@/app/layouts/MainLayout.vue'
 import AuthLayout from '@/app/layouts/AuthLayout.vue'
 
-import { useAuth } from '@/features/auth/composables/useAuth'
+import { useAuth, tienePermiso } from '@/features/auth/composables/useAuth'
 import authRoutes from '@/features/auth/routes'
 import dashboardRoutes from '@/features/dashboard/routes'
 import planLigaRoutes from '@/features/plan-liga/routes'
 import contactosRoutes from '@/features/contactos/routes'
 import empresasRoutes from '@/features/empresas/routes'
+import gruposInteresRoutes from '@/features/grupos-interes/routes'
 import proveedoresRoutes from '@/features/proveedores/routes'
 import oportunidadesRoutes from '@/features/oportunidades/routes'
 import embudosRoutes from '@/features/embudos/routes'
@@ -44,6 +45,7 @@ const routes: RouteRecordRaw[] = [
       ...planLigaRoutes,
       ...contactosRoutes,
       ...empresasRoutes,
+      ...gruposInteresRoutes,
       ...proveedoresRoutes,
       ...oportunidadesRoutes,
       ...embudosRoutes,
@@ -118,6 +120,13 @@ router.beforeEach(async (to, from) => {
   // Ya tiene rol pero intenta entrar a /sin-rol a mano: no tiene sentido, lo
   // manda al dashboard.
   if (authenticated && !!me.value?.role_crm && to.path === '/sin-rol') {
+    return '/dashboard'
+  }
+
+  // Vistas que exigen un permiso puntual (meta.permiso = "modulo:accion"),
+  // p. ej. las de MailerTurbo: sin el permiso se vuelve al dashboard.
+  const permiso = to.matched.map(r => r.meta.permiso).find(Boolean) as string | undefined
+  if (authenticated && permiso && !tienePermiso(permiso)) {
     return '/dashboard'
   }
 })

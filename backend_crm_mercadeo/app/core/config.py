@@ -65,6 +65,24 @@ class Settings(BaseSettings):
     gmail_oauth_client_id: str = ""
     gmail_oauth_client_secret: str = ""
     gmail_oauth_refresh_token: str = ""
+    # Tope de correos por dia que el CRM manda por Gmail (bienvenida, registro,
+    # recordatorios y "Enviar por Gmail"), para que Google no bloquee la cuenta.
+    # Se cuenta por destinatario; el dia es el de Colombia. 0 = sin tope.
+    gmail_limite_diario: int = 400
+
+    # MailerTurbo (correo masivo). Cada peticion del Web Service se autentica con
+    # usuario/clave/llave (ws_login); idempresa es la empresa de LaLiga en la plataforma.
+    # afiliado_nick/clave son de un USUARIO de la plataforma (opcional): solo se usan
+    # para IniciarSesion, que da un token para abrir MailerTurbo ya logueado.
+    mailerturbo_url: str = "https://mailerturbo.com/apiserver"
+    mailerturbo_usuario: str = ""
+    mailerturbo_clave: str = ""
+    mailerturbo_llave: str = ""
+    mailerturbo_idempresa: int = 0
+    mailerturbo_afiliado_nick: str = ""
+    mailerturbo_afiliado_clave: str = ""
+    # Correos que permite el plan de MailerTurbo por mes (0 = sin configurar).
+    mailerturbo_limite_mensual: int = 0
 
     @property
     def database_url(self) -> str:

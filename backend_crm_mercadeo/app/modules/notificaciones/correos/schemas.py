@@ -137,3 +137,12 @@ class CampanaEnvioResultado(BaseModel):
     enviados: int
     fallidos: int
     fallos: list[CampanaFallo]
+
+
+class UsoDiarioCorreos(BaseModel):
+    """Correos mandados hoy por Gmail frente al tope diario (GMAIL_LIMITE_DIARIO)."""
+
+    fecha: str
+    enviados: int
+    limite: int | None
+    disponibles: int | None

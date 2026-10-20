@@ -100,6 +100,12 @@ export function useAuth() {
     if (!session.value) return
     try {
       me.value = await getMe(session.value.token)
+      // Los permisos también se refrescan (tienePermiso lee la sesión): así un
+      // permiso nuevo se ve al navegar, sin cerrar sesión.
+      if (session.value) {
+        session.value = { ...session.value, permisos: me.value.permisos ?? session.value.permisos }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(session.value))
+      }
     } catch {
       // se mantiene el último valor conocido
     }

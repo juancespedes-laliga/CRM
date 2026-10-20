@@ -5,6 +5,7 @@ import type { ResultadoEnvioPlantilla } from '../types/plantilla'
 import { esCorreoValido, parsearCorreos } from '../constants/campanas.constants'
 import { enviarPlantilla } from '../services/plantillas.api'
 import { usePlantillas } from '../composables/usePlantillas'
+import CupoGmailDia from '@/shared/components/CupoGmailDia.vue'
 
 const props = defineProps<{ plantilla: { nombre: string; asunto: string; html: string } | null }>()
 const visible = defineModel<boolean>('visible', { required: true })
@@ -23,6 +24,7 @@ const nombreNuevoGrupo = ref('')
 const enviando = ref(false)
 const error = ref<string | null>(null)
 const resultado = ref<ResultadoEnvioPlantilla | null>(null)
+const cupo = ref<InstanceType<typeof CupoGmailDia> | null>(null)
 
 watch(visible, (v) => {
   if (!v) return
@@ -34,6 +36,8 @@ watch(visible, (v) => {
   nombreNuevoGrupo.value = ''
   error.value = null
   resultado.value = null
+  asuntoFinal.value = props.plantilla?.asunto ?? ''
+  void cupo.value?.cargar()
 })
 
 const usarGrupoGuardado = (id: string) => {
@@ -79,6 +83,7 @@ async function enviar() {
     error.value = e instanceof Error ? e.message : 'No se pudo enviar el correo.'
   } finally {
     enviando.value = false
+    void cupo.value?.cargar()
   }
 }
 </script>
@@ -120,12 +125,12 @@ async function enviar() {
               <button
                 @click="modo = 'persona'"
                 class="flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[11px] font-semibold transition-all"
-                :class="modo === 'persona' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300' : 'border-default bg-white dark:bg-slate-800 text-body'"
+                :class="modo === 'persona' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 font-bold dark:text-white' : 'border-default bg-white dark:bg-slate-800 text-body'"
               ><User :size="13" /> Una persona</button>
               <button
                 @click="modo = 'grupo'"
                 class="flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[11px] font-semibold transition-all"
-                :class="modo === 'grupo' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300' : 'border-default bg-white dark:bg-slate-800 text-body'"
+                :class="modo === 'grupo' ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 font-bold dark:text-white' : 'border-default bg-white dark:bg-slate-800 text-body'"
               ><Users :size="13" /> Grupo de correos</button>
             </div>
           </div>
@@ -168,6 +173,8 @@ async function enviar() {
               <AlertTriangle :size="12" /> {{ invalidos.length }} inválido(s) se omiten
             </span>
           </div>
+
+          <CupoGmailDia ref="cupo" :necesarios="destinatarios.length" />
 
           <div v-if="error" class="rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-[12px] text-red-600 dark:text-red-400">
             {{ error }}

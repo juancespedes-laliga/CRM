@@ -5,6 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DBAPIError
 
+from app.core.email import LimiteDiarioCorreosError
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,12 +47,20 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def forbidden_handler(_: Request, exc: ForbiddenError) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": exc.detail})
 
+    # Tope diario de correos por Gmail (app/core/email.py).
+    @app.exception_handler(LimiteDiarioCorreosError)
+    async def limite_correos_handler(_: Request, exc: LimiteDiarioCorreosError) -> JSONResponse:
+        return JSONResponse(status_code=429, content={"detail": str(exc)})
+
     @app.exception_handler(oracledb.IntegrityError)
     async def oracle_integrity_handler(_: Request, exc: oracledb.IntegrityError) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": _mensaje_integridad(str(exc))})
 
     @app.exception_handler(oracledb.Error)
-    async def oracle_error_handler(_: Request, exc: oracledb.Error) -> JSONResponse:
+    async def oracle_error_handler(request: Request, exc: oracledb.Error) -> JSONResponse:
+        # Se registra el error completo (con su codigo ORA-) porque al usuario solo le
+        # llega un mensaje generico y sin esto no queda rastro en la consola del backend.
+        logger.exception("Error de Oracle en %s", request.url.path)
         return JSONResponse(status_code=503, content={"detail": _mensaje_oracle(str(exc))})
 
     # SQLAlchemy envuelve los errores del driver oracledb en sus propias clases

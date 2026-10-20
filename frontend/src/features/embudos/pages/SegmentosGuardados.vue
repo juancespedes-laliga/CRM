@@ -111,7 +111,7 @@ const abrirEnSegmentador = (s: Segmento) => {
         <SlidersHorizontal :size="12" /> Alcanzables:
         <button v-for="[v, l] in [['', 'Todos'], ['correo', 'Por correo'], ['celular', 'Por celular']]" :key="v"
           @click="soloAlcanzables = v as any"
-          class="px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all"
+          class="h-6 px-2 rounded-md border text-[10px] font-semibold transition-all"
           :class="soloAlcanzables === v ? 'bg-[#2447F9] border-[#2447F9] text-white' : 'border-default text-body hover:border-[#2447F9]'"
         >{{ l }}</button>
       </div>
@@ -126,7 +126,7 @@ const abrirEnSegmentador = (s: Segmento) => {
       </select>
     </div>
 
-    <div v-if="aviso" class="rounded-xl bg-[#EEF2FF] dark:bg-blue-950/40 text-[#2447F9] dark:text-blue-300 text-[12px] font-semibold px-4 py-3">{{ aviso }}</div>
+    <div v-if="aviso" class="rounded-xl bg-[#EEF2FF] dark:bg-blue-950/40 text-slate-900 dark:text-white text-[12px] font-bold px-4 py-3">{{ aviso }}</div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div v-for="s in segmentos" :key="s.id" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-5">
@@ -146,7 +146,7 @@ const abrirEnSegmentador = (s: Segmento) => {
         </div>
 
         <div class="flex flex-wrap gap-1.5 mt-3">
-          <span v-for="c in s.criterios" :key="c" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{{ c }}</span>
+          <span v-for="c in s.criterios" :key="c" class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{{ c }}</span>
         </div>
 
         <div class="flex items-center gap-4 mt-3 text-[11px] text-muted">
@@ -165,7 +165,7 @@ const abrirEnSegmentador = (s: Segmento) => {
           <button @click="pedirAccion(s, 'Tarea')" class="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:border-[#C9A227] hover:text-[#C9A227] transition-all">
             <ClipboardList :size="13" /> Tarea
           </button>
-          <button @click="abrirEnSegmentador(s)" class="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-[#2447F9] dark:text-blue-300 hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all ml-auto">
+          <button @click="abrirEnSegmentador(s)" class="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-slate-900 dark:text-white hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all ml-auto">
             Abrir en Audiencias <ArrowRight :size="13" />
           </button>
         </div>

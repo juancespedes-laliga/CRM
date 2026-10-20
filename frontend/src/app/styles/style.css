@@ -8,6 +8,11 @@
 
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/preflight.css" layer(tailwind-base);
+/* Reset de Ant Design dentro de la capa base (antes se importaba suelto en
+   plugins/antd.ts). Sin capa, su regla "button, input, select, textarea { font-size: inherit }"
+   le ganaba a TODAS las utilidades de Tailwind (los estilos sin capa siempre ganan a los de
+   una capa) y los text-[11px]/text-[12px] de botones, campos y selects se ignoraban. */
+@import "ant-design-vue/dist/reset.css" layer(tailwind-base);
 @import "tailwindcss/utilities.css" layer(tailwind-utilities);
 
 @source "../../**/*.vue";
@@ -123,4 +128,22 @@
    BeneficiarioFormDialog, que se abre encima de un drawer) y no se corte. */
 .p-datepicker-panel {
   z-index: 2000000 !important;
+}
+
+/* Pantallas grandes: la app usa tamanos fijos en px (text-[12px], etc.), que en monitores
+   anchos se ven diminutos. Se agranda todo un poco (letra, iconos, espacios y las ventanas
+   modales, que viven dentro del area de trabajo) a partir de 1440px de ancho; en laptops
+   normales no cambia nada. Se aplica al menu lateral, la barra superior y el area de trabajo
+   (ver MainLayout.vue), no al contenedor de alto fijo. */
+@media (min-width: 1440px) {
+  .escala-pantalla { zoom: 1.06; }
+}
+@media (min-width: 1600px) {
+  .escala-pantalla { zoom: 1.12; }
+}
+@media (min-width: 1920px) {
+  .escala-pantalla { zoom: 1.22; }
+}
+@media (min-width: 2400px) {
+  .escala-pantalla { zoom: 1.4; }
 }

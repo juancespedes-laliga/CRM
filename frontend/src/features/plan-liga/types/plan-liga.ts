@@ -81,6 +81,8 @@ export interface ReemplazoTitularResultado {
   usuarioServinteCreado: boolean
   marcadoEnIncle: boolean
   registrosIncleMarcadosAnterior: number
+  /** El titular nuevo era beneficiario del mismo grupo (su registro quedó inactivo). */
+  beneficiarioPromovido: boolean
 }
 
 export interface ReemplazoBeneficiarioResultado {
@@ -261,6 +263,7 @@ export interface ReemplazoTitularResultadoResponse {
   usuario_servinte_creado: boolean
   marcado_en_incle: boolean
   registros_incle_marcados_anterior: number
+  beneficiario_promovido: boolean
 }
 
 export interface ReemplazoBeneficiarioResultadoResponse {

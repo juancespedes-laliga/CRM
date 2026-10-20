@@ -19,6 +19,10 @@ const cargando = ref(false) // primer bloque: bloquea toda la pantalla
 const cargandoBloque = ref(false) // bloque siguiente/anterior: solo el paginador
 const error = ref<string | null>(null)
 const sel = ref<Set<string>>(new Set())
+// "Seleccionar toda la audiencia": la seleccion pasa a ser TODO el total del
+// filtro (no solo los bloques cargados) menos los que se desmarquen a mano.
+// Los envios en este modo mandan el filtro y el backend arma la lista completa.
+const todaLaAudiencia = ref(false)
 
 const indiceBloque = (p: number) => Math.floor(((p - 1) * POR_PAGINA) / TAMANO_BLOQUE)
 
@@ -46,6 +50,13 @@ export function useSegmentador() {
     [...bloques.value.values()].flat().filter(a => sel.value.has(a.id)),
   )
   const todoSel = computed(() => filtrados.value.length > 0 && filtrados.value.every(a => sel.value.has(a.id)))
+  // Cargados y desmarcados (en modo "toda la audiencia" son las exclusiones).
+  const excluidos = computed(() =>
+    [...bloques.value.values()].flat().filter(a => !sel.value.has(a.id)),
+  )
+  const nSeleccionadas = computed(() =>
+    todaLaAudiencia.value ? Math.max(0, total.value - excluidos.value.length) : seleccion.value.length,
+  )
   const nFiltros = computed(() => contarFiltros(fApp.value))
 
   const asegurarBloque = async (idx: number) => {
@@ -74,6 +85,7 @@ export function useSegmentador() {
     total.value = 0
     pagina.value = 1
     sel.value = new Set()
+    todaLaAudiencia.value = false
     error.value = null
     cargando.value = true
     try {
@@ -97,6 +109,17 @@ export function useSegmentador() {
     cargando.value = false
     cargandoBloque.value = false
     sel.value = new Set()
+    todaLaAudiencia.value = false
+  }
+
+  /** Marca a toda la audiencia del filtro (incluye las páginas aún no cargadas). */
+  const seleccionarTodaLaAudiencia = () => {
+    sel.value = new Set([...bloques.value.values()].flat().map(a => a.id))
+    todaLaAudiencia.value = true
+  }
+  const quitarSeleccion = () => {
+    sel.value = new Set()
+    todaLaAudiencia.value = false
   }
 
   const precargar = async (pre: Partial<FiltroSegmento>) => {
@@ -134,9 +157,11 @@ export function useSegmentador() {
 
   return {
     f, fApp, sel, filtrados, seleccion, todoSel, nFiltros,
+    todaLaAudiencia, excluidos, nSeleccionadas,
     total, pagina, totalPaginas, rangoDesde, rangoHasta, porPagina: POR_PAGINA,
     cargando, cargandoBloque, error,
     aplicar, limpiar, precargar, toggleRow, toggleTodo,
+    seleccionarTodaLaAudiencia, quitarSeleccion,
     paginaAnterior, paginaSiguiente, irAPagina,
   }
 }

@@ -18,7 +18,7 @@ const emit = defineEmits<{ 'toggle-etapa': [etapa: EtapaOportunidad] }>()
       :class="filtroEstado === etapa ? 'border-[#2447F9] bg-[#EEF2FF] dark:bg-blue-950/40' : ''"
       @click="emit('toggle-etapa', etapa)"
     >
-      <div class="text-[20px] font-bold" :class="filtroEstado === etapa ? 'text-[#2447F9]' : 'text-heading'">
+      <div class="text-[20px] font-bold" :class="filtroEstado === etapa ? 'text-slate-900 font-bold' : 'text-heading'">
         {{ oportunidades.filter(o => o.estado === etapa).length }}
       </div>
       <div class="text-[9px] font-bold text-subtle uppercase tracking-wide mt-0.5 truncate">{{ etapa }}</div>

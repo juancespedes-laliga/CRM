@@ -13,7 +13,7 @@ import FieldError from '@/shared/components/FieldError.vue'
 import FechaInput from '@/shared/components/FechaInput.vue'
 
 const draft = defineModel<ReemplazoPersonaDraft>({ required: true })
-const emit = defineEmits<{ validSubmit: [] }>()
+const emit = defineEmits<{ validSubmit: []; documentoBlur: [documento: string] }>()
 
 const { errors, tocar, esVisible, onValidSubmit } = useZodForm(reemplazoPersonaSchema, draft)
 const nombre = useNombreCompuesto(draft, 'nombre')
@@ -56,7 +56,7 @@ defineExpose({ submit: onValidSubmit(() => { if (!apellidoFaltante.value) emit('
         </div>
         <div>
           <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Documento *</label>
-          <input v-model="draft.documento" @blur="tocar('documento')" placeholder="Número documento" class="w-full h-10 px-4 rounded-lg border bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:bg-white dark:focus:bg-slate-800 transition-all" :class="fieldStateClass(esVisible('documento') && !!errors.documento, esVisible('documento') && !errors.documento && !!draft.documento, 'border-slate-200 dark:border-slate-600 focus:border-amber-500')" />
+          <input v-model="draft.documento" @blur="tocar('documento'); emit('documentoBlur', draft.documento)" placeholder="Número documento" class="w-full h-10 px-4 rounded-lg border bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:bg-white dark:focus:bg-slate-800 transition-all" :class="fieldStateClass(esVisible('documento') && !!errors.documento, esVisible('documento') && !errors.documento && !!draft.documento, 'border-slate-200 dark:border-slate-600 focus:border-amber-500')" />
           <FieldError :message="esVisible('documento') ? errors.documento : undefined" />
         </div>
         <div>

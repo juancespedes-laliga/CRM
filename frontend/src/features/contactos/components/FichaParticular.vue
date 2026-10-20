@@ -151,7 +151,7 @@ const metricasRedes = computed(() => {
 
     <div class="pb-4 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
       <div>
-        <span class="text-[9px] bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-black px-2 py-0.5 rounded uppercase tracking-wider inline-block">
+        <span class="text-[9px] bg-blue-50 dark:bg-blue-950/50 text-slate-900 dark:text-white border border-blue-200 dark:border-blue-800 font-black px-2 py-0.5 rounded uppercase tracking-wider inline-block">
           {{ contacto.estadoLead }}
         </span>
         <h2 class="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
@@ -164,7 +164,7 @@ const metricasRedes = computed(() => {
           @click="pestañaActiva = 'datos'"
           :class="[
             'px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase transition-all duration-200 cursor-pointer',
-            pestañaActiva === 'datos' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+            pestañaActiva === 'datos' ? 'bg-white dark:bg-slate-700 text-slate-900 font-bold dark:text-white shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
           ]"
         >
           Datos Personales
@@ -173,7 +173,7 @@ const metricasRedes = computed(() => {
           @click="pestañaActiva = 'servicios'"
           :class="[
             'px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase transition-all duration-200 cursor-pointer',
-            pestañaActiva === 'servicios' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+            pestañaActiva === 'servicios' ? 'bg-white dark:bg-slate-700 text-slate-900 font-bold dark:text-white shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
           ]"
         >
           Servicios
@@ -194,7 +194,7 @@ const metricasRedes = computed(() => {
             <div class="bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 text-xs grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div class="flex justify-between items-center border-b border-slate-100/60 dark:border-slate-700/60 sm:border-0 pb-1 sm:pb-0"><span class="text-slate-400 dark:text-slate-500 font-bold">Nombre:</span><strong class="text-slate-800 dark:text-slate-200">{{ contacto.nombre }}</strong></div>
               <div class="flex justify-between items-center border-b border-slate-100/60 dark:border-slate-700/60 sm:border-0 pb-1 sm:pb-0"><span class="text-slate-400 dark:text-slate-500 font-bold">Apellidos:</span><strong class="text-slate-800 dark:text-slate-200">{{ contacto.apellidos }}</strong></div>
-              <div class="flex justify-between items-center sm:col-span-2"><span class="text-slate-400 dark:text-slate-500 font-bold">Categoría:</span><strong class="text-blue-600 dark:text-blue-300 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded font-black text-[10px] uppercase">{{ contacto.categoria || 'Sin Categoría' }}</strong></div>
+              <div class="flex justify-between items-center sm:col-span-2"><span class="text-slate-400 dark:text-slate-500 font-bold">Categoría:</span><strong class="text-slate-900 dark:text-white bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded font-black text-[10px] uppercase">{{ contacto.categoria || 'Sin Categoría' }}</strong></div>
             </div>
           </div>
 
@@ -282,7 +282,7 @@ const metricasRedes = computed(() => {
               >
                 <div class="flex justify-between items-center text-[8px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider mb-1">
                   <span>{{ nota.fecha }}</span>
-                  <span class="text-blue-600 dark:text-blue-400">{{ nota.autor }}</span>
+                  <span class="text-slate-900 font-bold dark:text-white">{{ nota.autor }}</span>
                 </div>
                 <p class="font-medium text-slate-600 dark:text-slate-400">{{ nota.texto }}</p>
               </div>
