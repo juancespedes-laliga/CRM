@@ -13,11 +13,12 @@
 //   GET  /api/mailerturbo/contactos/buscar?correo|telefono -> ObtenerInfoContacto
 //   POST /api/mailerturbo/contactos/sincronizar   -> ObtenerInfoContacto + CrearContacto / ActualizarListasContacto
 //   POST /api/mailerturbo/campanas/enviar         -> EnviarCampanaEmail
+//   GET  /api/mailerturbo/uso-mensual             -> ListarCampanas (suma envíos del mes) + MAILERTURBO_LIMITE_MENSUAL
 //   POST /api/mailerturbo/sesion                  -> IniciarSesion (token reutilizado hasta que vence)
 import { authHeader } from '@/features/auth/composables/useAuth'
 import type {
   CampanaMT, ContactoMT, DestinatarioCampanaMT, DetalleCampanaMT, EnvioCampanaMT, FiltrosAudienciaMT, InfoContactoMT, ListaMT, PaginaCampanasMT, PerfilEnvioMT,
-  PlantillaMT, ResultadoEnvioCampanaMT, ResultadoSincronizacionMT, SesionMT,
+  PlantillaMT, ResultadoEnvioCampanaMT, ResultadoSincronizacionMT, SesionMT, UsoMensualMT,
 } from '../types/mailerturbo'
 
 const API_URL = import.meta.env.VITE_CRM_API_URL
@@ -226,6 +227,14 @@ export async function getDestinatariosCampana(id: number): Promise<DestinatarioC
     fechaBaja: x.fecha_baja,
     vistaLanding: x.vista_landing,
   }))
+}
+
+/** Correos enviados este mes y cuántos quedan del cupo mensual. */
+export async function getUsoMensual(): Promise<UsoMensualMT> {
+  const d = await pedir<{ mes: string; enviados: number; limite_mensual: number | null; disponibles: number | null }>(
+    '/uso-mensual', 'No se pudo consultar el uso del mes en MailerTurbo.',
+  )
+  return { mes: d.mes, enviados: d.enviados, limiteMensual: d.limite_mensual, disponibles: d.disponibles }
 }
 
 // ── Contactos ────────────────────────────────────────────────────────

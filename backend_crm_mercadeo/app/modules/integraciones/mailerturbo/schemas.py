@@ -217,3 +217,13 @@ class SesionMT(BaseModel):
     tokensesion: str
     fecha_expiracion: str | None
     url_inicio_sesion: str = "https://mailerturbo.com/iniciar-sesion"
+
+
+class UsoMensualMT(BaseModel):
+    """Correos enviados en el mes actual frente al cupo mensual del plan.
+    `limite_mensual` es None si no se configuro MAILERTURBO_LIMITE_MENSUAL."""
+
+    mes: str
+    enviados: int
+    limite_mensual: int | None
+    disponibles: int | None

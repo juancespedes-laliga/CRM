@@ -13,6 +13,7 @@ import EnviarCampanaDialog from '../dialogs/EnviarCampanaDialog.vue'
 import SubirContactosDialog from '../dialogs/SubirContactosDialog.vue'
 import MigasCampanas from '@/features/campanas/components/MigasCampanas.vue'
 import Paginador from '../components/Paginador.vue'
+import UsoMensualMailerTurbo from '../components/UsoMensualMailerTurbo.vue'
 
 const router = useRouter()
 const { gestionar: puedeGestionar } = permisosDeModulo('campanas')
@@ -95,7 +96,8 @@ const onBuscarCampana = () => {
 }
 const limpiarBusqueda = () => { busquedaCampana.value = ''; void cargarCampanas(1) }
 
-const actualizarTodo = () => { void cargar(true); void cargarCampanas() }
+const usoMensual = ref<InstanceType<typeof UsoMensualMailerTurbo> | null>(null)
+const actualizarTodo = () => { void cargar(true); void cargarCampanas(); void usoMensual.value?.cargar() }
 onMounted(() => { void cargar(); void cargarCampanas(1) })
 
 // Mientras alguna campaña de la página se esté enviando, se refresca sola cada 30 s.
@@ -136,7 +138,7 @@ async function abrirPlataforma() {
 // ── Diálogos ─────────────────────────────────────────────────────────
 const enviarVisible = ref(false)
 const subirVisible = ref(false)
-const onEnviada = () => { void cargarCampanas(1) }
+const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar() }
 </script>
 
 <template>
@@ -183,6 +185,8 @@ const onEnviada = () => { void cargarCampanas(1) }
     <p v-if="errorAbrir" class="text-[11px] text-red-500 -mt-3">{{ errorAbrir }}</p>
 
     <CampanasSubnav />
+
+    <UsoMensualMailerTurbo ref="usoMensual" />
 
     <div class="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-4 items-start">
       <!-- Listas -->

@@ -189,3 +189,13 @@ export interface SesionMT {
   fechaExpiracion: string | null
   urlInicioSesion: string
 }
+
+/** Correos enviados este mes frente al cupo mensual del plan. */
+export interface UsoMensualMT {
+  /** 'YYYY-MM' (hora de Colombia). */
+  mes: string
+  enviados: number
+  /** null si el backend no tiene MAILERTURBO_LIMITE_MENSUAL. */
+  limiteMensual: number | null
+  disponibles: number | null
+}

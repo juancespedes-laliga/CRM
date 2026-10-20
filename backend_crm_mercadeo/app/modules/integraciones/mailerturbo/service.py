@@ -1,6 +1,7 @@
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -27,6 +28,7 @@ from app.modules.integraciones.mailerturbo.schemas import (
     ResultadoEnvioCampanaMT,
     ResultadoSincronizacionMT,
     SesionMT,
+    UsoMensualMT,
 )
 from app.modules.marketing.segmentos.schemas import FiltrosAudiencia
 from app.modules.marketing.segmentos.service import SegmentosService
@@ -462,3 +464,30 @@ class MailerTurboService:
         except MailerTurboError as exc:
             raise _error_http(exc) from exc
         return SesionMT(tokensesion=s["tokensesion"], fecha_expiracion=s.get("fechaexpiracion"))
+
+    # ── Uso del mes ────────────────────────────────────────────────────
+    def uso_mensual(self) -> UsoMensualMT:
+        """Suma los envios de las campanas del mes actual (hora de Colombia).
+        La API no expone el cupo del plan: el limite sale de MAILERTURBO_LIMITE_MENSUAL.
+        ListarCampanas viene de la mas reciente a la mas antigua, asi que se deja de
+        paginar en cuanto aparece una campana de un mes anterior."""
+        mes = datetime.now(client.ZONA_COLOMBIA).strftime("%Y-%m")
+        enviados = 0
+        for pagina in range(1, 26):
+            listado = self.listar_campanas(pagina, 200, None)
+            anterior = False
+            for c in listado.campanas:
+                fecha = (c.fecha or "")[:7]
+                if fecha == mes:
+                    enviados += c.total_envios
+                elif fecha and fecha < mes:
+                    anterior = True
+            if anterior or pagina >= listado.total_paginas:
+                break
+        limite = settings.mailerturbo_limite_mensual or None
+        return UsoMensualMT(
+            mes=mes,
+            enviados=enviados,
+            limite_mensual=limite,
+            disponibles=max(0, limite - enviados) if limite else None,
+        )

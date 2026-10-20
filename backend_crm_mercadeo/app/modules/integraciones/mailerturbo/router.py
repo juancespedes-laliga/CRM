@@ -17,6 +17,7 @@ from app.modules.integraciones.mailerturbo.schemas import (
     ResultadoSincronizacionMT,
     SesionMT,
     SincronizarContactosMT,
+    UsoMensualMT,
 )
 from app.modules.integraciones.mailerturbo.service import MailerTurboService
 
@@ -63,6 +64,13 @@ def listar_campanas(
     service: MailerTurboService = Depends(get_mailerturbo_service),
 ) -> ListadoCampanasMT:
     return service.listar_campanas(pagina, por_pagina, q)
+
+
+# Correos enviados este mes frente al cupo mensual (MAILERTURBO_LIMITE_MENSUAL).
+# Va antes de /campanas/{id_campana} para que "uso-mensual" no se tome como id.
+@router.get("/uso-mensual", response_model=UsoMensualMT)
+def uso_mensual(service: MailerTurboService = Depends(get_mailerturbo_service)) -> UsoMensualMT:
+    return service.uso_mensual()
 
 
 @router.get("/campanas/{id_campana}", response_model=DetalleCampanaMT)

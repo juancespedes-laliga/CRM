@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     mailerturbo_idempresa: int = 0
     mailerturbo_afiliado_nick: str = ""
     mailerturbo_afiliado_clave: str = ""
+    # Correos que permite el plan de MailerTurbo por mes (0 = sin configurar).
+    mailerturbo_limite_mensual: int = 0
 
     @property
     def database_url(self) -> str:
