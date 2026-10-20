@@ -7,7 +7,7 @@ import {
 import type { CampanaMT } from '../types/mailerturbo'
 import { abrirMailerTurbo, getCampanas } from '../services/mailerturbo.api'
 import { useCatalogosMailerturbo } from '../composables/useCatalogosMailerturbo'
-import { permisosDeModulo } from '@/features/auth/composables/useAuth'
+import { permisosDeModulo, tienePermiso } from '@/features/auth/composables/useAuth'
 import CampanasSubnav from '@/features/campanas/components/CampanasSubnav.vue'
 import EnviarCampanaDialog from '../dialogs/EnviarCampanaDialog.vue'
 import SubirContactosDialog from '../dialogs/SubirContactosDialog.vue'
@@ -16,7 +16,8 @@ import Paginador from '../components/Paginador.vue'
 import UsoMensualMailerTurbo from '../components/UsoMensualMailerTurbo.vue'
 
 const router = useRouter()
-const { gestionar: puedeGestionar } = permisosDeModulo('campanas')
+const { gestionar: puedeGestionar } = permisosDeModulo('mailerturbo')
+const puedeEnviar = tienePermiso('mailerturbo:enviar')
 const nf = new Intl.NumberFormat('es-CO')
 const fmtPct = (n: number) => `${Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`
 const verCampana = (id: number | string) => router.push(`/campanas/mailerturbo/${id}`)
@@ -158,6 +159,7 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
           @click="router.push('/campanas/estadisticas')"
         ><BarChart3 :size="13" /> Estadísticas</button>
         <button
+          v-if="puedeGestionar"
           type="button"
           :disabled="abriendo"
           class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
@@ -176,7 +178,7 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
           class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
         ><CloudUpload :size="13" /> Subir contactos</button>
         <button
-          v-if="puedeGestionar"
+          v-if="puedeEnviar"
           @click="enviarVisible = true"
           class="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold shadow hover:bg-[#1D3DD9] transition-all"
         ><Send :size="13" /> Nueva campaña</button>

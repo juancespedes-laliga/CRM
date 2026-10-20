@@ -6,7 +6,7 @@ import {
 import type { InfoContactoMT, ListaMT } from '../types/mailerturbo'
 import { buscarContacto } from '../services/mailerturbo.api'
 import { useCatalogosMailerturbo } from '../composables/useCatalogosMailerturbo'
-import { permisosDeModulo } from '@/features/auth/composables/useAuth'
+import { permisosDeModulo, tienePermiso } from '@/features/auth/composables/useAuth'
 import { descargarPlantillaBaseContactos } from '../utils/baseContactos'
 import EnviarCampanaDialog from '../dialogs/EnviarCampanaDialog.vue'
 import SubirContactosDialog from '../dialogs/SubirContactosDialog.vue'
@@ -14,7 +14,8 @@ import SubirContactosDialog from '../dialogs/SubirContactosDialog.vue'
 // Pestaña "MailerTurbo" de Gestión de Contactos: listas con sus métricas, búsqueda
 // de un contacto y el flujo Excel -> campaña. La API de MailerTurbo no permite
 // listar los contactos de una lista; solo consultar uno por correo o teléfono.
-const { gestionar: puedeGestionar } = permisosDeModulo('contactos')
+const { gestionar: puedeGestionar } = permisosDeModulo('mailerturbo')
+const puedeEnviar = tienePermiso('mailerturbo:enviar')
 const nf = new Intl.NumberFormat('es-CO')
 
 const { listas, cargando, error, cargar, nuevaLista } = useCatalogosMailerturbo()
@@ -117,7 +118,7 @@ const PASOS = [
 <template>
   <div class="space-y-4">
     <!-- Flujo Excel -> campaña -->
-    <div v-if="puedeGestionar" class="surface-card rounded-2xl shadow-sm p-5">
+    <div v-if="puedeGestionar || puedeEnviar" class="surface-card rounded-2xl shadow-sm p-5">
       <div class="flex flex-col lg:flex-row lg:items-center gap-5">
         <div class="flex-1 min-w-0">
           <h3 class="text-[14px] font-bold text-heading flex items-center gap-2">
@@ -135,10 +136,12 @@ const PASOS = [
         </div>
         <div class="flex flex-col gap-2 shrink-0 lg:w-56">
           <button
+            v-if="puedeEnviar"
             @click="abrirCampanaExcel"
             class="flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg bg-[#2447F9] text-white text-[12px] font-bold shadow hover:bg-[#1D3DD9] transition-all"
           ><Send :size="14" /> Cargar Excel y enviar</button>
           <button
+            v-if="puedeGestionar"
             @click="abrirSubir()"
             class="flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
           ><CloudUpload :size="13" /> Solo subir Excel a una lista</button>
@@ -219,7 +222,7 @@ const PASOS = [
                 <th class="px-3 py-2.5 font-semibold text-right">Aperturas</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Clics</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Rebotes / bajas</th>
-                <th v-if="puedeGestionar" class="px-3 py-2.5" />
+                <th v-if="puedeGestionar || puedeEnviar" class="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -246,10 +249,10 @@ const PASOS = [
                   <div class="text-[10px] text-muted">{{ pct(l.totalClicks, l.totalEnvios) }}</div>
                 </td>
                 <td class="px-3 py-2.5 text-right tabular-nums text-body whitespace-nowrap">{{ nf.format(l.totalRebotes) }} / {{ nf.format(l.totalSalidas) }}</td>
-                <td v-if="puedeGestionar" class="px-3 py-2.5">
+                <td v-if="puedeGestionar || puedeEnviar" class="px-3 py-2.5">
                   <div v-if="l.estado === 'Activa'" class="flex items-center justify-end gap-1">
-                    <button @click="abrirSubir(l)" title="Subir contactos a esta lista" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] transition-all"><CloudUpload :size="13" /></button>
-                    <button @click="abrirCampanaLista(l)" title="Enviar campaña a esta lista" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] transition-all"><Send :size="13" /></button>
+                    <button v-if="puedeGestionar" @click="abrirSubir(l)" title="Subir contactos a esta lista" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] transition-all"><CloudUpload :size="13" /></button>
+                    <button v-if="puedeEnviar" @click="abrirCampanaLista(l)" title="Enviar campaña a esta lista" class="w-8 h-8 rounded-lg border border-default bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-[#2447F9] transition-all"><Send :size="13" /></button>
                   </div>
                 </td>
               </tr>

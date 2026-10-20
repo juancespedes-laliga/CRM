@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import { BarChart3, FileCode2, Megaphone } from 'lucide-vue-next'
+import { tienePermiso } from '@/features/auth/composables/useAuth'
 
 // Sub-vistas de Campañas: plantillas del editor del CRM, envíos masivos por
 // MailerTurbo ("Listas y campañas") y sus estadísticas.
+// Las de MailerTurbo solo con mailerturbo:ver.
 const SUBVISTAS = [
   { ruta: '/campanas', label: 'Plantillas', icono: FileCode2 },
-  { ruta: '/campanas/mailerturbo', label: 'Listas y campañas', icono: Megaphone },
-  { ruta: '/campanas/estadisticas', label: 'Estadísticas', icono: BarChart3 },
+  ...(tienePermiso('mailerturbo:ver') ? [
+    { ruta: '/campanas/mailerturbo', label: 'Listas y campañas', icono: Megaphone },
+    { ruta: '/campanas/estadisticas', label: 'Estadísticas', icono: BarChart3 },
+  ] : []),
 ]
 
 const route = useRoute()

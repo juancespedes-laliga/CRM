@@ -37,6 +37,14 @@ const porcentaje = computed(() => {
 const colorBarra = computed(() =>
   porcentaje.value >= 90 ? 'bg-red-500' : porcentaje.value >= 70 ? 'bg-amber-500' : 'bg-[#2447F9]',
 )
+// Sin MAILERTURBO_LIMITE_MENSUAL solo se muestran los enviados.
+const indicadores = computed(() => [
+  { label: 'Enviados', valor: uso.value?.enviados, color: 'text-heading' },
+  ...(uso.value?.limiteMensual ? [
+    { label: 'Disponibles', valor: uso.value.disponibles, color: 'text-emerald-600 dark:text-emerald-400' },
+    { label: 'Total mensual', valor: uso.value.limiteMensual, color: 'text-heading' },
+  ] : []),
+])
 const fmt = (n: number | null | undefined) => (n == null ? '—' : nf.format(n))
 </script>
 
@@ -54,11 +62,7 @@ const fmt = (n: number | null | undefined) => (n == null ? '—' : nf.format(n))
       </div>
 
       <div class="flex items-center gap-6">
-        <div v-for="k in [
-          { label: 'Enviados', valor: uso?.enviados, color: 'text-heading' },
-          { label: 'Disponibles', valor: uso?.disponibles, color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Total mensual', valor: uso?.limiteMensual, color: 'text-heading' },
-        ]" :key="k.label" class="text-right">
+        <div v-for="k in indicadores" :key="k.label" class="text-right">
           <div class="text-[10px] font-bold text-subtle uppercase tracking-wide">{{ k.label }}</div>
           <div class="text-[18px] font-bold tabular-nums leading-tight" :class="k.color">
             <Loader2 v-if="cargando && !uso" :size="15" class="animate-spin text-muted inline" />
@@ -74,9 +78,6 @@ const fmt = (n: number | null | undefined) => (n == null ? '—' : nf.format(n))
       </div>
       <p class="text-[10px] text-muted mt-1 tabular-nums">{{ porcentaje.toFixed(1) }}% del cupo usado</p>
     </div>
-    <p v-else-if="uso && !error" class="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
-      Falta configurar el total mensual del plan (MAILERTURBO_LIMITE_MENSUAL en el backend).
-    </p>
     <p v-if="error" class="text-[11px] text-red-500 mt-2">{{ error }}</p>
   </div>
 </template>

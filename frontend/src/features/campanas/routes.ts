@@ -9,16 +9,19 @@ const routes: RouteRecordRaw[] = [
   {
     path: 'campanas/mailerturbo',
     name: 'campanas-mailerturbo',
+    meta: { permiso: 'mailerturbo:ver' },
     component: () => import('@/features/mailerturbo/pages/MailerTurbo.vue'),
   },
   {
     path: 'campanas/estadisticas',
     name: 'campanas-estadisticas',
+    meta: { permiso: 'mailerturbo:ver' },
     component: () => import('@/features/mailerturbo/pages/Estadisticas.vue'),
   },
   {
     path: 'campanas/mailerturbo/:id(\\d+)',
     name: 'campanas-mailerturbo-detalle',
+    meta: { permiso: 'mailerturbo:ver' },
     component: () => import('@/features/mailerturbo/pages/CampanaDetalle.vue'),
   },
 ]

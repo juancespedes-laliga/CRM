@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .env
 .mailerturbo_sesion.json
+.gmail_envios_dia.json

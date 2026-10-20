@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     gmail_oauth_client_id: str = ""
     gmail_oauth_client_secret: str = ""
     gmail_oauth_refresh_token: str = ""
+    # Tope de correos por dia que el CRM manda por Gmail (bienvenida, registro,
+    # recordatorios y "Enviar por Gmail"), para que Google no bloquee la cuenta.
+    # Se cuenta por destinatario; el dia es el de Colombia. 0 = sin tope.
+    gmail_limite_diario: int = 400
 
     # MailerTurbo (correo masivo). Cada peticion del Web Service se autentica con
     # usuario/clave/llave (ws_login); idempresa es la empresa de LaLiga en la plataforma.

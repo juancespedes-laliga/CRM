@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Mails, MailOpen, MousePointerClick, Pointer, TriangleAlert, ArrowUp, ArrowDown, ChevronRight } from 'lucide-vue-next'
+import { Mails, MailOpen, MousePointerClick, Pointer, TriangleAlert, ArrowUp, ArrowDown, ChevronRight, Search, X } from 'lucide-vue-next'
 import {
   useEstadisticasCampanas, sumar, valor, fraccion, MESES, nombrePeriodo, totalesDe,
   type Granularidad, type Metrica, type Periodo,
@@ -13,7 +13,7 @@ import Paginador from '../Paginador.vue'
 import AyudaGrafico from './AyudaGrafico.vue'
 
 const router = useRouter()
-const { anios, enPeriodo, puntos } = useEstadisticasCampanas()
+const { anios, validas, enPeriodo, puntos } = useEstadisticasCampanas()
 const nf = new Intl.NumberFormat('es-CO')
 const fmtPct = (n: number | null) => (n == null ? '—' : `${n.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`)
 
@@ -113,12 +113,22 @@ const tortaCampanas = computed(() => {
 // ── Ranking ──────────────────────────────────────────────────────────
 const orden = ref<Metrica>('apertura')
 const ORDENES: Partial<Record<Metrica, string>> = { apertura: 'Apertura', clics: 'Clics', ctor: 'CTOR', rebote: 'Rebote', envios: 'Enviados' }
-const ranking = computed(() => [...campanas.value].sort((a, b) => (valor(totalesDe(b), orden.value) ?? -1) - (valor(totalesDe(a), orden.value) ?? -1)))
-const POR_PAGINA = 10
+// "periodo" = las del año/mes elegido; "todas" = todas las campañas de todos los años.
+const alcance = ref<'periodo' | 'todas'>('periodo')
+const busqueda = ref('')
+const normalizar = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const ranking = computed(() => {
+  const q = normalizar(busqueda.value.trim())
+  const base = alcance.value === 'todas' ? validas.value : campanas.value
+  return base
+    .filter(c => !q || normalizar(`${c.nombre} ${c.asunto ?? ''} ${c.listas ?? ''} #${c.id}`).includes(q))
+    .sort((a, b) => (valor(totalesDe(b), orden.value) ?? -1) - (valor(totalesDe(a), orden.value) ?? -1))
+})
+const porPagina = ref(10)
 const pagina = ref(1)
-const totalPaginas = computed(() => Math.max(1, Math.ceil(ranking.value.length / POR_PAGINA)))
-const rankingVisible = computed(() => ranking.value.slice((pagina.value - 1) * POR_PAGINA, pagina.value * POR_PAGINA))
-watch([orden, periodo], () => { pagina.value = 1 })
+const totalPaginas = computed(() => Math.max(1, Math.ceil(ranking.value.length / porPagina.value)))
+const rankingVisible = computed(() => ranking.value.slice((pagina.value - 1) * porPagina.value, pagina.value * porPagina.value))
+watch([orden, periodo, alcance, busqueda, porPagina], () => { pagina.value = 1 })
 
 const segmentado = 'flex rounded-lg border border-default p-0.5 text-[11px] font-semibold bg-white dark:bg-slate-800'
 const opcion = (activa: boolean) => ['h-7 px-2.5 rounded-md transition-colors whitespace-nowrap disabled:opacity-40', activa ? 'bg-[#2447F9] text-white' : 'text-muted hover:text-heading']
@@ -231,51 +241,65 @@ const select = 'h-9 px-2.5 rounded-lg border border-default bg-white dark:bg-sla
           <GraficoTorta :porciones="tortaCampanas" unidad="correos" />
         </section>
       </div>
+    </template>
 
-      <section class="surface-card rounded-2xl shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b border-default flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 class="text-[13px] font-bold text-heading">Campañas de {{ nombrePeriodo(periodo) }}</h3>
-            <p class="text-[11px] text-muted">Ordenadas por {{ ORDENES[orden]?.toLowerCase() }}, de mayor a menor.</p>
+    <section class="surface-card rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-default flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 class="text-[13px] font-bold text-heading">{{ alcance === 'todas' ? 'Todas las campañas' : `Campañas de ${nombrePeriodo(periodo)}` }}</h3>
+          <p class="text-[11px] text-muted">Ordenadas por {{ ORDENES[orden]?.toLowerCase() }}, de mayor a menor.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div :class="segmentado" role="tablist" aria-label="Qué campañas ver">
+            <button type="button" :class="opcion(alcance === 'periodo')" @click="alcance = 'periodo'">{{ nombrePeriodo(periodo) }}</button>
+            <button type="button" :class="opcion(alcance === 'todas')" @click="alcance = 'todas'">Todas</button>
           </div>
           <div :class="segmentado" role="tablist" aria-label="Ordenar por">
             <button v-for="(label, o) in ORDENES" :key="o" type="button" :class="opcion(orden === o)" @click="orden = o">{{ label }}</button>
           </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-[12px]">
-            <thead>
-              <tr class="border-b border-default text-left text-[10px] uppercase tracking-wide text-subtle">
-                <th class="px-4 py-2.5 font-semibold w-10">#</th>
-                <th class="px-3 py-2.5 font-semibold">Campaña</th>
-                <th class="px-3 py-2.5 font-semibold text-right">Enviados</th>
-                <th class="px-3 py-2.5 font-semibold text-right">Apertura</th>
-                <th class="px-3 py-2.5 font-semibold text-right">Clics</th>
-                <th class="px-3 py-2.5 font-semibold text-right">CTOR</th>
-                <th class="px-3 py-2.5 font-semibold text-right">Rebote</th>
-                <th class="w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(c, i) in rankingVisible" :key="c.id" tabindex="0"
-                class="group border-b border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-blue-50/50 dark:hover:bg-slate-700/40 focus-visible:outline-2 focus-visible:outline-[#2447F9]"
-                @click="verCampana(c.id)" @keydown.enter="verCampana(c.id)">
-                <td class="px-4 py-2.5 text-muted tabular-nums">{{ (pagina - 1) * POR_PAGINA + i + 1 }}</td>
-                <td class="px-3 py-2.5 min-w-[220px]">
-                  <div class="font-semibold text-heading truncate max-w-[340px] group-hover:text-[#2447F9]" :title="c.nombre">{{ c.nombre }}</div>
-                  <div class="text-[10px] text-muted">{{ c.f.toLocaleDateString('es-CO', { dateStyle: 'medium' }) }}<template v-if="c.listas"> · {{ c.listas }}</template></div>
-                </td>
-                <td class="px-3 py-2.5 text-right tabular-nums" :class="orden === 'envios' ? 'font-bold text-heading' : 'text-body'">{{ nf.format(c.totalEnvios) }}</td>
-                <td v-for="m in (['apertura', 'clics', 'ctor', 'rebote'] as Metrica[])" :key="m" class="px-3 py-2.5 text-right tabular-nums" :class="orden === m ? 'font-bold text-heading' : 'text-body'">{{ fmtPct(valor(totalesDe(c), m)) }}</td>
-                <td class="pr-3 py-2.5 text-muted group-hover:text-[#2447F9]"><ChevronRight :size="15" /></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="px-4 py-2.5 border-t border-default">
-          <Paginador v-model:pagina="pagina" :total-paginas="totalPaginas" :total="ranking.length" :por-pagina="POR_PAGINA" :opciones-por-pagina="[]" />
-        </div>
-      </section>
-    </template>
+      </div>
+      <div class="flex items-center gap-2 px-4 h-10 border-b border-default">
+        <Search :size="13" class="text-muted shrink-0" />
+        <input v-model="busqueda" placeholder="Buscar campaña por nombre, asunto, lista o #id…" class="flex-1 min-w-0 bg-transparent text-[12px] outline-none text-body" />
+        <button v-if="busqueda" type="button" class="text-muted hover:text-heading" title="Limpiar" @click="busqueda = ''"><X :size="12" /></button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[12px]">
+          <thead>
+            <tr class="border-b border-default text-left text-[10px] uppercase tracking-wide text-subtle">
+              <th class="px-4 py-2.5 font-semibold w-10">#</th>
+              <th class="px-3 py-2.5 font-semibold">Campaña</th>
+              <th class="px-3 py-2.5 font-semibold text-right">Enviados</th>
+              <th class="px-3 py-2.5 font-semibold text-right">Apertura</th>
+              <th class="px-3 py-2.5 font-semibold text-right">Clics</th>
+              <th class="px-3 py-2.5 font-semibold text-right">CTOR</th>
+              <th class="px-3 py-2.5 font-semibold text-right">Rebote</th>
+              <th class="w-8" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(c, i) in rankingVisible" :key="c.id" tabindex="0"
+              class="group border-b border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-blue-50/50 dark:hover:bg-slate-700/40 focus-visible:outline-2 focus-visible:outline-[#2447F9]"
+              @click="verCampana(c.id)" @keydown.enter="verCampana(c.id)">
+              <td class="px-4 py-2.5 text-muted tabular-nums">{{ (pagina - 1) * porPagina + i + 1 }}</td>
+              <td class="px-3 py-2.5 min-w-[220px]">
+                <div class="font-semibold text-heading truncate max-w-[340px] group-hover:text-[#2447F9]" :title="c.nombre">{{ c.nombre }}</div>
+                <div class="text-[10px] text-muted">{{ c.f.toLocaleDateString('es-CO', { dateStyle: 'medium' }) }}<template v-if="c.listas"> · {{ c.listas }}</template></div>
+              </td>
+              <td class="px-3 py-2.5 text-right tabular-nums" :class="orden === 'envios' ? 'font-bold text-heading' : 'text-body'">{{ nf.format(c.totalEnvios) }}</td>
+              <td v-for="m in (['apertura', 'clics', 'ctor', 'rebote'] as Metrica[])" :key="m" class="px-3 py-2.5 text-right tabular-nums" :class="orden === m ? 'font-bold text-heading' : 'text-body'">{{ fmtPct(valor(totalesDe(c), m)) }}</td>
+              <td class="pr-3 py-2.5 text-muted group-hover:text-[#2447F9]"><ChevronRight :size="15" /></td>
+            </tr>
+            <tr v-if="!ranking.length">
+              <td colspan="8" class="px-4 py-10 text-center text-muted">Ninguna campaña coincide con la búsqueda.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-2.5 border-t border-default">
+        <Paginador v-model:pagina="pagina" v-model:por-pagina="porPagina" :total-paginas="totalPaginas" :total="ranking.length" :opciones-por-pagina="[10, 25, 50, 100]" />
+      </div>
+    </section>
   </div>
 </template>

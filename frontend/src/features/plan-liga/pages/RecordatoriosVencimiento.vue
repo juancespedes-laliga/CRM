@@ -6,6 +6,7 @@ import {
 } from 'lucide-vue-next'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import SeccionColapsable from '@/shared/components/SeccionColapsable.vue'
+import CupoGmailDia from '@/shared/components/CupoGmailDia.vue'
 import { permisosDeModulo } from '@/features/auth/composables/useAuth'
 import {
   getPorVencer, enviarRecordatorios, getHistorialEnvios, getEmpresasPorVencer,
@@ -55,6 +56,7 @@ const error = ref<string | null>(null)
 const datos = ref<ListadoPorVencer | null>(null)
 const resultado = ref<EnvioResultado | null>(null)
 const confirmVisible = ref(false)
+const cupo = ref<InstanceType<typeof CupoGmailDia> | null>(null)
 const historial = ref<HistorialEnvioItem[]>([])
 
 const cargarHistorial = async () => {
@@ -96,7 +98,7 @@ const ejecutarEnvio = async () => {
       diasVencidos: diasVencidos.value,
       incluirYaEnviados: modoEnvio.value === 'todos',
     })
-    await Promise.all([cargar(), cargarHistorial()])
+    await Promise.all([cargar(), cargarHistorial(), cupo.value?.cargar()])
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'No se pudieron enviar los recordatorios.'
   } finally {
@@ -293,6 +295,7 @@ onMounted(() => {
           @click="cargar"
           class="h-9 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
         >Aplicar</button>
+        <CupoGmailDia ref="cupo" :necesarios="nuevos" class="w-full" />
         <p class="w-full text-[10px] text-muted">
           Con "Días ya vencido" en <strong>0</strong>, los titulares que ya vencieron dejan de aparecer y de contarse al día siguiente.
         </p>

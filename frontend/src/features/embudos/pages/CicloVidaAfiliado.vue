@@ -14,6 +14,7 @@ import SubirContactosDialog from '@/features/mailerturbo/dialogs/SubirContactosD
 import type { AudienciaCompletaMT, ContactoMT } from '@/features/mailerturbo/types/mailerturbo'
 import { filtroSegmentoACuerpo } from '../services/segmentos.api'
 import { esCorreoValido } from '@/features/campanas/constants/campanas.constants'
+import { tienePermiso } from '@/features/auth/composables/useAuth'
 
 const router = useRouter()
 const nf = new Intl.NumberFormat('es-CO')
@@ -106,6 +107,8 @@ const origenMailer = computed(() =>
 )
 const enviarCorreoVisible = ref(false)
 const subirMailerVisible = ref(false)
+const mtGestionar = tienePermiso('mailerturbo:gestionar')
+const mtEnviar = tienePermiso('mailerturbo:enviar')
 
 const { guardar } = useSegmentosGuardados()
 const guardarVisible = ref(false)
@@ -225,6 +228,7 @@ const confirmarGuardar = () => {
                 class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
               ><Bookmark :size="13" /> Guardar segmento</button>
               <button
+                v-if="mtGestionar"
                 @click="subirMailerVisible = true"
                 :disabled="!puedeEnviarCorreo || cargando"
                 title="Crear/actualizar estas personas en una lista de MailerTurbo"
@@ -237,6 +241,7 @@ const confirmarGuardar = () => {
                 class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
               ><MessageCircle :size="13" /> WhatsApp</button>
               <button
+                v-if="mtEnviar"
                 @click="enviarCorreoVisible = true"
                 :disabled="!puedeEnviarCorreo || cargando"
                 title="Campaña de correo por MailerTurbo a las personas seleccionadas con correo"

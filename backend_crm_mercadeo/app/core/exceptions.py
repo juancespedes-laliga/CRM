@@ -5,6 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DBAPIError
 
+from app.core.email import LimiteDiarioCorreosError
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,11 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ForbiddenError)
     async def forbidden_handler(_: Request, exc: ForbiddenError) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": exc.detail})
+
+    # Tope diario de correos por Gmail (app/core/email.py).
+    @app.exception_handler(LimiteDiarioCorreosError)
+    async def limite_correos_handler(_: Request, exc: LimiteDiarioCorreosError) -> JSONResponse:
+        return JSONResponse(status_code=429, content={"detail": str(exc)})
 
     @app.exception_handler(oracledb.IntegrityError)
     async def oracle_integrity_handler(_: Request, exc: oracledb.IntegrityError) -> JSONResponse:

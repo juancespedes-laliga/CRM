@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.core.dependencies import get_current_username
-from app.core.email import enviar_correo_plantilla
+from app.core.email import enviar_correo_plantilla, uso_diario
 from app.modules.notificaciones.correos.dependencies import get_correos_service
 from app.modules.notificaciones.correos.schemas import (
     CampanaEnvioRequest,
@@ -13,6 +13,7 @@ from app.modules.notificaciones.correos.schemas import (
     HistorialEnvioItem,
     ListadoEmpresasPorVencer,
     ListadoTitularesPorVencer,
+    UsoDiarioCorreos,
 )
 from app.modules.notificaciones.correos.service import CorreosService
 
@@ -23,6 +24,12 @@ router = APIRouter(
 PLANTILLA_BIENVENIDA = "Bienvenida (1).html"
 PLANTILLA_REGISTRO = "Registro (1).html"
 PLANTILLA_VENCIMIENTO = "Vencimiento (1).html"
+
+
+# Cuantos correos se han mandado hoy por Gmail y cuantos quedan del tope diario.
+@router.get("/uso-diario", response_model=UsoDiarioCorreos)
+def obtener_uso_diario() -> UsoDiarioCorreos:
+    return UsoDiarioCorreos(**uso_diario())
 
 
 # Envio manual/bajo demanda: alguien en el CRM lo dispara para un beneficiario puntual.

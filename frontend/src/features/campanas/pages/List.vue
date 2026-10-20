@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { Plus } from 'lucide-vue-next'
 import type { Plantilla, PlantillaDraft } from '../types/plantilla'
 import { usePlantillas } from '../composables/usePlantillas'
-import { permisosDeModulo } from '@/features/auth/composables/useAuth'
+import { permisosDeModulo, tienePermiso } from '@/features/auth/composables/useAuth'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import PlantillaListItem from '../components/PlantillaListItem.vue'
 import EditorPlantillaDialog from '../dialogs/EditorPlantillaDialog.vue'
@@ -50,9 +50,11 @@ const enviarMailerVisible = ref(false)
 const abrirEnvioMailer = (p: Plantilla) => { plantillaGuardada.value = p; enviarMailerVisible.value = true }
 // El boton "Enviar" del editor guarda (espera a que quede en la BD) y solo
 // despues abre el envio masivo (MailerTurbo), para no mandar una version vieja.
+// Sin permiso mailerturbo:enviar, abre el envío por Gmail.
 const onEnviarDesdeEditor = async (d: PlantillaDraft) => {
   await guardarPlantilla(d)
-  enviarMailerVisible.value = true
+  if (tienePermiso('mailerturbo:enviar')) enviarMailerVisible.value = true
+  else enviarVisible.value = true
 }
 
 // Eliminar
