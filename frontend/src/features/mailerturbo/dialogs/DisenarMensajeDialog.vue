@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { Loader2, X } from 'lucide-vue-next'
-import { getEditorPlus, type TagEditorMT } from '../services/mailerturbo.api'
+import { getEditorPlus, subirImagenEditor, type TagEditorMT } from '../services/mailerturbo.api'
 
 // Editor sencillo de MailerTurbo (TinyMCE), embebido al diseñar el correo.
 // El plus no se carga: su licencia solo responde "authorize" fuera de su sitio.
@@ -28,6 +28,7 @@ interface TinyApi {
 }
 
 const cargando = ref(false)
+const subiendo = ref(false)
 const guardado = ref(false)
 const error = ref<string | null>(null)
 const htmlLocal = ref('')
@@ -56,6 +57,35 @@ function cargarScript(src: string): Promise<void> {
 
 function tinyApi(): TinyApi | undefined {
   return (window as unknown as { tinymce?: TinyApi }).tinymce
+}
+
+function elegirArchivoImagen(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/png,image/jpeg,image/gif,image/webp'
+    let resuelto = false
+    const terminar = (archivo: File | null) => {
+      if (resuelto) return
+      resuelto = true
+      input.remove()
+      resolve(archivo)
+    }
+    input.addEventListener('change', () => terminar(input.files?.[0] ?? null))
+    input.addEventListener('cancel', () => terminar(null))
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
+async function subirYDevolverUrl(archivo: File): Promise<string> {
+  subiendo.value = true
+  error.value = null
+  try {
+    return await subirImagenEditor(archivo)
+  } finally {
+    subiendo.value = false
+  }
 }
 
 function gruposDe(tags: TagEditorMT[]): Map<string, TagEditorMT[]> {
@@ -93,13 +123,31 @@ async function iniciar(tags: TagEditorMT[]) {
     relative_urls: false,
     remove_script_host: false,
     image_advtab: true,
+    automatic_uploads: true,
+    file_picker_types: 'image',
+    images_upload_handler: async (blobInfo: { blob: () => Blob; filename: () => string }) => {
+      const blob = blobInfo.blob()
+      const archivo = new File([blob], blobInfo.filename() || 'imagen.png', { type: blob.type || 'image/png' })
+      try {
+        return await subirYDevolverUrl(archivo)
+      } catch (e) {
+        error.value = e instanceof Error ? e.message : 'No se pudo subir la imagen.'
+        throw e
+      }
+    },
+    file_picker_callback: (callback: (url: string, meta?: { alt?: string }) => void, _value: string, meta: { filetype: string }) => {
+      if (meta.filetype !== 'image') return
+      void elegirArchivoImagen()
+        .then(archivo => (archivo ? subirYDevolverUrl(archivo).then(url => callback(url, { alt: archivo.name })) : null))
+        .catch(e => { error.value = e instanceof Error ? e.message : 'No se pudo subir la imagen.' })
+    },
     plugins: [
       'advlist', 'autolink', 'autosave', 'link', 'image', 'lists', 'charmap', 'preview', 'anchor', 'pagebreak',
       'searchreplace', 'wordcount', 'visualblocks', 'visualchars', 'code', 'fullscreen', 'insertdatetime', 'media',
       'nonbreaking', 'table', 'emoticons', 'template', 'codesample', 'directionality',
     ],
     toolbar1: 'bold italic underline strikethrough | fontsize fontfamily | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | blockquote',
-    toolbar2: 'styles blocks | subscript superscript removeformat | tagsdropdown | cut copy paste | table | link unlink anchor image media code',
+    toolbar2: 'styles blocks | subscript superscript removeformat | tagsdropdown | cut copy paste | table | link unlink anchor image imagenpc media code',
     toolbar3: 'hr charmap emoticons | imprimir fullscreen | ltr rtl | visualchars visualblocks nonbreaking template pagebreak restoredraft insertdatetime preview | searchreplace undo redo',
     templates: [
       { title: 'Párrafo', description: 'Texto suelto', content: '<p>Escribe aquí el mensaje.</p>' },
@@ -121,6 +169,21 @@ async function iniciar(tags: TagEditorMT[]) {
     ],
     content_style: 'body { font-family: sans-serif; font-size: 12pt; }',
     setup: (editor: TinyEditor) => {
+      editor.ui.registry.addButton('imagenpc', {
+        icon: 'image',
+        text: 'Imagen del PC',
+        tooltip: 'Cargar una imagen de este equipo',
+        onAction: () => {
+          void elegirArchivoImagen()
+            .then(async (archivo) => {
+              if (!archivo) return
+              const url = await subirYDevolverUrl(archivo)
+              const alt = archivo.name.replace(/"/g, '')
+              editor.insertContent(`<img src="${url}" alt="${alt}" />`)
+            })
+            .catch(e => { error.value = e instanceof Error ? e.message : 'No se pudo subir la imagen.' })
+        },
+      })
       editor.ui.registry.addButton('imprimir', {
         icon: 'print',
         tooltip: 'Imprimir',
@@ -209,7 +272,8 @@ onBeforeUnmount(destruir)
           <div v-if="cargando" class="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/80 text-[13px] text-slate-500">
             <Loader2 :size="16" class="animate-spin" /> Cargando editor…
           </div>
-          <p v-if="error" class="absolute inset-x-4 top-3 z-20 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-600">{{ error }}</p>
+          <p v-if="subiendo" class="absolute inset-x-4 top-3 z-20 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-[#2447F9]">Subiendo imagen…</p>
+          <p v-else-if="error" class="absolute inset-x-4 top-3 z-20 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-600">{{ error }}</p>
           <textarea :id="ID_TINY" class="h-full w-full" />
         </div>
 

@@ -58,6 +58,7 @@ const programar = ref(false)
 const fechaProgramacion = ref('')
 
 const verVistaPrevia = ref(false)
+const pantallaCompleta = ref(false)
 const confirmando = ref(false)
 const enviando = ref(false)
 const error = ref<string | null>(null)
@@ -83,6 +84,7 @@ watch(visible, (v) => {
   programar.value = false
   fechaProgramacion.value = ''
   verVistaPrevia.value = false
+  pantallaCompleta.value = false
   confirmando.value = false
   error.value = null
   resultado.value = null
@@ -136,6 +138,26 @@ const disenoListo = computed(() => {
   const html = htmlDiseno.value
   return /<img\b/i.test(html) || html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0
 })
+const htmlVistaPrevia = computed(() =>
+  fuenteContenido.value === 'diseno' ? htmlDiseno.value
+    : fuenteContenido.value === 'crm' ? (plantillaCrmElegida.value?.html ?? '')
+      : '',
+)
+const puedeVerVista = computed(() =>
+  (fuenteContenido.value === 'diseno' && disenoListo.value)
+  || (fuenteContenido.value === 'crm' && !!plantillaCrmElegida.value?.html),
+)
+
+function abrirVistaPrevia() {
+  if (verVistaPrevia.value) {
+    verVistaPrevia.value = false
+    pantallaCompleta.value = false
+    return
+  }
+  pantallaCompleta.value = false
+  verVistaPrevia.value = true
+}
+
 const contenidoListo = computed(() =>
   fuenteContenido.value === 'mailerturbo' ? idPlantillaMT.value !== null
     : fuenteContenido.value === 'diseno' ? disenoListo.value
@@ -286,25 +308,15 @@ const claseOpcion = (activa: boolean) => activa
               </button>
             </div>
 
-            <div v-if="fuenteContenido === 'diseno'" class="space-y-2">
-              <button type="button" class="h-8 px-3 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold" @click="editorVisible = true">Diseñar mi mensaje</button>
-              <p class="text-[11px] text-muted">Editor de texto embebido, el mismo sencillo de MailerTurbo.</p>
-              <button
-                v-if="disenoListo"
-                type="button"
-                class="flex items-center gap-1 text-[11px] font-semibold text-muted hover:text-[#2447F9]"
-                @click="verVistaPrevia = !verVistaPrevia"
-              ><Eye :size="12" /> {{ verVistaPrevia ? 'Ocultar' : 'Ver' }} vista previa</button>
-              <iframe
-                v-if="verVistaPrevia && disenoListo"
-                :srcdoc="htmlDiseno"
-                sandbox=""
-                class="w-full h-72 rounded-lg border border-default bg-white"
-                title="Vista previa del correo"
-              />
-            </div>
+            <button
+              v-if="puedeVerVista"
+              type="button"
+              class="flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg border text-[11px] font-semibold transition-all"
+              :class="claseOpcion(verVistaPrevia)"
+              @click="abrirVistaPrevia"
+            ><Eye :size="13" /> Vista previa</button>
 
-            <div v-else-if="fuenteContenido === 'mailerturbo'" class="space-y-2">
+            <div v-if="fuenteContenido === 'mailerturbo'" class="space-y-2">
               <select
                 v-model="idPlantillaMT"
                 class="w-full h-9 px-3 rounded-lg input-surface text-[12px] outline-none cursor-pointer focus:border-[#2447F9]"
@@ -331,19 +343,6 @@ const claseOpcion = (activa: boolean) => activa
                 <option value="" disabled>Elige una plantilla del editor del CRM…</option>
                 <option v-for="p in plantillasCrm" :key="p.id" :value="p.id">{{ p.nombre }}</option>
               </select>
-              <button
-                v-if="plantillaCrmElegida"
-                type="button"
-                class="flex items-center gap-1 text-[11px] font-semibold text-muted hover:text-[#2447F9]"
-                @click="verVistaPrevia = !verVistaPrevia"
-              ><Eye :size="12" /> {{ verVistaPrevia ? 'Ocultar' : 'Ver' }} vista previa</button>
-              <iframe
-                v-if="verVistaPrevia && plantillaCrmElegida"
-                :srcdoc="plantillaCrmElegida.html"
-                sandbox=""
-                class="w-full h-72 rounded-lg border border-default bg-white"
-                title="Vista previa del correo"
-              />
             </template>
           </section>
 
@@ -406,6 +405,37 @@ const claseOpcion = (activa: boolean) => activa
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="visible && verVistaPrevia && htmlVistaPrevia"
+        class="fixed inset-0 z-[100002] flex items-center justify-center bg-[#1e3a8a]/40"
+        :class="pantallaCompleta ? 'p-0' : 'p-6 sm:p-10'"
+      >
+        <div
+          class="flex w-full flex-col overflow-hidden bg-white shadow-2xl"
+          :class="pantallaCompleta ? 'h-full max-w-none rounded-none' : 'h-full max-h-[820px] max-w-6xl rounded-2xl'"
+        >
+          <div class="flex shrink-0 items-center gap-2 border-b border-slate-200 px-5 py-3">
+            <h3 class="text-[22px] font-semibold tracking-tight text-[#243056]">Vista previa</h3>
+            <button
+              type="button"
+              class="ml-auto h-9 px-3 rounded-lg border border-default bg-white text-[11px] font-semibold text-body hover:bg-slate-50"
+              @click="pantallaCompleta = !pantallaCompleta"
+            >{{ pantallaCompleta ? 'Ventana del editor' : 'Pantalla completa' }}</button>
+            <button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Cerrar" @click="abrirVistaPrevia">
+              <X :size="18" />
+            </button>
+          </div>
+          <iframe
+            :srcdoc="htmlVistaPrevia"
+            sandbox=""
+            class="min-h-0 w-full flex-1 border-0 bg-white"
+            title="Vista previa del correo"
+          />
+        </div>
+      </div>
+    </Teleport>
 
     <DisenarMensajeDialog
       v-model:visible="editorVisible"
