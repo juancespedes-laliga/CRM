@@ -219,6 +219,37 @@ class SesionMT(BaseModel):
     url_inicio_sesion: str = "https://mailerturbo.com/iniciar-sesion"
 
 
+class TagEditorMT(BaseModel):
+    grupo: str
+    tag: str
+
+
+class PlantillaPlusMT(BaseModel):
+    id: int
+    nombre: str
+    # JSON del editor plus. Vacío si la plantilla no tiene diseño.
+    documento: str = ""
+
+
+class EditorPlusMT(BaseModel):
+    """Lo que el navegador necesita para abrir el mismo editor plus de MailerTurbo."""
+
+    api_key: str
+    user_id: str
+    tags: list[TagEditorMT]
+    plantillas: list[PlantillaPlusMT]
+
+
+class SubirImagenEditorMT(BaseModel):
+    nombre: str = "imagen"
+    contenido_base64: str
+    content_type: str = "image/png"
+
+
+class ImagenEditorMT(BaseModel):
+    url: str
+
+
 class UsoMensualMT(BaseModel):
     """Correos enviados en el mes actual frente al cupo mensual del plan.
     `limite_mensual` es None si no se configuro MAILERTURBO_LIMITE_MENSUAL."""

@@ -5,7 +5,11 @@ import type { Plantilla, PlantillaDraft } from '../types/plantilla'
 import { descargarHtml } from '../constants/campanas.constants'
 import EditorHtmlGrapes from '../components/EditorHtmlGrapes.vue'
 
-const props = defineProps<{ plantilla: Plantilla | null }>()
+const props = withDefaults(defineProps<{
+  plantilla: Plantilla | null
+  /** Texto del botón que emite el diseño (en una campaña: «Usar en la campaña»). */
+  etiquetaEnviar?: string
+}>(), { etiquetaEnviar: 'Enviar' })
 const visible = defineModel<boolean>('visible', { required: true })
 const emit = defineEmits<{ submit: [PlantillaDraft]; enviar: [PlantillaDraft] }>()
 
@@ -150,7 +154,7 @@ function togglePantallaCompleta() {
         <button
           @click="enviar"
           class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#2447F9]/30 bg-[#EEF2FF] dark:bg-blue-950/40 text-[11px] font-bold text-slate-900 dark:text-white hover:bg-[#E0E7FF] dark:hover:bg-blue-950/60 transition-all"
-        ><Send :size="13" /> Enviar</button>
+        ><Send :size="13" /> {{ etiquetaEnviar }}</button>
         <button
           @click="guardar"
           class="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold shadow hover:bg-[#1D3DD9] transition-all"

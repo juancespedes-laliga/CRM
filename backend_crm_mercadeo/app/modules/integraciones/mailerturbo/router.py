@@ -6,7 +6,10 @@ from app.modules.integraciones.mailerturbo.schemas import (
     CrearListaMT,
     DestinatariosCampanaMT,
     DetalleCampanaMT,
+    EditorPlusMT,
     EnviarCampanaMT,
+    ImagenEditorMT,
+    SubirImagenEditorMT,
     InfoContactoMT,
     ListadoCampanasMT,
     ListadoListasMT,
@@ -131,6 +134,27 @@ def enviar_campana(
     service: MailerTurboService = Depends(get_mailerturbo_service),
 ) -> ResultadoEnvioCampanaMT:
     return service.enviar_campana(datos)
+
+
+# Sesión para incrustar el editor real de MailerTurbo al diseñar una campaña.
+# El plus no autoriza abrirse en el dominio del CRM ("authorize"): se carga su pantalla.
+@router.post("/editor-sesion", response_model=SesionMT, dependencies=ENVIAR)
+def editor_sesion(service: MailerTurboService = Depends(get_mailerturbo_service)) -> SesionMT:
+    return service.sesion()
+
+
+# Editor plus (Topol), el mismo de "Diseñar mi mensaje" en MailerTurbo.
+@router.get("/editor-plus", response_model=EditorPlusMT, dependencies=ENVIAR)
+def editor_plus(service: MailerTurboService = Depends(get_mailerturbo_service)) -> EditorPlusMT:
+    return service.editor_plus()
+
+
+@router.post("/editor-plus/imagen", response_model=ImagenEditorMT, dependencies=ENVIAR)
+def subir_imagen_editor(
+    datos: SubirImagenEditorMT,
+    service: MailerTurboService = Depends(get_mailerturbo_service),
+) -> ImagenEditorMT:
+    return service.subir_imagen_editor(datos.nombre, datos.contenido_base64, datos.content_type)
 
 
 # Token del afiliado para abrir MailerTurbo ya logueado. Se reutiliza el guardado

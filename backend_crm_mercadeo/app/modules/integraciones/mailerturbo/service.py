@@ -1,3 +1,5 @@
+import base64
+import binascii
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -27,7 +29,11 @@ from app.modules.integraciones.mailerturbo.schemas import (
     PlantillaMT,
     ResultadoEnvioCampanaMT,
     ResultadoSincronizacionMT,
+    EditorPlusMT,
+    ImagenEditorMT,
+    PlantillaPlusMT,
     SesionMT,
+    TagEditorMT,
     UsoMensualMT,
 )
 from app.modules.marketing.segmentos.schemas import FiltrosAudiencia
@@ -78,6 +84,12 @@ class MailerTurboService:
     def _llamar(self, metodo: str, data: dict[str, Any]) -> Any:
         try:
             return client.llamar(metodo, {"idempresa": self.idempresa, **data})
+        except MailerTurboError as exc:
+            raise _error_http(exc) from exc
+
+    def _ejecutar(self, metodo: str, data: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return client.ejecutar(metodo, {"idempresa": self.idempresa, **data})
         except MailerTurboError as exc:
             raise _error_http(exc) from exc
 
@@ -447,17 +459,43 @@ class MailerTurboService:
         if datos.fecha_programacion:
             data["fechaprogramacion"] = datos.fecha_programacion
 
-        resultado = self._llamar("EnviarCampanaEmail", data) or {}
+        # EnviarCampanaEmail: textocampana (HTML del editor) o idplantilla, nunca ambos.
+        # La explicacion ("queda En espera") viene en la raiz, no dentro de data.
+        respuesta = self._ejecutar("EnviarCampanaEmail", data)
+        resultado = respuesta.get("data") or {}
         logger.info(
             "MailerTurbo: campana %s creada (%s contactos)", resultado.get("idcampana"), total_contactos
         )
         return ResultadoEnvioCampanaMT(
             id_campana=_int(resultado.get("idcampana")),
-            explicacion=None,
+            explicacion=respuesta.get("explicacion"),
             total_contactos=total_contactos,
         )
 
     # ── Sesion ─────────────────────────────────────────────────────────
+    def editor_plus(self) -> EditorPlusMT:
+        try:
+            datos = client.configuracion_editor_plus()
+        except MailerTurboError as exc:
+            raise _error_http(exc) from exc
+        return EditorPlusMT(
+            api_key=datos["api_key"],
+            user_id=datos["user_id"],
+            tags=[TagEditorMT(**t) for t in datos["tags"]],
+            plantillas=[PlantillaPlusMT(**p) for p in datos["plantillas"]],
+        )
+
+    def subir_imagen_editor(self, nombre: str, contenido_base64: str, content_type: str) -> ImagenEditorMT:
+        try:
+            contenido = base64.b64decode(contenido_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="La imagen no llegó bien.") from exc
+        try:
+            url = client.subir_imagen_editor(nombre, contenido, content_type)
+        except MailerTurboError as exc:
+            raise _error_http(exc) from exc
+        return ImagenEditorMT(url=url)
+
     def sesion(self) -> SesionMT:
         try:
             s = client.obtener_token_sesion()

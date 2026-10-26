@@ -16,12 +16,16 @@ y se reutiliza hasta que vence, ver obtener_token_sesion.
 
 import json
 import logging
+import re
 import threading
 import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime, timedelta, timezone
+from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from app.core.config import BASE_DIR, settings
 
@@ -53,8 +57,8 @@ def configurado() -> bool:
     )
 
 
-def llamar(metodo: str, data: dict[str, Any]) -> Any:
-    """Ejecuta un metodo del Web Service y devuelve el campo `data` de la respuesta.
+def ejecutar(metodo: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Ejecuta un metodo y devuelve la respuesta completa (data, explicacion, etc.).
     Lanza MailerTurboError si MailerTurbo responde tipomensaje == 'Error'."""
     if not configurado():
         raise MailerTurboError(
@@ -95,7 +99,12 @@ def llamar(metodo: str, data: dict[str, Any]) -> Any:
         explicacion = resultado.get("explicacion")
         detalle = f"{mensaje}: {explicacion}" if explicacion else mensaje
         raise MailerTurboError(detalle, resultado.get("codigomensaje"))
-    return resultado.get("data")
+    return resultado
+
+
+def llamar(metodo: str, data: dict[str, Any]) -> Any:
+    """Ejecuta un metodo del Web Service y devuelve solo el campo `data`."""
+    return ejecutar(metodo, data).get("data")
 
 
 # ── Sesion de afiliado (token reutilizable hasta que vence) ─────────────
@@ -176,3 +185,137 @@ def invalidar_sesion() -> None:
             Path(ARCHIVO_SESION).unlink(missing_ok=True)
         except OSError:
             pass
+
+
+# ── Editor de la campaña (sencillo = TinyMCE, plus = Topol) ──────────
+# El plus es el mismo "E-mail editor" que MailerTurbo abre en Diseñar mi mensaje.
+# La clave vive en el HTML del panel (no en el Web Service); se lee con la sesión
+# del afiliado y solo se entrega a quien ya puede enviar campañas.
+_PANEL = "https://mailerturbo.com"
+_RE_API_TOPOL = re.compile(r'id="topol_api_token"\s+value="([^"]+)"')
+_RE_USER_TOPOL = re.compile(r'id="topol_user_id"\s+value="([^"]+)"')
+_cache_editor: dict[str, Any] = {}
+_cache_editor_hasta: datetime | None = None
+_lock_editor = threading.Lock()
+
+
+def _panel_autenticado() -> urllib.request.OpenerDirector:
+    token = obtener_token_sesion()["tokensesion"]
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    peticion = urllib.request.Request(
+        f"{_PANEL}/iniciar-sesion",
+        data=urlencode({"tokensesion": token}).encode(),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    try:
+        with opener.open(peticion, timeout=TIMEOUT_SEGUNDOS) as respuesta:
+            respuesta.read()
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise MailerTurboError("No se pudo abrir la sesión del editor de MailerTurbo.") from exc
+    return opener
+
+
+def _panel_texto(opener: urllib.request.OpenerDirector, url: str, data: dict[str, str] | None = None) -> str:
+    cuerpo = urlencode(data).encode() if data is not None else None
+    peticion = urllib.request.Request(
+        url,
+        data=cuerpo,
+        headers={"Content-Type": "application/x-www-form-urlencoded"} if cuerpo else {},
+        method="POST" if cuerpo is not None else "GET",
+    )
+    try:
+        with opener.open(peticion, timeout=TIMEOUT_SEGUNDOS) as respuesta:
+            return respuesta.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise MailerTurboError("No se pudo consultar el editor de MailerTurbo.") from exc
+
+
+def configuracion_editor_plus() -> dict[str, Any]:
+    """Clave del editor plus, tags {{NAME}}… y plantillas guardadas en MailerTurbo."""
+    global _cache_editor_hasta
+    with _lock_editor:
+        if _cache_editor and _cache_editor_hasta and _cache_editor_hasta > _ahora():
+            return dict(_cache_editor)
+
+    opener = _panel_autenticado()
+    html = _panel_texto(opener, f"{_PANEL}/af-templates")
+    api = _RE_API_TOPOL.search(html)
+    user = _RE_USER_TOPOL.search(html)
+    if not api or not user:
+        raise MailerTurboError("MailerTurbo no mostró la clave del editor plus.")
+
+    try:
+        tags_raw = json.loads(_panel_texto(opener, f"{_PANEL}/af-campaign", {"op": "getTags", "noheaders": "all"}))
+        if isinstance(tags_raw, str):
+            tags_raw = json.loads(tags_raw)
+        plantillas_raw = json.loads(
+            _panel_texto(opener, f"{_PANEL}/af-campaign", {"op": "obtenerPlantillasTopol", "noheaders": "all"})
+        )
+    except json.JSONDecodeError as exc:
+        raise MailerTurboError("MailerTurbo devolvió el editor en un formato inesperado.") from exc
+    tags = [
+        {"grupo": str(t.get("group") or "Otros"), "tag": str(t.get("tag") or "")}
+        for t in (tags_raw if isinstance(tags_raw, list) else [])
+        if isinstance(t, dict) and t.get("tag")
+    ]
+
+    plantillas = []
+    for p in plantillas_raw if isinstance(plantillas_raw, list) else []:
+        if not isinstance(p, dict):
+            continue
+        info = p.get("infotopol")
+        if isinstance(info, (dict, list)):
+            info = json.dumps(info)
+        plantillas.append(
+            {
+                "id": int(p.get("idtemplate") or 0),
+                "nombre": p.get("nombretemplate") or "",
+                "documento": info or "",
+            }
+        )
+
+    datos = {"api_key": api.group(1), "user_id": user.group(1), "tags": tags, "plantillas": plantillas}
+    with _lock_editor:
+        _cache_editor.clear()
+        _cache_editor.update(datos)
+        _cache_editor_hasta = _ahora() + timedelta(minutes=10)
+    return dict(datos)
+
+
+def subir_imagen_editor(nombre: str, contenido: bytes, content_type: str) -> str:
+    """Sube una imagen al archivo de MailerTurbo y devuelve la URL pública (la usa el editor plus)."""
+    opener = _panel_autenticado()
+    limite = 8 * 1024 * 1024
+    if len(contenido) > limite:
+        raise MailerTurboError("La imagen supera 8 MB.")
+    nombre_limpio = Path(nombre or "imagen").name.replace('"', "") or "imagen"
+    tipo = content_type if content_type and content_type.startswith("image/") else "application/octet-stream"
+    boundary = f"----crm{uuid.uuid4().hex}"
+    cuerpo = b"".join(
+        [
+            f"--{boundary}\r\n".encode(),
+            f'Content-Disposition: form-data; name="file"; filename="{nombre_limpio}"\r\n'.encode(),
+            f"Content-Type: {tipo}\r\n\r\n".encode(),
+            contenido,
+            f"\r\n--{boundary}--\r\n".encode(),
+        ]
+    )
+    peticion = urllib.request.Request(
+        f"{_PANEL}/af-templates?op=uploadImageTopol&noheaders=all",
+        data=cuerpo,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    try:
+        with opener.open(peticion, timeout=TIMEOUT_SEGUNDOS) as respuesta:
+            texto = respuesta.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise MailerTurboError("No se pudo subir la imagen a MailerTurbo.") from exc
+    try:
+        data = json.loads(texto)
+    except json.JSONDecodeError as exc:
+        raise MailerTurboError("MailerTurbo no confirmó la imagen.") from exc
+    if data.get("respuesta") != "ok" or not data.get("url"):
+        raise MailerTurboError(data.get("mensaje") or data.get("error") or "No se pudo subir la imagen.")
+    return str(data["url"])

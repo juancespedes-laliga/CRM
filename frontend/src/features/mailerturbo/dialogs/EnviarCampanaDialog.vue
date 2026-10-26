@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import {
-  X, Send, Check, Loader2, Users, ListChecks, FileSpreadsheet, LayoutTemplate, FileCode2, CalendarClock, Search, Eye,
+  X, Send, Check, Loader2, Users, ListChecks, FileSpreadsheet, LayoutTemplate, FileCode2, PenLine, CalendarClock, Search, Eye, RefreshCw,
 } from 'lucide-vue-next'
 import type { AudienciaCompletaMT, ContactoMT, EnvioCampanaMT, ResultadoEnvioCampanaMT } from '../types/mailerturbo'
 import { enviarCampana } from '../services/mailerturbo.api'
@@ -9,11 +9,13 @@ import { useCatalogosMailerturbo } from '../composables/useCatalogosMailerturbo'
 import { usePlantillas } from '@/features/campanas/composables/usePlantillas'
 import CargarBaseContactos from '../components/CargarBaseContactos.vue'
 import ConfirmDialog from '@/features/embudos/components/ConfirmDialog.vue'
+import DisenarMensajeDialog from './DisenarMensajeDialog.vue'
 
 // Crea y envía (o programa) una campaña de correo en MailerTurbo.
 // - Destinatarios: la selección que llega por props (Audiencias), listas de
 //   MailerTurbo o una base Excel/CSV.
-// - Contenido: una plantilla de MailerTurbo o una plantilla del editor del CRM.
+// - Contenido (EnviarCampanaEmail): idplantilla de MailerTurbo, una plantilla
+//   del CRM, o el HTML del editor sencillo embebido.
 const props = defineProps<{
   contactos?: ContactoMT[]
   /** "Seleccionar toda la audiencia": se manda el filtro y el backend arma la lista. */
@@ -35,7 +37,7 @@ const { listas, plantillas: plantillasMT, perfiles, cargando: cargandoCatalogos,
 const { plantillas: plantillasCrm, refrescar: refrescarPlantillasCrm } = usePlantillas()
 
 type FuenteDestinatarios = 'seleccion' | 'listas' | 'archivo'
-type FuenteContenido = 'mailerturbo' | 'crm'
+type FuenteContenido = 'mailerturbo' | 'crm' | 'diseno'
 
 const fuente = ref<FuenteDestinatarios>('listas')
 const idListas = ref<number[]>([])
@@ -46,6 +48,8 @@ const nombreLista = ref('')
 const fuenteContenido = ref<FuenteContenido>('mailerturbo')
 const idPlantillaMT = ref<number | null>(null)
 const idPlantillaCrm = ref('')
+const htmlDiseno = ref('')
+const editorVisible = ref(false)
 
 const idPerfil = ref<number | null>(null)
 const nombreCampana = ref('')
@@ -72,6 +76,8 @@ watch(visible, (v) => {
   fuenteContenido.value = props.plantillaCrm ? 'crm' : 'mailerturbo'
   idPlantillaMT.value = null
   idPlantillaCrm.value = ''
+  htmlDiseno.value = ''
+  editorVisible.value = false
   nombreCampana.value = props.plantillaCrm ? `${props.plantillaCrm.nombre} · ${hoy()}` : ''
   asunto.value = props.plantillaCrm?.asunto ?? ''
   programar.value = false
@@ -126,9 +132,24 @@ watch(idPlantillaMT, (id) => {
   const p = plantillasMT.value.find(x => x.id === id)
   if (p && !nombreCampana.value.trim()) nombreCampana.value = `${p.nombre} · ${hoy()}`
 })
+const disenoListo = computed(() => {
+  const html = htmlDiseno.value
+  return /<img\b/i.test(html) || html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0
+})
 const contenidoListo = computed(() =>
-  fuenteContenido.value === 'mailerturbo' ? idPlantillaMT.value !== null : !!plantillaCrmElegida.value?.html,
+  fuenteContenido.value === 'mailerturbo' ? idPlantillaMT.value !== null
+    : fuenteContenido.value === 'diseno' ? disenoListo.value
+      : !!plantillaCrmElegida.value?.html,
 )
+
+function abrirDiseno() {
+  fuenteContenido.value = 'diseno'
+  editorVisible.value = true
+}
+
+function alGuardarDiseno(payload: { html: string; cerrar: boolean }) {
+  htmlDiseno.value = payload.html
+}
 
 // ── Envío ────────────────────────────────────────────────────────────
 const fechaValida = computed(() => !programar.value || (!!fechaProgramacion.value && new Date(fechaProgramacion.value) > new Date()))
@@ -157,7 +178,7 @@ async function enviar() {
     idPerfilEnvio: idPerfil.value!,
     contenido: fuenteContenido.value === 'mailerturbo'
       ? { tipo: 'plantilla_mailerturbo', idPlantilla: idPlantillaMT.value! }
-      : { tipo: 'html', html: plantillaCrmElegida.value!.html },
+      : { tipo: 'html', html: fuenteContenido.value === 'diseno' ? htmlDiseno.value : plantillaCrmElegida.value!.html },
     destinatarios: fuente.value === 'listas'
       ? { tipo: 'listas', idListas: idListas.value }
       : usaAudiencia.value
@@ -253,25 +274,52 @@ const claseOpcion = (activa: boolean) => activa
           <!-- 2. Contenido -->
           <section class="space-y-2">
             <h4 class="text-[11px] font-bold text-body uppercase tracking-wide">2 · Contenido</h4>
-            <div v-if="!plantillaCrm" class="grid grid-cols-2 gap-2">
+            <div v-if="!plantillaCrm" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button type="button" @click="fuenteContenido = 'mailerturbo'" class="flex items-center justify-center gap-1.5 h-9 rounded-lg border text-[11px] font-semibold transition-all" :class="claseOpcion(fuenteContenido === 'mailerturbo')">
-                <LayoutTemplate :size="13" /> Plantilla de MailerTurbo
+                <LayoutTemplate :size="13" /> Plantilla MailerTurbo
               </button>
               <button type="button" @click="fuenteContenido = 'crm'" class="flex items-center justify-center gap-1.5 h-9 rounded-lg border text-[11px] font-semibold transition-all" :class="claseOpcion(fuenteContenido === 'crm')">
                 <FileCode2 :size="13" /> Plantilla del CRM
               </button>
+              <button type="button" @click="abrirDiseno" class="flex items-center justify-center gap-1.5 h-9 rounded-lg border text-[11px] font-semibold transition-all" :class="claseOpcion(fuenteContenido === 'diseno')">
+                <PenLine :size="13" /> Diseñar el correo
+              </button>
             </div>
 
-            <select
-              v-if="fuenteContenido === 'mailerturbo'"
-              v-model="idPlantillaMT"
-              class="w-full h-9 px-3 rounded-lg input-surface text-[12px] outline-none cursor-pointer focus:border-[#2447F9]"
-            >
-              <option :value="null" disabled>Elige una plantilla de MailerTurbo…</option>
-              <option v-for="p in plantillasMT" :key="p.id" :value="p.id">{{ p.nombre }}</option>
-            </select>
+            <div v-if="fuenteContenido === 'diseno'" class="space-y-2">
+              <button type="button" class="h-8 px-3 rounded-lg bg-[#2447F9] text-white text-[11px] font-bold" @click="editorVisible = true">Diseñar mi mensaje</button>
+              <p class="text-[11px] text-muted">Editor de texto embebido, el mismo sencillo de MailerTurbo.</p>
+              <button
+                v-if="disenoListo"
+                type="button"
+                class="flex items-center gap-1 text-[11px] font-semibold text-muted hover:text-[#2447F9]"
+                @click="verVistaPrevia = !verVistaPrevia"
+              ><Eye :size="12" /> {{ verVistaPrevia ? 'Ocultar' : 'Ver' }} vista previa</button>
+              <iframe
+                v-if="verVistaPrevia && disenoListo"
+                :srcdoc="htmlDiseno"
+                sandbox=""
+                class="w-full h-72 rounded-lg border border-default bg-white"
+                title="Vista previa del correo"
+              />
+            </div>
 
-            <template v-else>
+            <div v-else-if="fuenteContenido === 'mailerturbo'" class="space-y-2">
+              <select
+                v-model="idPlantillaMT"
+                class="w-full h-9 px-3 rounded-lg input-surface text-[12px] outline-none cursor-pointer focus:border-[#2447F9]"
+              >
+                <option :value="null" disabled>Elige una plantilla de MailerTurbo…</option>
+                <option v-for="p in plantillasMT" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+              </select>
+              <p class="text-[11px] text-muted">
+                <button type="button" class="inline-flex items-center gap-1 font-semibold text-[#2447F9] hover:underline" @click="cargar(true)">
+                  <RefreshCw :size="11" /> Actualizar plantillas
+                </button>
+              </p>
+            </div>
+
+            <template v-else-if="fuenteContenido === 'crm'">
               <div v-if="plantillaCrm" class="flex items-center gap-2 px-3 h-9 rounded-lg border border-default text-[12px] text-body">
                 <FileCode2 :size="13" class="text-[#7C3AED] shrink-0" /><span class="truncate">{{ plantillaCrm.nombre }}</span>
               </div>
@@ -358,6 +406,12 @@ const claseOpcion = (activa: boolean) => activa
         </div>
       </div>
     </div>
+
+    <DisenarMensajeDialog
+      v-model:visible="editorVisible"
+      :html="htmlDiseno"
+      @guardar="alGuardarDiseno"
+    />
 
     <ConfirmDialog
       :visible="confirmando"

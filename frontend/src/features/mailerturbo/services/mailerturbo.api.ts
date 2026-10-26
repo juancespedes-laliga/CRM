@@ -14,6 +14,8 @@
 //   POST /api/mailerturbo/contactos/sincronizar   -> ObtenerInfoContacto + CrearContacto / ActualizarListasContacto
 //   POST /api/mailerturbo/campanas/enviar         -> EnviarCampanaEmail
 //   GET  /api/mailerturbo/uso-mensual             -> ListarCampanas (suma envíos del mes) + MAILERTURBO_LIMITE_MENSUAL
+//   GET  /api/mailerturbo/editor-plus             -> editor plus (Topol) + tags
+//   POST /api/mailerturbo/editor-plus/imagen     -> sube una imagen del editor plus
 //   POST /api/mailerturbo/sesion                  -> IniciarSesion (token reutilizado hasta que vence)
 import { authHeader } from '@/features/auth/composables/useAuth'
 import type {
@@ -303,6 +305,58 @@ export async function enviarCampana(envio: EnvioCampanaMT): Promise<ResultadoEnv
   return { idCampana: data.id_campana, explicacion: data.explicacion, totalContactos: data.total_contactos }
 }
 
+// ── Editor de MailerTurbo (sencillo = TinyMCE, plus = Topol) ────────
+export interface TagEditorMT {
+  grupo: string
+  tag: string
+}
+
+export interface PlantillaPlusMT {
+  id: number
+  nombre: string
+  documento: string
+}
+
+export interface EditorPlusMT {
+  apiKey: string
+  userId: string
+  tags: TagEditorMT[]
+  plantillas: PlantillaPlusMT[]
+}
+
+export async function getEditorPlus(): Promise<EditorPlusMT> {
+  const data = await pedir<{
+    api_key: string
+    user_id: string
+    tags: { grupo: string; tag: string }[]
+    plantillas: { id: number; nombre: string; documento: string }[]
+  }>('/editor-plus', 'No se pudo abrir el editor de MailerTurbo.')
+  return {
+    apiKey: data.api_key,
+    userId: data.user_id,
+    tags: data.tags,
+    plantillas: data.plantillas,
+  }
+}
+
+export async function subirImagenEditor(archivo: File): Promise<string> {
+  const contenido_base64 = await new Promise<string>((resolve, reject) => {
+    const lector = new FileReader()
+    lector.onload = () => resolve(String(lector.result || '').split(',')[1] || '')
+    lector.onerror = () => reject(new Error('No se pudo leer la imagen.'))
+    lector.readAsDataURL(archivo)
+  })
+  const data = await pedir<{ url: string }>('/editor-plus/imagen', 'No se pudo subir la imagen.', {
+    method: 'POST',
+    body: JSON.stringify({
+      nombre: archivo.name,
+      contenido_base64,
+      content_type: archivo.type || 'image/png',
+    }),
+  })
+  return data.url
+}
+
 // ── Sesión (abrir MailerTurbo ya logueado) ───────────────────────────
 export async function getSesion(): Promise<SesionMT> {
   const data = await pedir<{ tokensesion: string; fecha_expiracion: string | null; url_inicio_sesion: string }>(
@@ -311,10 +365,14 @@ export async function getSesion(): Promise<SesionMT> {
   return { tokensesion: data.tokensesion, fechaExpiracion: data.fecha_expiracion, urlInicioSesion: data.url_inicio_sesion }
 }
 
+/** Editor de plantillas de correo de MailerTurbo (el mismo de la plataforma). */
+const URL_EDITOR_CORREO = 'https://mailerturbo.com/af-templates'
+
 /** Abre MailerTurbo en otra pestaña con la sesión iniciada: MailerTurbo espera
  * un POST con `tokensesion`. La pestaña se abre ANTES del await para que el
- * navegador no la bloquee como ventana emergente. */
-export async function abrirMailerTurbo(): Promise<void> {
+ * navegador no la bloquee como ventana emergente.
+ * `destino`, si viene, se abre cuando la sesión ya quedó (el POST entra al panel). */
+export async function abrirMailerTurbo(destino?: string): Promise<void> {
   const nombreVentana = `mailerturbo-${Date.now()}`
   const ventana = window.open('about:blank', nombreVentana)
   try {
@@ -331,8 +389,20 @@ export async function abrirMailerTurbo(): Promise<void> {
     document.body.appendChild(form)
     form.submit()
     form.remove()
+    if (destino && ventana) {
+      window.setTimeout(() => {
+        try {
+          if (!ventana.closed) ventana.location.href = destino
+        } catch { /* el usuario queda en el panel de MailerTurbo */ }
+      }, 2200)
+    }
   } catch (e) {
     ventana?.close()
     throw e
   }
+}
+
+/** Abre el editor de correos de MailerTurbo (Campañas → Plantillas), ya logueado. */
+export function abrirEditorCorreoMailerTurbo(): Promise<void> {
+  return abrirMailerTurbo(URL_EDITOR_CORREO)
 }
