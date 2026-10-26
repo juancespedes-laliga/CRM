@@ -140,18 +140,6 @@ const toggleMenuColor = (item: RenovacionMesItem, ev: MouseEvent) => {
 }
 const itemMenuColor = computed(() => items.value.find(i => i.ID === menuColorAbierto.value) ?? null)
 
-const tarjetas = computed(() => {
-  const r = resumen.value
-  if (!r) return []
-  const nombreMes = MESES[mes.value - 1]
-  return [
-    { vista: 'todos' as const, valor: r.total, titulo: 'Total del mes', texto: `Titulares con fecha de ingreso en ${nombreMes}.`, color: 'text-heading', activo: 'border-slate-400 dark:border-slate-400' },
-    { vista: 'renovados' as const, valor: r.renovados, titulo: 'Renovaciones (RENOVADO = S)', texto: 'Ya eran titulares antes y volvieron a activar el plan.', color: 'text-emerald-600 dark:text-emerald-400', activo: 'border-emerald-500' },
-    { vista: 'altas' as const, valor: r.altas_nuevas, titulo: 'Altas nuevas (RENOVADO = N)', texto: 'Se registraron en Plan Liga por primera vez.', color: 'text-[#2447F9] dark:text-blue-400', activo: 'border-[#2447F9]' },
-    { vista: 'vencen' as const, valor: r.vencen, titulo: `Vencen en ${nombreMes}`, texto: 'Titulares activos cuyo plan cumple un año este mes.', color: 'text-amber-600 dark:text-amber-400', activo: 'border-amber-500' },
-  ]
-})
-
 const mensajeVacio = computed(() => {
   const periodo = `${MESES[mes.value - 1]} ${anio.value}`
   switch (vista.value) {

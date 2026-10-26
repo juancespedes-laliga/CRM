@@ -36,7 +36,6 @@ watch(visible, (v) => {
   nombreNuevoGrupo.value = ''
   error.value = null
   resultado.value = null
-  asuntoFinal.value = props.plantilla?.asunto ?? ''
   void cupo.value?.cargar()
 })
 
