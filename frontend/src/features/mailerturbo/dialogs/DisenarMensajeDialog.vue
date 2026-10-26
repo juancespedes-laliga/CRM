@@ -18,8 +18,9 @@ interface TinyEditor {
   setContent: (html: string) => void
   remove: () => void
   insertContent: (html: string) => void
+  getWin: () => Window | null
   on: (evento: string, fn: () => void) => void
-  ui: { registry: { addMenuButton: (nombre: string, spec: unknown) => void } }
+  ui: { registry: { addButton: (nombre: string, spec: unknown) => void; addMenuButton: (nombre: string, spec: unknown) => void } }
 }
 interface TinyApi {
   init: (opciones: Record<string, unknown>) => Promise<TinyEditor[]>
@@ -85,23 +86,46 @@ async function iniciar(tags: TagEditorMT[]) {
     language: 'es',
     language_url: 'https://cdn.jsdelivr.net/npm/tinymce-i18n@24.12.9/langs6/es.js',
     height: '100%',
-    menubar: true,
+    menubar: 'file edit view insert format tools table',
+    toolbar_mode: 'wrap',
     branding: false,
     promotion: false,
     relative_urls: false,
     remove_script_host: false,
     image_advtab: true,
     plugins: [
-      'advlist', 'autolink', 'link', 'image', 'lists', 'charmap', 'preview', 'anchor', 'pagebreak',
-      'searchreplace', 'wordcount', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media',
-      'table', 'emoticons', 'codesample',
+      'advlist', 'autolink', 'autosave', 'link', 'image', 'lists', 'charmap', 'preview', 'anchor', 'pagebreak',
+      'searchreplace', 'wordcount', 'visualblocks', 'visualchars', 'code', 'fullscreen', 'insertdatetime', 'media',
+      'nonbreaking', 'table', 'emoticons', 'template', 'codesample', 'directionality',
     ],
-    toolbar1: 'bold italic underline strikethrough fontsize fontfamily forecolor backcolor | alignleft aligncenter alignright alignjustify bullist numlist outdent indent blockquote | subscript superscript removeformat',
-    toolbar2: 'tagsdropdown | cut copy paste | table | link unlink image | code | hr | charmap emoticons | fullscreen | preview | searchreplace | undo redo',
+    toolbar1: 'bold italic underline strikethrough | fontsize fontfamily | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | blockquote',
+    toolbar2: 'styles blocks | subscript superscript removeformat | tagsdropdown | cut copy paste | table | link unlink anchor image media code',
+    toolbar3: 'hr charmap emoticons | imprimir fullscreen | ltr rtl | visualchars visualblocks nonbreaking template pagebreak restoredraft insertdatetime preview | searchreplace undo redo',
+    templates: [
+      { title: 'Párrafo', description: 'Texto suelto', content: '<p>Escribe aquí el mensaje.</p>' },
+    ],
     font_size_formats: '8pt 10pt 12pt 14pt 18pt 24pt 36pt',
-    font_family_formats: 'sans-serif=sans-serif; Arial=arial,helvetica,sans-serif; Georgia=georgia,serif; Times New Roman=times new roman,times,serif; Courier New=courier new,courier,monospace',
+    font_family_formats: 'sans-serif=sans-serif; Arial=arial,helvetica,sans-serif; Georgia=georgia,palatino,serif; Times New Roman=times new roman,times,serif; Courier New=courier new,courier,monospace; Verdana=verdana,geneva,sans-serif; Tahoma=tahoma,arial,helvetica,sans-serif; Trebuchet MS=trebuchet ms,geneva,sans-serif',
+    style_formats_merge: true,
+    style_formats: [
+      {
+        title: 'Estilos de botón',
+        items: [
+          { title: 'Botón azul', inline: 'span', styles: { color: '#fff', backgroundColor: '#0000FF', padding: '10px', borderRadius: '5px' } },
+          { title: 'Botón verde', inline: 'span', styles: { color: '#fff', backgroundColor: '#008000', padding: '10px', borderRadius: '5px' } },
+          { title: 'Botón amarillo', inline: 'span', styles: { color: '#000', backgroundColor: '#FFFF00', padding: '10px', borderRadius: '5px' } },
+          { title: 'Botón naranja', inline: 'span', styles: { color: '#fff', backgroundColor: '#FFA500', padding: '10px', borderRadius: '5px' } },
+          { title: 'Botón gris', inline: 'span', styles: { color: '#fff', backgroundColor: '#A9A9A9', padding: '10px', borderRadius: '5px' } },
+        ],
+      },
+    ],
     content_style: 'body { font-family: sans-serif; font-size: 12pt; }',
     setup: (editor: TinyEditor) => {
+      editor.ui.registry.addButton('imprimir', {
+        icon: 'print',
+        tooltip: 'Imprimir',
+        onAction: () => editor.getWin()?.print(),
+      })
       editor.ui.registry.addMenuButton('tagsdropdown', {
         text: 'Insertar Tag',
         fetch: (callback: (items: unknown[]) => void) => {
@@ -172,8 +196,8 @@ onBeforeUnmount(destruir)
 
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 z-[100000] flex items-center justify-center bg-[#1e3a8a]/40 p-3 sm:p-4">
-      <div class="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div v-if="visible" class="fixed inset-0 z-[100000] flex items-center justify-center bg-[#1e3a8a]/40 p-6 sm:p-10">
+      <div class="flex h-full max-h-[820px] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div class="flex shrink-0 items-center gap-4 border-b border-slate-200 px-5 py-3">
           <h3 class="text-[22px] font-semibold tracking-tight text-[#243056]">Diseñar mi mensaje</h3>
           <button type="button" class="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Cerrar" @click="cerrar">
