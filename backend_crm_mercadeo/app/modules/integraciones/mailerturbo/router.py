@@ -21,6 +21,12 @@ from app.modules.integraciones.mailerturbo.schemas import (
     SesionMT,
     SincronizarContactosMT,
     UsoMensualMT,
+    EnviarWhatsAppMT,
+    ListadoMensajesWhatsAppMT,
+    ListadoPlantillasWhatsAppMT,
+    PruebaWhatsAppMT,
+    ResultadoEnvioWhatsAppMT,
+    SaldoWhatsAppMT,
 )
 from app.modules.integraciones.mailerturbo.service import MailerTurboService
 
@@ -155,6 +161,49 @@ def subir_imagen_editor(
     service: MailerTurboService = Depends(get_mailerturbo_service),
 ) -> ImagenEditorMT:
     return service.subir_imagen_editor(datos.nombre, datos.contenido_base64, datos.content_type)
+
+
+# ── WhatsApp ─────────────────────────────────────────────────────────
+# Solo plantillas aprobadas por Meta (las únicas que se pueden enviar masivo).
+@router.get("/whatsapp/plantillas", response_model=ListadoPlantillasWhatsAppMT, dependencies=VER)
+def listar_plantillas_whatsapp(
+    todas: bool = Query(False, description="Incluir pendientes y rechazadas."),
+    service: MailerTurboService = Depends(get_mailerturbo_service),
+) -> ListadoPlantillasWhatsAppMT:
+    return ListadoPlantillasWhatsAppMT(plantillas=service.listar_plantillas_whatsapp(not todas))
+
+
+@router.get("/whatsapp/saldo", response_model=SaldoWhatsAppMT, dependencies=VER)
+def saldo_whatsapp(service: MailerTurboService = Depends(get_mailerturbo_service)) -> SaldoWhatsAppMT:
+    return service.saldo_whatsapp()
+
+
+# Estado de entrega (entregado / leído) y respuestas: MailerTurbo no avisa por webhook.
+@router.get("/whatsapp/mensajes", response_model=ListadoMensajesWhatsAppMT, dependencies=VER)
+def listar_mensajes_whatsapp(
+    pagina: int = Query(1, ge=1),
+    por_pagina: int = Query(30, ge=1, le=60),
+    telefono: str | None = Query(None),
+    solo_api: bool = Query(False, description="Solo los enviados desde el CRM."),
+    service: MailerTurboService = Depends(get_mailerturbo_service),
+) -> ListadoMensajesWhatsAppMT:
+    return service.listar_mensajes_whatsapp(pagina, por_pagina, telefono, solo_api)
+
+
+# Un mensaje a un solo número, para revisar la plantilla antes del envío masivo.
+@router.post("/whatsapp/prueba", response_model=ResultadoEnvioWhatsAppMT, dependencies=ENVIAR)
+def enviar_prueba_whatsapp(
+    datos: PruebaWhatsAppMT, service: MailerTurboService = Depends(get_mailerturbo_service)
+) -> ResultadoEnvioWhatsAppMT:
+    return service.enviar_prueba_whatsapp(datos.nombre_plantilla, datos.telefono, datos.nombre)
+
+
+# Envío masivo de una plantilla aprobada a contactos sueltos o a toda una audiencia.
+@router.post("/whatsapp/enviar", response_model=ResultadoEnvioWhatsAppMT, dependencies=ENVIAR)
+def enviar_whatsapp(
+    datos: EnviarWhatsAppMT, service: MailerTurboService = Depends(get_mailerturbo_service)
+) -> ResultadoEnvioWhatsAppMT:
+    return service.enviar_whatsapp(datos)
 
 
 # Token del afiliado para abrir MailerTurbo ya logueado. Se reutiliza el guardado

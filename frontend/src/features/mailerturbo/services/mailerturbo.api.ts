@@ -21,6 +21,7 @@ import { authHeader } from '@/features/auth/composables/useAuth'
 import type {
   CampanaMT, ContactoMT, DestinatarioCampanaMT, DetalleCampanaMT, EnvioCampanaMT, FiltrosAudienciaMT, InfoContactoMT, ListaMT, PaginaCampanasMT, PerfilEnvioMT,
   PlantillaMT, ResultadoEnvioCampanaMT, ResultadoSincronizacionMT, SesionMT, UsoMensualMT,
+  PlantillaWhatsAppMT, ResultadoEnvioWhatsAppMT, SaldoWhatsAppMT,
 } from '../types/mailerturbo'
 
 const API_URL = import.meta.env.VITE_CRM_API_URL
@@ -405,4 +406,55 @@ export async function abrirMailerTurbo(destino?: string): Promise<void> {
 /** Abre el editor de correos de MailerTurbo (Campañas → Plantillas), ya logueado. */
 export function abrirEditorCorreoMailerTurbo(): Promise<void> {
   return abrirMailerTurbo(URL_EDITOR_CORREO)
+}
+
+// ── WhatsApp ─────────────────────────────────────────────────────────
+//   GET  /api/mailerturbo/whatsapp/plantillas -> ListarPlantillasWhatsApp (solo aprobadas)
+//   GET  /api/mailerturbo/whatsapp/saldo      -> ConsultarSaldoWhatsApp
+//   POST /api/mailerturbo/whatsapp/prueba     -> EnviarMensajeWhatsapp a un número
+//   POST /api/mailerturbo/whatsapp/enviar     -> EnviarMensajeWhatsapp por cada persona
+
+/** Celular colombiano como lo espera MailerTurbo (57 + 10 dígitos), o null. Igual que el backend. */
+export function normalizarCelular(valor: string | null | undefined): string | null {
+  const d = (valor ?? '').replace(/\D/g, '')
+  if (d.length === 10 && d.startsWith('3')) return `57${d}`
+  if (d.length === 12 && d.startsWith('573')) return d
+  return null
+}
+
+export async function getPlantillasWhatsApp(): Promise<PlantillaWhatsAppMT[]> {
+  const d = await pedir<{ plantillas: PlantillaWhatsAppMT[] }>(
+    '/whatsapp/plantillas', 'No se pudieron cargar las plantillas de WhatsApp de MailerTurbo.',
+  )
+  return d.plantillas
+}
+
+export async function getSaldoWhatsApp(): Promise<SaldoWhatsAppMT> {
+  const d = await pedir<{ saldo: number; moneda: string; consumo_total: number; total_conversaciones: number }>(
+    '/whatsapp/saldo', 'No se pudo consultar el saldo de WhatsApp en MailerTurbo.',
+  )
+  return { saldo: d.saldo, moneda: d.moneda, consumoTotal: d.consumo_total, totalConversaciones: d.total_conversaciones }
+}
+
+export async function enviarPruebaWhatsApp(args: { plantilla: string; telefono: string; nombre?: string }): Promise<ResultadoEnvioWhatsAppMT> {
+  return pedir<ResultadoEnvioWhatsAppMT>('/whatsapp/prueba', 'No se pudo enviar el WhatsApp de prueba.', {
+    method: 'POST',
+    body: JSON.stringify({ nombre_plantilla: args.plantilla, telefono: args.telefono, nombre: args.nombre || 'Prueba' }),
+  })
+}
+
+/** Con `audiencia`, el backend toma a todas las personas de esos filtros. */
+export async function enviarWhatsApp(args: {
+  plantilla: string
+  contactos?: ContactoMT[]
+  audiencia?: FiltrosAudienciaMT
+}): Promise<ResultadoEnvioWhatsAppMT> {
+  return pedir<ResultadoEnvioWhatsAppMT>('/whatsapp/enviar', 'No se pudo enviar el WhatsApp por MailerTurbo.', {
+    method: 'POST',
+    body: JSON.stringify({
+      nombre_plantilla: args.plantilla,
+      contactos: (args.contactos ?? []).map(contactoAApi),
+      audiencia: args.audiencia ?? null,
+    }),
+  })
 }

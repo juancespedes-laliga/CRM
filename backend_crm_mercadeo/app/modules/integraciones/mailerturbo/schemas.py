@@ -126,7 +126,7 @@ class DestinatariosCampanaMT(BaseModel):
 class ContactoMT(BaseModel):
     nombre: str = ""
     apellido: str = ""
-    correo: str
+    correo: str = ""
     telefono: str = ""
     documento: str | None = None
     ciudad: str | None = None
@@ -258,3 +258,83 @@ class UsoMensualMT(BaseModel):
     enviados: int
     limite_mensual: int | None
     disponibles: int | None
+
+
+# ── WhatsApp (mismo Web Service de MailerTurbo) ──────────────────────
+class PlantillaWhatsAppMT(BaseModel):
+    """ListarPlantillasWhatsApp. `nombre` es el nombre exacto con el que está en Meta."""
+
+    nombre: str
+    categoria: str | None = None
+    estado: str
+    idioma: str | None = None
+    texto: str | None = None
+
+
+class ListadoPlantillasWhatsAppMT(BaseModel):
+    plantillas: list[PlantillaWhatsAppMT]
+
+
+class SaldoWhatsAppMT(BaseModel):
+    """ConsultarSaldoWhatsApp: billetera prepago de WhatsApp en MailerTurbo."""
+
+    saldo: float
+    moneda: str
+    consumo_total: float
+    total_conversaciones: int
+
+
+class EnviarWhatsAppMT(BaseModel):
+    """Envío masivo de una plantilla aprobada. Igual que el correo: `contactos`
+    sueltos o `audiencia` (todas las personas de los filtros de Audiencias)."""
+
+    nombre_plantilla: str = Field(min_length=1, max_length=200)
+    contactos: list[ContactoMT] = []
+    audiencia: FiltrosAudienciaMT | None = None
+    # Encabezado multimedia opcional (URL pública). Sin esto se usa el archivo
+    # guardado al crear la plantilla en MailerTurbo.
+    url_imagen: str | None = None
+    url_documento: str | None = None
+    nombre_documento: str | None = None
+
+
+class PruebaWhatsAppMT(BaseModel):
+    nombre_plantilla: str = Field(min_length=1, max_length=200)
+    telefono: str = Field(min_length=7, max_length=20)
+    nombre: str = "Prueba"
+
+
+class FalloWhatsAppMT(BaseModel):
+    telefono: str
+    nombre: str
+    error: str
+
+
+class ResultadoEnvioWhatsAppMT(BaseModel):
+    total: int
+    enviados: int
+    fallidos: int
+    # Personas descartadas antes de enviar: sin celular válido o repetidas.
+    descartados: int = 0
+    fallos: list[FalloWhatsAppMT] = []
+
+
+class MensajeWhatsAppMT(BaseModel):
+    """Un mensaje de ListarMensajesWhatsApp (MailerTurbo no devuelve su id)."""
+
+    fecha: str | None = None
+    remitente: str | None = None
+    tipo: str | None = None
+    estado_entrega: str | None = None
+    fecha_entregado: str | None = None
+    fecha_leido: str | None = None
+    enviado_por_api: bool = False
+    nombre_contacto: str = ""
+    telefono_contacto: str = ""
+    texto: str | None = None
+
+
+class ListadoMensajesWhatsAppMT(BaseModel):
+    mensajes: list[MensajeWhatsAppMT]
+    total: int
+    total_paginas: int

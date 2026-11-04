@@ -35,6 +35,13 @@ from app.modules.integraciones.mailerturbo.schemas import (
     SesionMT,
     TagEditorMT,
     UsoMensualMT,
+    EnviarWhatsAppMT,
+    FalloWhatsAppMT,
+    ListadoMensajesWhatsAppMT,
+    MensajeWhatsAppMT,
+    PlantillaWhatsAppMT,
+    ResultadoEnvioWhatsAppMT,
+    SaldoWhatsAppMT,
 )
 from app.modules.marketing.segmentos.schemas import FiltrosAudiencia
 from app.modules.marketing.segmentos.service import SegmentosService
@@ -49,6 +56,22 @@ HILOS_SINCRONIZACION = 8
 # acepta paginas de 5000; con el tope se cubren campanas de hasta 250.000 correos.
 REGISTROS_REPORTE = 5000
 MAX_PAGINAS_REPORTE = 50
+# WhatsApp: MailerTurbo no tiene un envío masivo bien documentado, así que se manda
+# un EnviarMensajeWhatsapp por persona, en paralelo. Meta además limita cuántas
+# personas distintas se pueden contactar al día (250 al empezar, luego 1K, 10K...).
+HILOS_WHATSAPP = 6
+MAX_ENVIO_WHATSAPP = 5000
+
+
+def normalizar_celular(valor: str | None) -> str | None:
+    """Celular colombiano en formato internacional sin signos (57 + 10 dígitos).
+    Devuelve None si no parece un celular (fijos y números raros no tienen WhatsApp)."""
+    digitos = re.sub(r"\D", "", valor or "")
+    if len(digitos) == 10 and digitos.startswith("3"):
+        return f"57{digitos}"
+    if len(digitos) == 12 and digitos.startswith("573"):
+        return digitos
+    return None
 
 
 def _int(valor: Any, defecto: int = 0) -> int:
@@ -502,6 +525,170 @@ class MailerTurboService:
         except MailerTurboError as exc:
             raise _error_http(exc) from exc
         return SesionMT(tokensesion=s["tokensesion"], fecha_expiracion=s.get("fechaexpiracion"))
+
+    # ── WhatsApp ───────────────────────────────────────────────────────
+    def listar_plantillas_whatsapp(self, solo_aprobadas: bool = True) -> list[PlantillaWhatsAppMT]:
+        filtro = {"estadoplantilla": "APROBADA"} if solo_aprobadas else {}
+        data = self._llamar("ListarPlantillasWhatsApp", filtro) or {}
+        plantillas = []
+        for p in data.get("plantillas", []) if isinstance(data, dict) else []:
+            if not isinstance(p, dict) or not p.get("nombreplantilla"):
+                continue
+            texto = p.get("textoplantilla") or p.get("cuerpoplantilla") or p.get("body")
+            plantillas.append(
+                PlantillaWhatsAppMT(
+                    nombre=str(p["nombreplantilla"]),
+                    categoria=_texto(p.get("categoriaplantilla")),
+                    estado=str(p.get("estadoplantillawhatsapp") or p.get("estadoplantilla") or ""),
+                    idioma=_texto(p.get("codigoidiomaplantilla")),
+                    texto=_texto(texto) if isinstance(texto, str) else None,
+                )
+            )
+        return plantillas
+
+    def saldo_whatsapp(self) -> SaldoWhatsAppMT:
+        d = self._llamar("ConsultarSaldoWhatsApp", {}) or {}
+        return SaldoWhatsAppMT(
+            saldo=_float(d.get("saldoactual")),
+            moneda=str(d.get("moneda") or "USD"),
+            consumo_total=_float(d.get("consumototal")),
+            total_conversaciones=_int(d.get("totalconversaciones")),
+        )
+
+    def _verificar_plantilla_aprobada(self, nombre: str) -> str:
+        nombre = nombre.strip()
+        aprobadas = {p.nombre for p in self.listar_plantillas_whatsapp()}
+        if nombre not in aprobadas:
+            raise HTTPException(
+                status_code=400,
+                detail=f'La plantilla "{nombre}" no está aprobada por Meta en MailerTurbo.',
+            )
+        return nombre
+
+    @staticmethod
+    def _cuerpo_plantilla(datos: EnviarWhatsAppMT | None, nombre_plantilla: str) -> dict[str, Any]:
+        cuerpo: dict[str, Any] = {"tipomensaje": "template", "nombreplantilla": nombre_plantilla}
+        if datos:
+            if datos.url_imagen and datos.url_imagen.strip():
+                cuerpo["urlimagen"] = datos.url_imagen.strip()
+            if datos.url_documento and datos.url_documento.strip():
+                cuerpo["urldocumento"] = datos.url_documento.strip()
+                if datos.nombre_documento and datos.nombre_documento.strip():
+                    cuerpo["nombredocumentoplantilla"] = datos.nombre_documento.strip()
+        return cuerpo
+
+    def _enviar_whatsapp_uno(self, cuerpo: dict[str, Any], nombre: str, telefono: str) -> str | None:
+        """Devuelve None si MailerTurbo aceptó el mensaje, o el error."""
+        try:
+            client.llamar(
+                "EnviarMensajeWhatsapp",
+                {
+                    "idempresa": self.idempresa,
+                    **cuerpo,
+                    "contacto": {"nombrecontacto": nombre or "Cliente", "telefonocontacto": telefono},
+                },
+            )
+            return None
+        except MailerTurboError as exc:
+            return exc.detail
+
+    def enviar_prueba_whatsapp(self, nombre_plantilla: str, telefono: str, nombre: str) -> ResultadoEnvioWhatsAppMT:
+        celular = normalizar_celular(telefono)
+        if not celular:
+            raise HTTPException(status_code=400, detail="El número no es un celular colombiano válido.")
+        plantilla = self._verificar_plantilla_aprobada(nombre_plantilla)
+        error = self._enviar_whatsapp_uno(self._cuerpo_plantilla(None, plantilla), nombre.strip(), celular)
+        if error:
+            raise _error_http(MailerTurboError(error))
+        return ResultadoEnvioWhatsAppMT(total=1, enviados=1, fallidos=0)
+
+    def enviar_whatsapp(self, datos: EnviarWhatsAppMT) -> ResultadoEnvioWhatsAppMT:
+        if not client.configurado():
+            raise _error_http(MailerTurboError("no esta configurado en el servidor."))
+        plantilla = self._verificar_plantilla_aprobada(datos.nombre_plantilla)
+
+        base = self._contactos_de_audiencia(datos.audiencia) if datos.audiencia else datos.contactos
+        vistos: set[str] = set()
+        destinatarios: list[tuple[str, str]] = []
+        for c in base:
+            celular = normalizar_celular(c.telefono)
+            if not celular or celular in vistos:
+                continue
+            vistos.add(celular)
+            destinatarios.append((c.nombre.strip(), celular))
+        if not destinatarios:
+            raise HTTPException(status_code=400, detail="No hay personas con celular válido.")
+        if len(destinatarios) > MAX_ENVIO_WHATSAPP:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Máximo {MAX_ENVIO_WHATSAPP} personas por envío de WhatsApp ({len(destinatarios)} seleccionadas).",
+            )
+
+        cuerpo = self._cuerpo_plantilla(datos, plantilla)
+        with ThreadPoolExecutor(max_workers=HILOS_WHATSAPP) as pool:
+            errores = list(pool.map(lambda d: self._enviar_whatsapp_uno(cuerpo, *d), destinatarios))
+
+        fallos = [
+            FalloWhatsAppMT(telefono=tel, nombre=nombre, error=err)
+            for (nombre, tel), err in zip(destinatarios, errores)
+            if err
+        ]
+        logger.info(
+            "MailerTurbo WhatsApp: plantilla %s, %s enviados, %s fallidos",
+            plantilla, len(destinatarios) - len(fallos), len(fallos),
+        )
+        return ResultadoEnvioWhatsAppMT(
+            total=len(destinatarios),
+            enviados=len(destinatarios) - len(fallos),
+            fallidos=len(fallos),
+            descartados=len(base) - len(destinatarios),
+            fallos=fallos,
+        )
+
+    def listar_mensajes_whatsapp(
+        self, pagina: int, por_pagina: int, telefono: str | None, solo_api: bool
+    ) -> ListadoMensajesWhatsAppMT:
+        filtro: dict[str, Any] = {"pagina": pagina, "registros": min(por_pagina, 60)}
+        if telefono and telefono.strip():
+            filtro["telefonocontacto"] = re.sub(r"\D", "", telefono)
+        if solo_api:
+            filtro["enviadoporapi"] = "Si"
+        respuesta = self._ejecutar("ListarMensajesWhatsApp", filtro)
+        data = respuesta.get("data") or {}
+        items = data.get("mensajes", []) if isinstance(data, dict) else data
+        paginacion = (data.get("paginacion") if isinstance(data, dict) else None) or respuesta.get("paginacion") or {}
+
+        mensajes = []
+        for m in items if isinstance(items, list) else []:
+            if not isinstance(m, dict):
+                continue
+            contacto = m.get("contacto") or {}
+            tipo = _texto(m.get("type"))
+            detalle = m.get(tipo) if tipo else None
+            texto = None
+            if isinstance(detalle, dict):
+                texto = detalle.get("body") or detalle.get("payload") or detalle.get("name")
+            mensajes.append(
+                MensajeWhatsAppMT(
+                    fecha=_texto(m.get("fechamensaje")),
+                    remitente=_texto(m.get("remitente")),
+                    tipo=tipo,
+                    estado_entrega=_texto(m.get("estado_entrega")),
+                    fecha_entregado=_texto(m.get("fecha_entregado")),
+                    fecha_leido=_texto(m.get("fecha_leido")),
+                    enviado_por_api=str(m.get("enviadodesdeapi") or "").lower() in ("si", "sí", "true", "1"),
+                    nombre_contacto=" ".join(
+                        x for x in (contacto.get("nombrecontacto"), contacto.get("apellidocontacto")) if x
+                    ),
+                    telefono_contacto=str(contacto.get("telefonocontacto") or ""),
+                    texto=_texto(texto) if isinstance(texto, str) else None,
+                )
+            )
+        return ListadoMensajesWhatsAppMT(
+            mensajes=mensajes,
+            total=_int(paginacion.get("totalregistros"), len(mensajes)),
+            total_paginas=max(1, _int(paginacion.get("totalpaginas"), 1)),
+        )
 
     # ── Uso del mes ────────────────────────────────────────────────────
     def uso_mensual(self) -> UsoMensualMT:

@@ -13,6 +13,7 @@ import EnviarCampanaDialog from '@/features/mailerturbo/dialogs/EnviarCampanaDia
 import SubirContactosDialog from '@/features/mailerturbo/dialogs/SubirContactosDialog.vue'
 import type { AudienciaCompletaMT, ContactoMT } from '@/features/mailerturbo/types/mailerturbo'
 import { filtroSegmentoACuerpo } from '../services/segmentos.api'
+import { normalizarCelular } from '@/features/mailerturbo/services/mailerturbo.api'
 import { esCorreoValido } from '@/features/campanas/constants/campanas.constants'
 import { tienePermiso } from '@/features/auth/composables/useAuth'
 
@@ -64,8 +65,18 @@ const criteriosAplicados = computed(() => resumirFiltros(fApp.value))
 
 const ciudadDe = (direccion: string) => (direccion === '—' ? '' : direccion.split(' · ')[0])
 
-// WhatsApp sigue siendo vista previa (EnviarSegmentoDialog); el correo va por MailerTurbo.
+// WhatsApp (EnviarSegmentoDialog) y correo (EnviarCampanaDialog) van por MailerTurbo.
 const enviarVisible = ref(false)
+
+// Personas seleccionadas con celular válido -> destinatarios de WhatsApp (no exige correo).
+const contactosWhatsApp = computed<ContactoMT[]>(() =>
+  seleccion.value
+    .filter(a => normalizarCelular(a.telefono))
+    .map(a => ({ nombre: a.nombre, apellido: '', correo: '', telefono: a.telefono ?? '', documento: a.documento || undefined })),
+)
+const puedeEnviarWhatsApp = computed(() =>
+  todaLaAudiencia.value ? nSeleccionadas.value > 0 : contactosWhatsApp.value.length > 0,
+)
 
 // Personas seleccionadas con correo válido -> contactos de MailerTurbo (sin repetir correo).
 const contactosMailer = computed<ContactoMT[]>(() => {
@@ -235,9 +246,10 @@ const confirmarGuardar = () => {
                 class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
               ><CloudUpload :size="13" /> Subir a MailerTurbo</button>
               <button
+                v-if="mtEnviar"
                 @click="enviarVisible = true"
-                :disabled="!seleccion.length || cargando"
-                title="Vista previa: el envío real de WhatsApp todavía no está conectado."
+                :disabled="!puedeEnviarWhatsApp || cargando"
+                title="WhatsApp por MailerTurbo (plantilla aprobada) a las personas seleccionadas con celular"
                 class="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-default bg-white dark:bg-slate-800 text-[11px] font-semibold text-body hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
               ><MessageCircle :size="13" /> WhatsApp</button>
               <button
@@ -367,7 +379,7 @@ const confirmarGuardar = () => {
       </button>
     </div>
 
-    <EnviarSegmentoDialog v-model:visible="enviarVisible" :total="seleccion.length" />
+    <EnviarSegmentoDialog v-model:visible="enviarVisible" :contactos="contactosWhatsApp" :audiencia="audienciaMailer" />
     <EnviarCampanaDialog v-model:visible="enviarCorreoVisible" :contactos="contactosMailer" :audiencia="audienciaMailer" :origen="origenMailer" />
     <SubirContactosDialog v-model:visible="subirMailerVisible" :contactos="contactosMailer" :audiencia="audienciaMailer" :origen="origenMailer" />
 

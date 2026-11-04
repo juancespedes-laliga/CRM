@@ -199,3 +199,29 @@ export interface UsoMensualMT {
   limiteMensual: number | null
   disponibles: number | null
 }
+
+// ── WhatsApp (mismo MailerTurbo) ─────────────────────────────────────
+/** Plantilla aprobada por Meta. `nombre` es el nombre exacto en Meta. */
+export interface PlantillaWhatsAppMT {
+  nombre: string
+  categoria: string | null
+  estado: string
+  idioma: string | null
+  texto: string | null
+}
+
+export interface SaldoWhatsAppMT {
+  saldo: number
+  moneda: string
+  consumoTotal: number
+  totalConversaciones: number
+}
+
+export interface ResultadoEnvioWhatsAppMT {
+  total: number
+  enviados: number
+  fallidos: number
+  /** Sin celular válido o repetidos. */
+  descartados: number
+  fallos: { telefono: string; nombre: string; error: string }[]
+}
