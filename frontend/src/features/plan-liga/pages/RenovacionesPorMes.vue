@@ -107,6 +107,8 @@ const aTitular = (item: RenovacionMesItem): Titular => ({
   planSalud: '',
   planNombre: '',
   fechaInscripcion: item.FECHA_INGRESO,
+  fechaRenovado: item.FECHA_RENOVADO ?? '',
+  renovado: item.RENOVADO === 'S',
   estado: item.ESTADO === 'A' ? 'Activo' : 'Inactivo',
   factura: '',
 })
@@ -244,7 +246,7 @@ onMounted(cargar)
               <th class="px-4 py-3 font-semibold">Titular</th>
               <th class="px-4 py-3 font-semibold">Tipo</th>
               <th class="px-4 py-3 font-semibold">Estado</th>
-              <th class="px-4 py-3 font-semibold">Ingreso</th>
+              <th class="px-4 py-3 font-semibold">Ingreso / Renovación</th>
               <th class="px-4 py-3 font-semibold">Vence</th>
               <th class="px-4 py-3 font-semibold">Contacto</th>
               <th class="px-4 py-3 font-semibold">Último seguimiento</th>
@@ -293,7 +295,13 @@ onMounted(cargar)
                       : 'text-red-600 dark:text-red-400'"
                 >{{ t.ESTADO === 'A' ? 'Activo' : 'Inactivo' }}</span>
               </td>
-              <td class="px-4 py-2.5 text-body font-medium">{{ fmtDia(t.FECHA_INGRESO) }}</td>
+              <td class="px-4 py-2.5 text-body font-medium">
+                <template v-if="t.FECHA_RENOVADO">
+                  {{ fmtDia(t.FECHA_RENOVADO) }}
+                  <div class="text-[10px] font-normal text-muted">Ingresó {{ fmtDia(t.FECHA_INGRESO) }}</div>
+                </template>
+                <template v-else>{{ fmtDia(t.FECHA_INGRESO) }}</template>
+              </td>
               <td class="px-4 py-2.5 text-body">{{ fmtDia(t.FECHA_FIN) }}</td>
               <td class="px-4 py-2.5">
                 <div class="flex flex-col gap-0.5">

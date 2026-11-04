@@ -218,6 +218,12 @@ watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value
         :valid="esVisible('fechaInscripcion') && !errors.fechaInscripcion && !!draft.fechaInscripcion" />
       <FieldError :message="esVisible('fechaInscripcion') ? errors.fechaInscripcion : undefined" />
     </div>
+    <!-- Solo lectura: la fecha de renovación la fija el backend al activar/renovar o al
+         cambiar la fecha (la de inscripción ya no se modifica después del alta). -->
+    <div v-if="soloLecturaEnEdicion">
+      <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Fecha de renovación</label>
+      <FechaInput :model-value="draft.fechaRenovado ?? ''" disabled :placeholder="draft.renovado ? 'Renovado' : 'Sin renovar'" />
+    </div>
     <div>
       <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Estado</label>
       <select v-model="draft.estado" disabled title="El titular se crea como Activo; usa el botón de activar/desactivar en la tabla para cambiar el estado" class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed">

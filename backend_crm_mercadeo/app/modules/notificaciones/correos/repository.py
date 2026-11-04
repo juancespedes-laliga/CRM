@@ -31,8 +31,9 @@ class CorreosRepository:
         """Titulares ACTIVOS cuyo plan vence entre `dias_vencidos` dias en el
         pasado y `dias_previos` dias en el futuro.
 
-        La fecha de vencimiento se calcula como FECHA_INGRESO + 12 meses (el
-        plan dura 1 ano desde la activacion). No se usa una columna FECHA_FIN
+        La fecha de vencimiento se calcula como la fecha vigente + 12 meses (el
+        plan dura 1 ano desde la activacion): FECHA_RENOVADO si ya renovo, o
+        FECHA_INGRESO si nunca ha renovado. No se usa una columna FECHA_FIN
         porque no existe en todas las bases (solo en 'scse', no en 'Ligapru').
 
         Se excluyen los titulares con TIPO_PLAN 'LIGA': son empleados de la
@@ -63,9 +64,10 @@ class CorreosRepository:
                 p.EMPRESA,
                 p.TIPO_PLAN,
                 TRUNC(p.FECHA_INGRESO)                              AS FECHA_INGRESO,
-                TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12))              AS FECHA_FIN,
-                TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12)) - TRUNC(SYSDATE)   AS DIAS,
-                TO_CHAR(ADD_MONTHS(p.FECHA_INGRESO, 12), 'DD/MM/YYYY')    AS FECHA_FIN_TXT,
+                TRUNC(p.FECHA_RENOVADO)                             AS FECHA_RENOVADO,
+                TRUNC(ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12))              AS FECHA_FIN,
+                TRUNC(ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12)) - TRUNC(SYSDATE)   AS DIAS,
+                TO_CHAR(ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12), 'DD/MM/YYYY')    AS FECHA_FIN_TXT,
                 p.RENOVADO
             FROM INTRANET_PLANLIGA p
             WHERE p.ESTADO = 'A'
@@ -73,7 +75,7 @@ class CorreosRepository:
               AND UPPER(TRIM(NVL(p.TIPO_PLAN, ' '))) <> 'LIGA'
               {filtro_segmento}
               AND (:empresa IS NULL OR UPPER(TRIM(p.EMPRESA)) = UPPER(TRIM(:empresa)))
-              AND TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12))
+              AND TRUNC(ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12))
                     BETWEEN TRUNC(SYSDATE) - :dias_vencidos
                         AND TRUNC(SYSDATE) + :dias_previos
               AND (:solo_con_correo = 0

@@ -3,7 +3,7 @@ import type {
   Beneficiario, BeneficiarioDraft, PlanServicio, Titular, TitularDraft,
   ReemplazoPersonaDraft, ReemplazoTitularResultado, ReemplazoBeneficiarioResultado,
 } from '../types/plan-liga'
-import { CUPO_MAXIMO, cupoMaximoTitular } from '../constants/plan-liga.constants'
+import { CUPO_MAXIMO, cupoMaximoTitular, formatearFechaCorta } from '../constants/plan-liga.constants'
 import {
   createTitular, updateTitular, activarTitular, desactivarTitular,
   createBeneficiario, updateBeneficiario, getResumenTitulares,
@@ -227,6 +227,14 @@ export function usePlanLiga() {
   const nombrePlan = (tipoPlanId: number | null) =>
     tipoPlanId === null ? 'Estándar' : (planesServicio.value.find(p => p.id === tipoPlanId)?.nombre ?? '')
 
+  // Misma regla del backend (_asignar_fecha): la primera fecha va a la inscripción;
+  // si ya tenía una, la nueva fecha queda como fecha de renovación y la inscripción no cambia.
+  // fechaInscripcion del listado viene 'DD/MM/AAAA' (INSCRIPCION); fechaRenovado en 'AAAA-MM-DD'.
+  const fechaTrasRenovar = (t: Titular, fecha: string): Partial<Titular> =>
+    t.fechaInscripcion
+      ? { fechaRenovado: fecha, renovado: true }
+      : { fechaInscripcion: formatearFechaCorta(fecha), renovado: true }
+
   const toggleEstadoTitular = async (
     t: Titular,
     fechaIngreso?: string,
@@ -250,6 +258,7 @@ export function usePlanLiga() {
         titulares.value[idx] = {
           ...t,
           estado: nuevoEstado,
+          ...(activando ? fechaTrasRenovar(t, fechaIngreso!) : {}),
           ...(activando && cambiarPlan ? { tipoPlanId, tipoPlan: nombrePlan(tipoPlanId) } : {}),
         }
       }
@@ -266,7 +275,7 @@ export function usePlanLiga() {
   // A diferencia de toggleEstadoTitular (que decide activar/desactivar segun el
   // estado actual), esto SIEMPRE llama a activarTitular sin importar si el
   // titular ya estaba activo o no: el backend de todas formas fija estado=Activo,
-  // FECHA_INGRESO y RENOVADO='S' en la misma operacion (repository.py:812-820),
+  // la fecha y RENOVADO='S' en la misma operacion (ver activar_titular en repository.py),
   // asi que reusarlo tambien sirve para solo "editar" la fecha de un titular que
   // ya esta activo (queda activo igual, solo cambia la fecha).
   const editarFechaIngresoTitular = async (t: Titular, fechaIngreso: string, aplicarAGrupo = true) => {
@@ -275,7 +284,7 @@ export function usePlanLiga() {
     try {
       await activarTitular(t.id, fechaIngreso, aplicarAGrupo)
       const idx = titulares.value.findIndex(x => x.id === t.id)
-      if (idx !== -1) titulares.value[idx] = { ...t, estado: 'Activo', fechaInscripcion: fechaIngreso }
+      if (idx !== -1) titulares.value[idx] = { ...t, estado: 'Activo', ...fechaTrasRenovar(t, fechaIngreso) }
       cargarResumen()
     } catch (e) {
       errorGuardarTitular.value = e instanceof Error ? e.message : 'No se pudo actualizar la fecha de inscripción.'

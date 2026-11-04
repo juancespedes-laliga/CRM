@@ -14,6 +14,9 @@ export interface RenovacionMesItem {
   ESTADO: string
   RENOVADO: string | null
   FECHA_INGRESO: string
+  // Fecha de la última renovación (null si nunca ha renovado). FECHA_FIN se
+  // calcula sobre la fecha vigente: FECHA_RENOVADO ?? FECHA_INGRESO.
+  FECHA_RENOVADO: string | null
   FECHA_FIN: string
   ULTIMO_CONTACTO_FECHA: string | null
   ULTIMO_CONTACTO_DESC: string | null

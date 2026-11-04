@@ -21,6 +21,10 @@ export interface Titular {
   planSalud: string
   planNombre: string
   fechaInscripcion: string
+  /** Fecha de la última renovación ('AAAA-MM-DD'); vacía si nunca ha renovado. fechaInscripcion no cambia al renovar. */
+  fechaRenovado?: string
+  /** true si RENOVADO = 'S' en la base. */
+  renovado?: boolean
   estado: 'Activo' | 'Inactivo'
   /** Número de factura asociado al alta del titular (solo se registra al crear). */
   factura: string
@@ -51,6 +55,9 @@ export interface Beneficiario {
   planNombre: string
   estado: 'Activo' | 'Inactivo' | 'Reemplazado' | 'Retirado'
   fechaInscripcion: string
+  /** Fecha de la última renovación ('AAAA-MM-DD'); vacía si nunca ha renovado. */
+  fechaRenovado?: string
+  renovado?: boolean
 }
 
 export type BeneficiarioDraft = Omit<Beneficiario, 'id' | 'titularId'>
@@ -172,6 +179,8 @@ export interface TitularListadoResponse {
   TIPO_PLAN: string | null
   BENEFICIARIOS: string | null
   INSCRIPCION: string
+  FECHA_RENOVADO: string | null
+  RENOVADO: string | null
   ESTADO: string
 }
 
@@ -198,6 +207,8 @@ export interface BeneficiarioListadoResponse {
   CORREO: string | null
   TELEFONO: string | null
   FECHA_INGRESO: string | null
+  FECHA_RENOVADO?: string | null
+  RENOVADO?: string | null
   EMPRESA: string | null
   TIPO_PLAN: string | null
   EPS: string | null
@@ -224,6 +235,8 @@ export interface BeneficiarioDetalleResponse {
   CORREO: string | null
   TELEFONO: string | null
   FECHA_INGRESO: string | null
+  FECHA_RENOVADO?: string | null
+  RENOVADO?: string | null
   EMPRESA: string | null
   TIPO_PLAN: string | null
   ESTADO: string | null
@@ -254,6 +267,8 @@ export interface TitularDetalleResponse {
   PLAN_NOMBRE: string | null
   ESTADO: string
   FECHA_INGRESO: string | null
+  FECHA_RENOVADO?: string | null
+  RENOVADO?: string | null
 }
 
 export interface ReemplazoTitularResultadoResponse {

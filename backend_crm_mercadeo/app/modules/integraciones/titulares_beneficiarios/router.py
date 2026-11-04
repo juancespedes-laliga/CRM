@@ -65,6 +65,8 @@ COLUMNAS_EXPORTACION = [
     ("TELEFONO", "Telefono"),
     ("CORREO", "Correo"),
     ("FECHA_INGRESO", "Fecha Ingreso"),
+    ("RENOVADO", "Renovado"),
+    ("FECHA_RENOVADO", "Fecha Renovado"),
     ("ESTADO", "Estado"),
 ]
 

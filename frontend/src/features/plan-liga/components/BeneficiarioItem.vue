@@ -31,7 +31,7 @@ const emit = defineEmits<{
       </div>
       <span class="text-[10px] font-semibold shrink-0" :class="estadoBeneStyle(beneficiario.estado)">{{ beneficiario.estado }}</span>
     </div>
-    <div v-if="beneficiario.correo || beneficiario.telefono || beneficiario.direccion || beneficiario.empresa || beneficiario.fechaInscripcion"
+    <div v-if="beneficiario.correo || beneficiario.telefono || beneficiario.direccion || beneficiario.empresa || beneficiario.fechaInscripcion || beneficiario.renovado"
       class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-1.5">
       <div v-if="beneficiario.correo" class="min-w-0">
         <div class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Correo</div>
@@ -56,6 +56,13 @@ const emit = defineEmits<{
       <div v-if="beneficiario.fechaInscripcion" class="min-w-0">
         <div class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Inscripción</div>
         <div class="text-[11px] text-slate-600 dark:text-slate-300 truncate">{{ formatearFechaCorta(beneficiario.fechaInscripcion) }}</div>
+      </div>
+      <div v-if="beneficiario.fechaInscripcion || beneficiario.renovado" class="min-w-0">
+        <div class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Renovado</div>
+        <div v-if="beneficiario.renovado" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">
+          Sí<template v-if="beneficiario.fechaRenovado"> · {{ formatearFechaCorta(beneficiario.fechaRenovado) }}</template>
+        </div>
+        <div v-else class="text-[11px] text-slate-400 dark:text-slate-500 truncate">No</div>
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity">
