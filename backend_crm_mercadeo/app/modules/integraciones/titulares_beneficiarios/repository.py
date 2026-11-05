@@ -236,8 +236,9 @@ class TitularesBeneficiariosRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def obtener_titular(self, id_titular: int) -> dict | None:
-        stmt = select(
+    @staticmethod
+    def _select_titular():
+        return select(
             PlanLiga.id.label("ID_TITULAR"),
             PlanLiga.documento.label("DOCUMENTO"),
             PlanLiga.tipo.label("TIPO_DOCUMENTO"),
@@ -266,10 +267,34 @@ class TitularesBeneficiariosRepository:
             func.to_char(PlanLiga.fecha_ingreso, "DD/MM/YYYY").label("FECHA_INGRESO"),
             func.to_char(PlanLiga.fecha_renovado, "DD/MM/YYYY").label("FECHA_RENOVADO"),
             PlanLiga.renovado.label("RENOVADO"),
-        ).where(PlanLiga.id == id_titular)
+        )
 
+    def obtener_titular(self, id_titular: int) -> dict | None:
+        stmt = self._select_titular().where(PlanLiga.id == id_titular)
         fila = self.db.execute(stmt).mappings().first()
         return dict(fila) if fila is not None else None
+
+    # Para la auditoria de acciones por grupo: varias filas en una sola consulta
+    # (en bloques, por el limite de 1000 elementos de un IN en Oracle).
+    def obtener_titulares_por_ids(self, ids: list[int]) -> dict[int, dict]:
+        resultado: dict[int, dict] = {}
+        for i in range(0, len(ids), 900):
+            stmt = self._select_titular().where(PlanLiga.id.in_(ids[i:i + 900]))
+            for fila in self.db.execute(stmt).mappings().all():
+                resultado[fila["ID_TITULAR"]] = dict(fila)
+        return resultado
+
+    def obtener_beneficiarios_por_ids(self, ids: list[int]) -> dict[int, dict]:
+        resultado: dict[int, dict] = {}
+        for i in range(0, len(ids), 900):
+            stmt = (
+                select(*_columnas_beneficiario(), PlanLigaBeneficiario.planliga_id.label("PLANLIGA_ID"))
+                .outerjoin(PlanLiga, PlanLiga.id == PlanLigaBeneficiario.planliga_id)
+                .where(PlanLigaBeneficiario.id.in_(ids[i:i + 900]))
+            )
+            for fila in self.db.execute(stmt).mappings().all():
+                resultado[fila["ID"]] = dict(fila)
+        return resultado
 
     def obtener_fecha_ingreso_titular(self, id_titular: int) -> date | None:
         """Fecha vigente del titular (la de su ultima renovacion, o la de
@@ -1016,6 +1041,30 @@ class TitularesBeneficiariosRepository:
                 PlanLigaBeneficiario.planliga_id.in_(ids_titulares),
             ),
         )
+
+    def ids_grupo_activo(
+        self, empresa: str | None = None, tipo_plan: str | None = None
+    ) -> tuple[list[int], list[int]]:
+        """Ids de titulares y beneficiarios ACTIVOS que tocaria
+        cambiar_fecha_ingreso_grupo (mismas condiciones), para auditarlos."""
+        titulares = self.db.scalars(
+            select(PlanLiga.id).where(
+                self._condicion_grupo(empresa, tipo_plan), PlanLiga.estado == ESTADO_ACTIVO
+            )
+        ).all()
+        beneficiarios = self.db.scalars(
+            select(PlanLigaBeneficiario.id).where(
+                self._condicion_beneficiarios_grupo(empresa, tipo_plan),
+                PlanLigaBeneficiario.estado == ESTADO_ACTIVO,
+            )
+        ).all()
+        return list(titulares), list(beneficiarios)
+
+    def ids_beneficiarios_titular(self, id_titular: int, solo_activos: bool = False) -> list[int]:
+        condiciones = [PlanLigaBeneficiario.planliga_id == id_titular]
+        if solo_activos:
+            condiciones.append(PlanLigaBeneficiario.estado == ESTADO_ACTIVO)
+        return list(self.db.scalars(select(PlanLigaBeneficiario.id).where(*condiciones)).all())
 
     def contar_grupo_activo(
         self, empresa: str | None = None, tipo_plan: str | None = None

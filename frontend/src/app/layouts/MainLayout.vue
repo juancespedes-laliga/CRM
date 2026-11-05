@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Heart, Users, Building2, Truck,
   BookOpen, Target, Filter, Wrench, Upload, Send,
   ChevronLeft, ChevronRight, LogOut, Settings,
-  RefreshCw, X, Menu, Moon, Sun, CalendarClock, CalendarRange
+  RefreshCw, X, Menu, Moon, Sun, CalendarClock, CalendarRange, ShieldCheck
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -40,7 +40,7 @@ onUnmounted(() => {
 type Vista =
   | 'dashboard' | 'plan-liga' | 'plan-liga-vencimientos' | 'plan-liga-renovaciones' | 'contactos' | 'empresas' | 'proveedores'
   | 'servicios' | 'oportunidades' | 'embudos'
-  | 'relacionamiento' | 'campanas' | 'importacion' | 'automatizaciones'
+  | 'relacionamiento' | 'campanas' | 'importacion' | 'automatizaciones' | 'auditoria'
 
 interface Tab { key: Vista; label: string; icono: any; modulo: string }
 
@@ -76,6 +76,7 @@ const menuGroups: MenuGroup[] = [
   { label: 'Operaciones', items: [
     { key: 'relacionamiento',  label: 'Bitácora',                  icono: BookOpen,        modulo: 'bitacora'        },
     { key: 'importacion',      label: 'Importación',               icono: Upload,          modulo: 'importacion'     },
+    { key: 'auditoria',        label: 'Auditoría',                 icono: ShieldCheck,     modulo: 'auditoria'       },
   ]},
 ]
 
@@ -97,6 +98,7 @@ const rutaAVista = (path: string): Vista => {
   const p = path.replace(/^\//, '') || 'dashboard'
   if (p === 'embudos' || p.startsWith('embudos/') || p === 'segmentos') return 'embudos'
   if (p.startsWith('campanas/')) return 'campanas'
+  if (p.startsWith('auditoria/')) return 'auditoria'
   return p as Vista
 }
 

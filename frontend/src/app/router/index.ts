@@ -20,6 +20,7 @@ import importacionRoutes from '@/features/importacion/routes'
 import automatizacionesRoutes from '@/features/automatizaciones/routes'
 import usuariosRoutes from '@/features/usuarios/routes'
 import configuracionRoutes from '@/features/configuracion/routes'
+import auditoriaRoutes from '@/features/auditoria/routes'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -56,6 +57,7 @@ const routes: RouteRecordRaw[] = [
       ...automatizacionesRoutes,
       ...usuariosRoutes,
       ...configuracionRoutes,
+      ...auditoriaRoutes,
     ],
   },
 ]

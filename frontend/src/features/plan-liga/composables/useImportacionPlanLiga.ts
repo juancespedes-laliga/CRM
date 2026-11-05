@@ -2,6 +2,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { AccionMasiva, PlanServicio, ResultadoImportacion, TipoImportacion } from '../types/plan-liga'
 import { CUPO_MAXIMO } from '../constants/plan-liga.constants'
 import { getPlanesServicio } from '../services/plan-liga.api'
+import { conOrigenAuditoria } from '@/features/auth/composables/useAuth'
 import { useUbicaciones, esperarUbicaciones } from '@/shared/composables/useUbicaciones'
 import { agruparFilas, parsearArchivoCargaMasiva, procesarCargaMasiva, validarGruposCargaMasiva } from '../utils/cargaMasiva'
 import { parsearArchivoAccionTitulares, procesarAccionMasivaTitulares, validarFilasAccionTitulares } from '../utils/accionMasivaTitulares'
@@ -71,11 +72,11 @@ export function useImportacionPlanLiga() {
           resultadoImport.value = { total: filas.length, exitosos: 0, errores: erroresFormato.length, detalleErrores: erroresFormato, bloqueado: true }
           return
         }
-        resultadoImport.value = await procesarAccionMasivaTitulares(
+        resultadoImport.value = await conOrigenAuditoria('excel', archivoNombre.value, () => procesarAccionMasivaTitulares(
           filas,
           accionMasiva.value,
           (hechos, total) => { progresoImport.value = { hechos, total } },
-        )
+        ))
       } else if (tipoImport.value === 'beneficiario') {
         const filas = await parsearArchivoAccionBeneficiarios(archivo.value)
         const erroresFormato = validarFilasAccionBeneficiarios(filas, accionMasiva.value)
@@ -83,11 +84,11 @@ export function useImportacionPlanLiga() {
           resultadoImport.value = { total: filas.length, exitosos: 0, errores: erroresFormato.length, detalleErrores: erroresFormato, bloqueado: true }
           return
         }
-        resultadoImport.value = await procesarAccionMasivaBeneficiarios(
+        resultadoImport.value = await conOrigenAuditoria('excel', archivoNombre.value, () => procesarAccionMasivaBeneficiarios(
           filas,
           accionMasiva.value,
           (hechos, total) => { progresoImport.value = { hechos, total } },
-        )
+        ))
       } else {
         await esperarUbicaciones()
         const filas = await parsearArchivoCargaMasiva(archivo.value, { departamentos: departamentos.value, municipios: municipios.value })
@@ -99,11 +100,11 @@ export function useImportacionPlanLiga() {
           resultadoImport.value = { total: totalReal, exitosos: 0, errores: erroresFormato.length, detalleErrores: erroresFormato, bloqueado: true }
           return
         }
-        resultadoImport.value = await procesarCargaMasiva(
+        resultadoImport.value = await conOrigenAuditoria('excel', archivoNombre.value, () => procesarCargaMasiva(
           filas,
           { tipoPlanId, cupoBeneficiarios: cupoBeneficiarios.value },
           (hechos, total) => { progresoImport.value = { hechos, total } },
-        )
+        ))
       }
     } catch (e) {
       resultadoImport.value = {

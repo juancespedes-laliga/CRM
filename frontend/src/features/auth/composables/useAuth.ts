@@ -45,7 +45,28 @@ const me = ref<MeResponse | null>(session.value ? toMe(session.value) : null)
 // ellos mismos a partir del Bearer token (username → usuario_id en su propia tabla).
 // Este header es lo único que hay que mandar para que quede identificado.
 export function authHeader(): Record<string, string> {
-  return session.value ? { Authorization: `Bearer ${session.value.token}` } : {}
+  if (!session.value) return {}
+  const headers: Record<string, string> = { Authorization: `Bearer ${session.value.token}` }
+  // Mientras corre una carga masiva (ver conOrigenAuditoria) cada petición le
+  // dice al backend que el cambio viene de Excel, para la auditoría.
+  if (origenAuditoria) {
+    headers['X-Auditoria-Origen'] = origenAuditoria.origen
+    if (origenAuditoria.lote) headers['X-Auditoria-Lote'] = encodeURIComponent(origenAuditoria.lote)
+  }
+  return headers
+}
+
+let origenAuditoria: { origen: 'excel'; lote?: string } | null = null
+
+/** Ejecuta `fn` marcando todas sus peticiones como hechas desde una carga por Excel
+ *  (`lote` = nombre del archivo, queda como motivo en la auditoría). */
+export async function conOrigenAuditoria<T>(origen: 'excel', lote: string | undefined, fn: () => Promise<T>): Promise<T> {
+  origenAuditoria = { origen, lote }
+  try {
+    return await fn()
+  } finally {
+    origenAuditoria = null
+  }
 }
 
 // Punto único para consultar permisos en toda la app: "modulo:accion", ej.

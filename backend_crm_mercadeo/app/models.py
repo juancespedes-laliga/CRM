@@ -533,6 +533,52 @@ class Importacion(Base):
     usuario: Mapped["Usuario | None"] = relationship(back_populates="importaciones")
 
 
+class Auditoria(Base):
+    """Registro de auditoria del CRM: una fila por accion sobre un registro
+    (crear, editar, activar, desactivar, renovar, cambiar plan/titular,
+    reemplazar, eliminar). Tabla propia del CRM: las tablas legacy
+    (intranet_planliga, intranet_planliga_beneficiario) no se tocan.
+
+    - registro_id / titular_id no llevan FK a proposito: el registro puede
+      eliminarse y la auditoria debe quedar. Por lo mismo se guarda una copia
+      de registro_nombre y documento.
+    - origen: 'manual' | 'excel' | 'grupo' | 'sistema'. Si vino de una carga
+      por Excel, proceso_id apunta a la corrida en mercadeo_crm_historial_procesos
+      (reusa esa tabla como "lote"); si fue por grupo, titular_id es el grupo.
+    - fecha_ingreso / renovado / fecha_renovado: como estaba el registro de
+      Plan Liga en ese momento (para filtrar y para la "vigencia en ese momento").
+    - cambios: JSON en texto, [{"campo", "etiqueta", "antes", "despues"}]."""
+
+    __tablename__ = "mercadeo_crm_auditoria"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    fecha: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("intranet_usuarios.id"))
+    ip: Mapped[str | None] = mapped_column(String(45))
+    modulo: Mapped[str] = mapped_column(String(30), nullable=False)
+    accion: Mapped[str] = mapped_column(String(30), nullable=False)
+    origen: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    proceso_id: Mapped[int | None] = mapped_column(
+        ForeignKey("mercadeo_crm_historial_procesos.id")
+    )
+    registro_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    registro_nombre: Mapped[str | None] = mapped_column(String(150))
+    documento: Mapped[str | None] = mapped_column(String(20))
+    titular_id: Mapped[int | None] = mapped_column(Integer)
+    estado_antes: Mapped[str | None] = mapped_column(String(20))
+    estado_despues: Mapped[str | None] = mapped_column(String(20))
+    fecha_ingreso: Mapped[date | None] = mapped_column(Date)
+    renovado: Mapped[str | None] = mapped_column(String(1))
+    fecha_renovado: Mapped[date | None] = mapped_column(Date)
+    motivo: Mapped[str | None] = mapped_column(String(500))
+    cambios: Mapped[str | None] = mapped_column(Text)
+
+    usuario: Mapped["Usuario | None"] = relationship(foreign_keys=[usuario_id])
+    proceso: Mapped["Importacion | None"] = relationship(foreign_keys=[proceso_id])
+
+
 # ---------------------------------------------------------------------------
 # Modulo: Permisos (esquema compartido del Intranet, ver readme/DIAGRAMA_BASE_DATOS.md)
 #

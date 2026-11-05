@@ -1,10 +1,19 @@
 import logging
 from datetime import date
-from typing import Iterator
+from typing import Callable, Iterator
 
 from sqlalchemy.orm import Session
 
 from app.core.email import enviar_correo_plantilla
+from app.modules.administracion.auditoria.contexto import ContextoAuditoria
+from app.modules.administracion.auditoria.registro import RegistradorAuditoria, campo_cambiado
+from app.modules.integraciones.titulares_beneficiarios.auditoria import (
+    MODULO_BENEFICIARIOS,
+    MODULO_TITULARES,
+    AuditoriaPlanLiga,
+    diferencias,
+    nombre_completo,
+)
 from app.modules.integraciones.titulares_beneficiarios.exceptions import (
     BeneficiarioInactivoError,
     BeneficiarioNotFoundError,
@@ -63,11 +72,28 @@ PLANTILLA_CORREO_BIENVENIDA = "Bienvenida (1).html"
 PERMISO_ELEGIR_PLAN = "planliga:elegir_plan"
 
 
+def _persona(fila: dict | None) -> str | None:
+    """'Nombre (documento)' para el antes -> despues de la auditoria."""
+    if not fila:
+        return None
+    nombre = nombre_completo(fila)
+    documento = fila.get("DOCUMENTO")
+    return f"{nombre} ({documento})" if documento else nombre
+
+
 class TitularesBeneficiariosService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, contexto: ContextoAuditoria | None = None) -> None:
         self.db = db
         self.repository = TitularesBeneficiariosRepository(db)
         self.legacy_repository = LegacyRepository(db)
+        self.auditoria = AuditoriaPlanLiga(RegistradorAuditoria(db, contexto))
+
+    def _auditar(self, registrar: Callable[[], None]) -> None:
+        """La auditoria nunca debe tumbar la accion del usuario (que ya hizo commit)."""
+        try:
+            registrar()
+        except Exception:
+            logger.exception("No se pudo registrar la auditoria de Plan Liga")
 
     def resumen(self) -> ResumenTitularesBeneficiarios:
         r = self.repository
@@ -154,6 +180,7 @@ class TitularesBeneficiariosService:
                 )
 
         fila = self.repository.obtener_titular(id_titular)
+        self._auditar(lambda: self.auditoria.registrar(MODULO_TITULARES, "creacion", fila))
         return CreacionTitularResultado(
             titular=TitularDetalle(**fila),
             usuario_servinte_creado=usuario_creado,
@@ -227,6 +254,9 @@ class TitularesBeneficiariosService:
                     )
 
         fila = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
+        self._auditar(lambda: self.auditoria.registrar(
+            MODULO_BENEFICIARIOS, "creacion", fila, titular_id=id_titular
+        ))
         return CreacionBeneficiarioResultado(
             beneficiario=BeneficiarioDetalle(**fila),
             usuario_servinte_creado=usuario_creado,
@@ -250,11 +280,25 @@ class TitularesBeneficiariosService:
                 raise CupoPlanInsuficienteError(
                     id_titular, beneficiarios_activos, cupo_nuevo_plan
                 )
+        antes = self.repository.obtener_titular(id_titular)
         if not self.repository.actualizar_titular(
             id_titular, cambios, cambiar_plan, data.TIPO_PLAN_ID
         ):
             raise TitularNotFoundError(id_titular)
         fila = self.repository.obtener_titular(id_titular)
+
+        def auditar() -> None:
+            cambio_plan = (antes or {}).get("TIPO_PLAN_ID") != fila.get("TIPO_PLAN_ID") or (
+                (antes or {}).get("TIPO_PLAN") != fila.get("TIPO_PLAN")
+            )
+            datos = self.auditoria.fila(
+                MODULO_TITULARES, "cambio_plan" if cambio_plan else "edicion", fila, anterior=antes
+            )
+            # Guardar sin tocar nada no deja rastro.
+            if datos["cambios"] or datos["estado_antes"] != datos["estado_despues"]:
+                self.auditoria.registrar_varios([datos])
+
+        self._auditar(auditar)
         return TitularDetalle(**fila)
 
     def actualizar_beneficiario(
@@ -263,9 +307,19 @@ class TitularesBeneficiariosService:
         if self.repository.obtener_titular(id_titular) is None:
             raise TitularNotFoundError(id_titular)
         cambios = data.model_dump(exclude_unset=True)
+        antes = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
         if not self.repository.actualizar_beneficiario(id_titular, id_beneficiario, cambios):
             raise BeneficiarioNotFoundError(id_beneficiario)
         fila = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
+
+        def auditar() -> None:
+            datos = self.auditoria.fila(
+                MODULO_BENEFICIARIOS, "edicion", fila, anterior=antes, titular_id=id_titular
+            )
+            if datos["cambios"] or datos["estado_antes"] != datos["estado_despues"]:
+                self.auditoria.registrar_varios([datos])
+
+        self._auditar(auditar)
         return BeneficiarioDetalle(**fila)
 
     def cambiar_titular_beneficiario(
@@ -306,6 +360,19 @@ class TitularesBeneficiariosService:
             raise BeneficiarioNotFoundError(id_beneficiario)
 
         fila = self.repository.obtener_beneficiario(id_titular_nuevo, id_beneficiario)
+
+        def auditar() -> None:
+            titular_anterior = self.repository.obtener_titular(id_titular_actual)
+            cambios = [
+                campo_cambiado("TITULAR", "Titular", _persona(titular_anterior), _persona(detalle_titular_nuevo)),
+                *diferencias(beneficiario_actual, fila),
+            ]
+            self.auditoria.registrar(
+                MODULO_BENEFICIARIOS, "cambio_titular", fila,
+                anterior=beneficiario_actual, titular_id=id_titular_nuevo, cambios=cambios,
+            )
+
+        self._auditar(auditar)
         return BeneficiarioDetalle(**fila)
 
     def reemplazar_titular(
@@ -330,6 +397,7 @@ class TitularesBeneficiariosService:
         if duplicado is not None and id_beneficiario_promovido is None:
             raise DocumentoDuplicadoError(data.DOCUMENTO, duplicado)
 
+        ids_beneficiarios = self.repository.ids_beneficiarios_titular(id_titular, solo_activos=True)
         resultado = self.repository.reemplazar_titular(
             id_titular, data.model_dump(), id_beneficiario_promovido
         )
@@ -365,6 +433,37 @@ class TitularesBeneficiariosService:
             )
 
         fila = self.repository.obtener_titular(id_nuevo)
+
+        def auditar() -> None:
+            anterior_despues = self.repository.obtener_titular(id_titular)
+            nuevo, viejo = _persona(fila), _persona(anterior)
+            filas = [
+                self.auditoria.fila(
+                    MODULO_TITULARES, "reemplazo", anterior_despues, anterior=anterior,
+                    cambios=[campo_cambiado("REEMPLAZADO_POR", "Reemplazado por", None, nuevo)],
+                    motivo=f"Reemplazado por {nuevo}",
+                ),
+                self.auditoria.fila(
+                    MODULO_TITULARES, "creacion", fila, motivo=f"Reemplaza al titular {viejo}"
+                ),
+            ]
+            # Los beneficiarios activos pasan al titular nuevo (o, si uno de ellos es el
+            # nuevo titular, su fila de beneficiario queda inactiva).
+            for b in self.repository.obtener_beneficiarios_por_ids(ids_beneficiarios).values():
+                if b.get("PLANLIGA_ID") == id_nuevo:
+                    filas.append(self.auditoria.fila(
+                        MODULO_BENEFICIARIOS, "cambio_titular", b, anterior=b, titular_id=id_nuevo,
+                        cambios=[campo_cambiado("TITULAR", "Titular", viejo, nuevo)],
+                        motivo="Reemplazo del titular del grupo", origen="grupo",
+                    ))
+                elif b.get("ESTADO") != ESTADO_ACTIVO:
+                    filas.append(self.auditoria.fila(
+                        MODULO_BENEFICIARIOS, "desactivacion", b, anterior={**b, "ESTADO": ESTADO_ACTIVO},
+                        titular_id=id_titular, cambios=[], motivo="Pasó a ser el titular del grupo",
+                    ))
+            self.auditoria.registrar_varios(filas)
+
+        self._auditar(auditar)
         return ReemplazoTitularResultado(
             titular_anterior_id=id_titular,
             titular_nuevo=TitularDetalle(**fila),
@@ -416,6 +515,24 @@ class TitularesBeneficiariosService:
         )
 
         fila = self.repository.obtener_beneficiario(id_titular, id_nuevo)
+
+        def auditar() -> None:
+            anterior_despues = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
+            nuevo, viejo = _persona(fila), _persona(anterior)
+            self.auditoria.registrar_varios([
+                self.auditoria.fila(
+                    MODULO_BENEFICIARIOS, "reemplazo", anterior_despues or anterior, anterior=anterior,
+                    titular_id=id_titular,
+                    cambios=[campo_cambiado("REEMPLAZADO_POR", "Reemplazado por", None, nuevo)],
+                    motivo=f"Reemplazado por {nuevo}",
+                ),
+                self.auditoria.fila(
+                    MODULO_BENEFICIARIOS, "creacion", fila, titular_id=id_titular,
+                    motivo=f"Reemplaza al beneficiario {viejo}",
+                ),
+            ])
+
+        self._auditar(auditar)
         return ReemplazoBeneficiarioResultado(
             beneficiario_anterior_id=id_beneficiario,
             beneficiario_nuevo=BeneficiarioDetalle(**fila),
@@ -440,9 +557,15 @@ class TitularesBeneficiariosService:
         if fecha_ingreso is None:
             fecha_ingreso = self.repository.obtener_fecha_ingreso_titular(id_titular)
 
+        antes = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
         if not self.repository.activar_beneficiario(id_titular, id_beneficiario, fecha_ingreso):
             raise BeneficiarioNotFoundError(id_beneficiario)
         fila = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
+        # Si ya estaba activo, "activar" solo le cambia la fecha: es una renovacion.
+        accion = "renovacion" if (antes or {}).get("ESTADO") == ESTADO_ACTIVO else "activacion"
+        self._auditar(lambda: self.auditoria.registrar(
+            MODULO_BENEFICIARIOS, accion, fila, anterior=antes, titular_id=id_titular
+        ))
         num_incle = self.legacy_repository.desmarcar_registros_incle(
             fila["TIPO_DOCUMENTO"], fila["DOCUMENTO"]
         )
@@ -479,9 +602,13 @@ class TitularesBeneficiariosService:
     def desactivar_beneficiario(
         self, id_titular: int, id_beneficiario: int
     ) -> DesactivacionBeneficiarioResultado:
+        antes = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
         if not self.repository.desactivar_beneficiario(id_titular, id_beneficiario):
             raise BeneficiarioNotFoundError(id_beneficiario)
         fila = self.repository.obtener_beneficiario(id_titular, id_beneficiario)
+        self._auditar(lambda: self.auditoria.registrar(
+            MODULO_BENEFICIARIOS, "desactivacion", fila, anterior=antes, titular_id=id_titular
+        ))
         num_incle = self.legacy_repository.marcar_registros_incle(
             fila["TIPO_DOCUMENTO"], fila["DOCUMENTO"]
         )
@@ -534,6 +661,11 @@ class TitularesBeneficiariosService:
                 raise CupoPlanInsuficienteError(
                     id_titular, beneficiarios_activos, cupo_nuevo_plan
                 )
+        antes = self.repository.obtener_titular(id_titular)
+        ids_beneficiarios = (
+            self.repository.ids_beneficiarios_titular(id_titular) if aplicar_a_grupo else []
+        )
+        beneficiarios_antes = self.repository.obtener_beneficiarios_por_ids(ids_beneficiarios)
         if not self.repository.activar_titular(
             id_titular, fecha_ingreso, cambiar_plan, tipo_plan, tipo_plan_id
         ):
@@ -544,6 +676,20 @@ class TitularesBeneficiariosService:
             else 0
         )
         fila = self.repository.obtener_titular(id_titular)
+
+        def auditar() -> None:
+            # Activo antes -> renovacion; inactivo -> activacion (que tambien lo deja renovado).
+            accion = "renovacion" if (antes or {}).get("ESTADO") == ESTADO_ACTIVO else "activacion"
+            filas = [self.auditoria.fila(MODULO_TITULARES, accion, fila, anterior=antes)]
+            motivo = f"Renovación del grupo de {nombre_completo(fila)}"
+            for id_b, b in self.repository.obtener_beneficiarios_por_ids(ids_beneficiarios).items():
+                filas.append(self.auditoria.fila(
+                    MODULO_BENEFICIARIOS, "renovacion", b, anterior=beneficiarios_antes.get(id_b),
+                    titular_id=id_titular, motivo=motivo, origen="grupo",
+                ))
+            self.auditoria.registrar_varios(filas)
+
+        self._auditar(auditar)
         num_incle = self.legacy_repository.desmarcar_registros_incle(
             fila["TIPO_DOCUMENTO"], fila["DOCUMENTO"]
         )
@@ -565,9 +711,35 @@ class TitularesBeneficiariosService:
     def cambiar_fecha_ingreso_grupo(
         self, data: CambioFechaIngresoGrupo
     ) -> CambioFechaIngresoGrupoResultado:
+        ids_t, ids_b = self.repository.ids_grupo_activo(data.EMPRESA, data.TIPO_PLAN)
+        titulares_antes = self.repository.obtener_titulares_por_ids(ids_t)
+        beneficiarios_antes = self.repository.obtener_beneficiarios_por_ids(ids_b)
         titulares, beneficiarios = self.repository.cambiar_fecha_ingreso_grupo(
             data.FECHA_INGRESO, data.EMPRESA, data.TIPO_PLAN
         )
+
+        def auditar() -> None:
+            motivo = (
+                f"Cambio de fecha por empresa {data.EMPRESA}" if data.EMPRESA
+                else f"Cambio de fecha por plan {data.TIPO_PLAN}"
+            )
+            filas = [
+                self.auditoria.fila(
+                    MODULO_TITULARES, "renovacion", t, anterior=titulares_antes.get(id_t),
+                    motivo=motivo, origen="grupo",
+                )
+                for id_t, t in self.repository.obtener_titulares_por_ids(ids_t).items()
+            ]
+            filas += [
+                self.auditoria.fila(
+                    MODULO_BENEFICIARIOS, "renovacion", b, anterior=beneficiarios_antes.get(id_b),
+                    titular_id=b.get("PLANLIGA_ID"), motivo=motivo, origen="grupo",
+                )
+                for id_b, b in self.repository.obtener_beneficiarios_por_ids(ids_b).items()
+            ]
+            self.auditoria.registrar_varios(filas)
+
+        self._auditar(auditar)
         return CambioFechaIngresoGrupoResultado(
             titulares_actualizados=titulares,
             beneficiarios_actualizados=beneficiarios,
@@ -577,6 +749,9 @@ class TitularesBeneficiariosService:
         return self.repository.listar_tipos_plan()
 
     def desactivar_titular(self, id_titular: int) -> DesactivacionTitularResultado:
+        antes = self.repository.obtener_titular(id_titular)
+        ids_beneficiarios = self.repository.ids_beneficiarios_titular(id_titular, solo_activos=True)
+        beneficiarios_antes = self.repository.obtener_beneficiarios_por_ids(ids_beneficiarios)
         if not self.repository.desactivar_titular(id_titular):
             raise TitularNotFoundError(id_titular)
         fila = self.repository.obtener_titular(id_titular)
@@ -589,6 +764,17 @@ class TitularesBeneficiariosService:
         for tipo_b, documento_b in beneficiarios_desactivados:
             num_incle += self.legacy_repository.marcar_registros_incle(tipo_b, documento_b)
 
+        def auditar() -> None:
+            filas = [self.auditoria.fila(MODULO_TITULARES, "desactivacion", fila, anterior=antes)]
+            motivo = f"Desactivación del titular {nombre_completo(fila)}"
+            for id_b, b in self.repository.obtener_beneficiarios_por_ids(ids_beneficiarios).items():
+                filas.append(self.auditoria.fila(
+                    MODULO_BENEFICIARIOS, "desactivacion", b, anterior=beneficiarios_antes.get(id_b),
+                    titular_id=id_titular, motivo=motivo, origen="grupo",
+                ))
+            self.auditoria.registrar_varios(filas)
+
+        self._auditar(auditar)
         return DesactivacionTitularResultado(
             titular=TitularDetalle(**fila),
             beneficiarios_desactivados=len(beneficiarios_desactivados),
