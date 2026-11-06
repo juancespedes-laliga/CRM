@@ -4,6 +4,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     Float,
@@ -153,6 +154,7 @@ class PlanLiga(Base):
     correo: Mapped[str | None] = mapped_column(String(200))
     telefono: Mapped[str | None] = mapped_column(String(15))
     fecha_ingreso: Mapped[date | None] = mapped_column(Date)
+    fecha_inscripcion: Mapped[date | None] = mapped_column(Date)
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date)
     sexo: Mapped[str | None] = mapped_column(String(1))
     direccion: Mapped[str | None] = mapped_column(String(100))
@@ -195,6 +197,7 @@ class PlanLigaBeneficiario(Base):
     correo: Mapped[str | None] = mapped_column(String(200))
     telefono: Mapped[str | None] = mapped_column(String(15))
     fecha_ingreso: Mapped[date | None] = mapped_column(Date)
+    fecha_inscripcion: Mapped[date | None] = mapped_column(Date)
     fecha_registro: Mapped[datetime | None] = mapped_column(DateTime)
     estado: Mapped[str | None] = mapped_column(String(2))
     tipo_afiliado: Mapped[str | None] = mapped_column(String(2))
@@ -537,44 +540,40 @@ class Auditoria(Base):
     reemplazar, eliminar). Tabla propia del CRM: las tablas legacy
     (intranet_planliga, intranet_planliga_beneficiario) no se tocan.
 
-    - registro_id / titular_id no llevan FK a proposito: el registro puede
+    - id_titular / id_beneficiario no llevan FK a proposito: el registro puede
       eliminarse y la auditoria debe quedar. Por lo mismo se guarda una copia
       de registro_nombre y documento.
-    - origen: 'manual' | 'excel' | 'grupo' | 'sistema'. Si vino de una carga
-      por Excel, proceso_id apunta a la corrida en mercadeo_crm_historial_procesos
-      (reusa esa tabla como "lote"); si fue por grupo, titular_id es el grupo.
-    - fecha_ingreso / renovado / fecha_renovado: como estaba el registro de
-      Plan Liga en ese momento (para filtrar y para la "vigencia en ese momento").
-    - cambios: JSON en texto, [{"campo", "etiqueta", "antes", "despues"}]."""
+    - origen: 'manual' | 'excel' | 'grupo' | 'sistema'.
+    - fecha_inscripcion solo se llena en altas nuevas; el resto de acciones
+      la dejan en NULL (no se reescribe).
+    - fecha_fin es virtual en Oracle (ingreso + 1 anio): no se inserta.
+    - fecha_actualizacion la pone el trigger de Oracle (SYSTIMESTAMP)."""
 
     __tablename__ = "mercadeo_crm_auditoria"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    fecha: Mapped[datetime] = mapped_column(
+    fecha_actualizacion: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
-    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("intranet_usuarios.id"))
-    ip: Mapped[str | None] = mapped_column(String(45))
+    id_usuario: Mapped[int | None] = mapped_column(ForeignKey("intranet_usuarios.id"))
     modulo: Mapped[str] = mapped_column(String(30), nullable=False)
     accion: Mapped[str] = mapped_column(String(30), nullable=False)
     origen: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
-    proceso_id: Mapped[int | None] = mapped_column(
-        ForeignKey("mercadeo_crm_historial_procesos.id")
-    )
-    registro_id: Mapped[int] = mapped_column(Integer, nullable=False)
     registro_nombre: Mapped[str | None] = mapped_column(String(150))
     documento: Mapped[str | None] = mapped_column(String(20))
-    titular_id: Mapped[int | None] = mapped_column(Integer)
+    id_titular: Mapped[int | None] = mapped_column(Integer)
+    id_beneficiario: Mapped[int | None] = mapped_column(Integer)
     estado_antes: Mapped[str | None] = mapped_column(String(20))
     estado_despues: Mapped[str | None] = mapped_column(String(20))
+    fecha_inscripcion: Mapped[date | None] = mapped_column(Date)
+    fecha_registro: Mapped[date | None] = mapped_column(Date)
     fecha_ingreso: Mapped[date | None] = mapped_column(Date)
+    fecha_fin: Mapped[date | None] = mapped_column(
+        Date, Computed("ADD_MONTHS(fecha_ingreso, 12)")
+    )
     renovado: Mapped[str | None] = mapped_column(String(1))
-    fecha_renovado: Mapped[date | None] = mapped_column(Date)
-    motivo: Mapped[str | None] = mapped_column(String(500))
-    cambios: Mapped[str | None] = mapped_column(Text)
 
-    usuario: Mapped["Usuario | None"] = relationship(foreign_keys=[usuario_id])
-    proceso: Mapped["Importacion | None"] = relationship(foreign_keys=[proceso_id])
+    usuario: Mapped["Usuario | None"] = relationship(foreign_keys=[id_usuario])
 
 
 # ---------------------------------------------------------------------------

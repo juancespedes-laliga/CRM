@@ -195,6 +195,12 @@ def _columnas_beneficiario() -> list[ColumnElement]:
         func.to_char(PlanLigaBeneficiario.fecha_ingreso, "DD/MM/YYYY").label(
             "FECHA_INGRESO"
         ),
+        func.to_char(PlanLigaBeneficiario.fecha_inscripcion, "DD/MM/YYYY").label(
+            "FECHA_INSCRIPCION"
+        ),
+        func.to_char(PlanLigaBeneficiario.fecha_registro, "DD/MM/YYYY").label(
+            "FECHA_REGISTRO"
+        ),
         PlanLigaBeneficiario.renovado.label("RENOVADO"),
         PlanLigaBeneficiario.empresa.label("EMPRESA"),
         # Si el beneficiario no tiene tipo_plan propio, se muestra el del titular.
@@ -203,6 +209,7 @@ def _columnas_beneficiario() -> list[ColumnElement]:
             PlanLiga.tipo_plan,
         ).label("TIPO_PLAN"),
         PlanLigaBeneficiario.estado.label("ESTADO"),
+        PlanLigaBeneficiario.planliga_id.label("ID_TITULAR"),
     ]
 
 
@@ -239,6 +246,8 @@ class TitularesBeneficiariosRepository:
             PlanLiga.plan_nombre.label("PLAN_NOMBRE"),
             PlanLiga.estado.label("ESTADO"),
             func.to_char(PlanLiga.fecha_ingreso, "DD/MM/YYYY").label("FECHA_INGRESO"),
+            func.to_char(PlanLiga.fecha_inscripcion, "DD/MM/YYYY").label("FECHA_INSCRIPCION"),
+            func.to_char(PlanLiga.fecha_registro, "DD/MM/YYYY").label("FECHA_REGISTRO"),
             PlanLiga.renovado.label("RENOVADO"),
         )
 
@@ -721,6 +730,7 @@ class TitularesBeneficiariosRepository:
             plan_nombre=anterior.plan_nombre,
             estado=ESTADO_ACTIVO,
             fecha_ingreso=anterior.fecha_ingreso,
+            fecha_inscripcion=anterior.fecha_ingreso,  # persona nueva en BD
             fecha_registro=datetime.now(),
         )
         self.db.add(nuevo)
@@ -774,6 +784,7 @@ class TitularesBeneficiariosRepository:
             estado=ESTADO_ACTIVO,
             tipo_afiliado=anterior.tipo_afiliado,
             fecha_ingreso=anterior.fecha_ingreso,
+            fecha_inscripcion=anterior.fecha_ingreso,  # persona nueva en BD
             fecha_registro=datetime.now(),
             renovado="N",  # ver comentario en crear_beneficiario: NOT NULL sin default aplicable si se manda NULL
         )
@@ -827,6 +838,7 @@ class TitularesBeneficiariosRepository:
             **campos,
             estado=ESTADO_ACTIVO,
             fecha_ingreso=fecha_ingreso,
+            fecha_inscripcion=fecha_ingreso,  # solo al crear; no se vuelve a tocar
             fecha_registro=datetime.now(),
             renovado="N",
         )
@@ -911,6 +923,7 @@ class TitularesBeneficiariosRepository:
             estado=ESTADO_ACTIVO,
             tipo_afiliado="2",
             fecha_ingreso=fecha_ingreso,
+            fecha_inscripcion=fecha_ingreso,  # solo al crear; no se vuelve a tocar
             fecha_registro=datetime.now(),
             # RENOVADO es NOT NULL en Oracle con DEFAULT 'N', pero ese default solo aplica si la
             # columna se omite del INSERT; SQLAlchemy la manda explicita como NULL si no se fija

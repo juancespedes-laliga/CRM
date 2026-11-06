@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import Session, aliased
 
 from app.models import Auditoria, PlanLiga, Usuario
@@ -15,8 +15,14 @@ class AuditoriaRepository:
 
     def _consulta_cambios(self):
         titular = aliased(PlanLiga)
+        # id del registro afectado segun el modulo (compatibilidad con el front).
+        registro_id = case(
+            (Auditoria.modulo == "beneficiarios", Auditoria.id_beneficiario),
+            else_=Auditoria.id_titular,
+        ).label("registro_id")
         return select(
             Auditoria,
+            registro_id,
             Usuario.usuario.label("login"),
             Usuario.nombres.label("nombres"),
             titular.nombre1.label("t_nombre1"),
@@ -24,20 +30,20 @@ class AuditoriaRepository:
             titular.apellido1.label("t_apellido1"),
             titular.apellido2.label("t_apellido2"),
             titular.documento.label("t_documento"),
-        ).outerjoin(Usuario, Usuario.id == Auditoria.usuario_id).outerjoin(
-            titular, titular.id == Auditoria.titular_id
+        ).outerjoin(Usuario, Usuario.id == Auditoria.id_usuario).outerjoin(
+            titular, titular.id == Auditoria.id_titular
         )
 
     def resumen_por_modulo(
         self, desde: datetime | None, hasta: datetime | None
     ) -> list[tuple[str, int, datetime | None]]:
-        stmt = select(Auditoria.modulo, func.count(), func.max(Auditoria.fecha)).group_by(
-            Auditoria.modulo
-        )
+        stmt = select(
+            Auditoria.modulo, func.count(), func.max(Auditoria.fecha_actualizacion)
+        ).group_by(Auditoria.modulo)
         if desde:
-            stmt = stmt.where(Auditoria.fecha >= desde)
+            stmt = stmt.where(Auditoria.fecha_actualizacion >= desde)
         if hasta:
-            stmt = stmt.where(Auditoria.fecha < hasta)
+            stmt = stmt.where(Auditoria.fecha_actualizacion < hasta)
         return [tuple(f) for f in self.db.execute(stmt).all()]
 
     def listar_cambios(
@@ -47,10 +53,12 @@ class AuditoriaRepository:
         if modulos:
             stmt = stmt.where(Auditoria.modulo.in_(modulos))
         if desde:
-            stmt = stmt.where(Auditoria.fecha >= desde)
+            stmt = stmt.where(Auditoria.fecha_actualizacion >= desde)
         if hasta:
-            stmt = stmt.where(Auditoria.fecha < hasta)
-        stmt = stmt.order_by(Auditoria.fecha.desc(), Auditoria.id.desc()).limit(LIMITE_CAMBIOS + 1)
+            stmt = stmt.where(Auditoria.fecha_actualizacion < hasta)
+        stmt = stmt.order_by(
+            Auditoria.fecha_actualizacion.desc(), Auditoria.id.desc()
+        ).limit(LIMITE_CAMBIOS + 1)
         return list(self.db.execute(stmt).all())
 
     def obtener_cambio(self, id_cambio: int):
@@ -58,28 +66,38 @@ class AuditoriaRepository:
         return self.db.execute(stmt).first()
 
     def historial(self, modulo: str, registro_id: int) -> list:
+        if modulo == "beneficiarios":
+            condicion = Auditoria.id_beneficiario == registro_id
+        else:
+            condicion = Auditoria.id_titular == registro_id
         stmt = (
             self._consulta_cambios()
-            .where(Auditoria.modulo == modulo, Auditoria.registro_id == registro_id)
-            .order_by(Auditoria.fecha.desc(), Auditoria.id.desc())
+            .where(Auditoria.modulo == modulo, condicion)
+            .order_by(Auditoria.fecha_actualizacion.desc(), Auditoria.id.desc())
         )
         return list(self.db.execute(stmt).all())
 
     def ultimas_renovaciones(self) -> dict[tuple[str, int], tuple[str | None, str | None]]:
         """(modulo, registro_id) -> (nombre, login) de quien hizo la ultima renovacion."""
+        registro_id = case(
+            (Auditoria.modulo == "beneficiarios", Auditoria.id_beneficiario),
+            else_=Auditoria.id_titular,
+        )
         stmt = (
-            select(Auditoria.modulo, Auditoria.registro_id, Usuario.nombres, Usuario.usuario)
-            .outerjoin(Usuario, Usuario.id == Auditoria.usuario_id)
+            select(Auditoria.modulo, registro_id, Usuario.nombres, Usuario.usuario)
+            .outerjoin(Usuario, Usuario.id == Auditoria.id_usuario)
             .where(
                 Auditoria.modulo.in_(["titulares", "beneficiarios"]),
                 Auditoria.accion.in_(["renovacion", "activacion"]),
                 Auditoria.renovado == "S",
             )
-            .order_by(Auditoria.fecha.desc(), Auditoria.id.desc())
+            .order_by(Auditoria.fecha_actualizacion.desc(), Auditoria.id.desc())
         )
         resultado: dict[tuple[str, int], tuple[str | None, str | None]] = {}
-        for modulo, registro_id, nombres, login in self.db.execute(stmt).all():
-            resultado.setdefault((modulo, registro_id), (nombres, login))
+        for modulo, reg_id, nombres, login in self.db.execute(stmt).all():
+            if reg_id is None:
+                continue
+            resultado.setdefault((modulo, int(reg_id)), (nombres, login))
         return resultado
 
     # Titulares y beneficiarios con fecha de ingreso. Vencimiento = un anio
@@ -114,7 +132,6 @@ class AuditoriaRepository:
             filtro_t="AND 1 = 0" if tipo == "beneficiario" else "",
             filtro_b="AND 1 = 0" if tipo == "titular" else "",
         )
-        # Claves en minuscula sin importar como las devuelva el driver.
         return [
             {k.lower(): v for k, v in f.items()}
             for f in self.db.execute(text(sql)).mappings().all()

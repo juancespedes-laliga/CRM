@@ -1,4 +1,3 @@
-import json
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import HTTPException, status
@@ -6,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.modules.administracion.auditoria.repository import LIMITE_CAMBIOS, AuditoriaRepository
 from app.modules.administracion.auditoria.schemas import (
-    CampoCambiado,
     Cambio,
     ListadoCambios,
     Renovacion,
@@ -70,47 +68,47 @@ class AuditoriaService:
 
     def _mapear(self, fila) -> Cambio:
         a = fila.Auditoria
-        campos: list[CampoCambiado] = []
-        if a.cambios:
-            try:
-                campos = [CampoCambiado(**c) for c in json.loads(a.cambios)]
-            except (ValueError, TypeError):
-                campos = []
+        registro_id = getattr(fila, "registro_id", None)
+        if registro_id is None:
+            registro_id = a.id_beneficiario if a.modulo == "beneficiarios" else a.id_titular
+        registro_id = int(registro_id or 0)
         titular = None
-        if a.titular_id is not None:
+        if a.id_titular is not None:
             titular = TitularGrupo(
-                id=a.titular_id,
+                id=a.id_titular,
                 nombre=_nombre(fila.t_nombre1, fila.t_nombre2, fila.t_apellido1, fila.t_apellido2)
-                or f"Titular {a.titular_id}",
+                or f"Titular {a.id_titular}",
                 documento=fila.t_documento,
             )
         fecha_ingreso = _solo_fecha(a.fecha_ingreso)
-        fecha_renovado = _solo_fecha(a.fecha_renovado)
+        fecha_fin = _solo_fecha(a.fecha_fin)
         es_plan_liga = a.modulo in ("titulares", "beneficiarios")
         return Cambio(
             id=a.id,
-            fecha=_fecha_utc(a.fecha),
-            usuario_id=a.usuario_id or 0,
+            fecha=_fecha_utc(a.fecha_actualizacion),
+            usuario_id=a.id_usuario or 0,
             usuario=fila.login or "sistema",
-            nombre_usuario=fila.nombres or ("Proceso automático" if a.usuario_id is None else f"Usuario {a.usuario_id}"),
-            rol=self._rol(a.usuario_id),
-            ip=a.ip,
+            nombre_usuario=fila.nombres or (
+                "Proceso automático" if a.id_usuario is None else f"Usuario {a.id_usuario}"
+            ),
+            rol=self._rol(a.id_usuario),
+            ip=None,
             accion=a.accion,
             origen=a.origen,
-            lote_id=f"Proceso {a.proceso_id}" if a.proceso_id else None,
+            lote_id=None,
             modulo=a.modulo,
-            registro_id=a.registro_id,
-            registro_nombre=a.registro_nombre or f"Registro {a.registro_id}",
+            registro_id=registro_id,
+            registro_nombre=a.registro_nombre or f"Registro {registro_id}",
             documento=a.documento,
             titular=titular,
             estado_antes=a.estado_antes,
             estado_despues=a.estado_despues,
             fecha_ingreso=fecha_ingreso,
             renovado=(a.renovado == "S") if es_plan_liga and a.renovado else None,
-            fecha_renovado=fecha_renovado,
-            vigencia_hasta=_vigencia(fecha_ingreso, fecha_renovado) if es_plan_liga else None,
-            motivo=a.motivo,
-            campos=campos,
+            fecha_renovado=None,
+            vigencia_hasta=(fecha_fin or _vigencia(fecha_ingreso, None)) if es_plan_liga else None,
+            motivo=None,
+            campos=[],
         )
 
     @staticmethod

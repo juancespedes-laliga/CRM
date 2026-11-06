@@ -6,12 +6,11 @@ operacion del usuario.
 
 Uso:
     auditor = RegistradorAuditoria(db, contexto)
-    auditor.registrar(modulo="titulares", accion="edicion", registro_id=10, ...)
+    auditor.registrar(modulo="titulares", accion="edicion", id_titular=10, ...)
 """
 
-import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import insert, select
@@ -62,46 +61,43 @@ class RegistradorAuditoria:
         *,
         modulo: str,
         accion: str,
-        registro_id: int,
         registro_nombre: str | None = None,
         documento: str | None = None,
-        titular_id: int | None = None,
+        id_titular: int | None = None,
+        id_beneficiario: int | None = None,
         estado_antes: str | None = None,
         estado_despues: str | None = None,
+        fecha_inscripcion: date | None = None,
+        fecha_registro: date | None = None,
         fecha_ingreso: date | None = None,
         renovado: str | None = None,
-        fecha_renovado: date | None = None,
-        motivo: str | None = None,
-        cambios: list[dict] | None = None,
         origen: str | None = None,
     ) -> dict:
-        """Arma una fila lista para insertar (sin escribirla todavia)."""
+        """Arma una fila lista para insertar (sin escribirla todavia).
+
+        No manda id ni fecha_actualizacion: los pone el trigger de Oracle.
+        No manda fecha_fin: es columna virtual.
+        fecha_inscripcion solo debe venir en altas nuevas.
+        """
         if accion not in ACCIONES:
             raise ValueError(f"Accion de auditoria desconocida: {accion}")
         ctx = self.contexto
-        if motivo is None and ctx and ctx.lote:
-            motivo = f"Archivo: {ctx.lote}"
         return {
-            "fecha": datetime.now(timezone.utc).replace(tzinfo=None),
-            "usuario_id": self._usuario(),
-            "ip": ctx.ip if ctx else None,
+            "id_usuario": self._usuario(),
             "modulo": modulo,
             "accion": accion,
-            # Sin contexto (no viene de un request) = proceso automatico. Una accion
-            # "por grupo" hecha durante una carga por Excel sigue siendo Excel.
             "origen": "sistema" if ctx is None
             else (ctx.origen if ctx.origen != "manual" else origen) or "manual",
-            "registro_id": registro_id,
             "registro_nombre": (registro_nombre or None) and registro_nombre[:150],
             "documento": (documento or None) and str(documento)[:20],
-            "titular_id": titular_id,
+            "id_titular": id_titular,
+            "id_beneficiario": id_beneficiario,
             "estado_antes": estado_antes,
             "estado_despues": estado_despues,
+            "fecha_inscripcion": fecha_inscripcion,
+            "fecha_registro": fecha_registro,
             "fecha_ingreso": fecha_ingreso,
             "renovado": renovado,
-            "fecha_renovado": fecha_renovado,
-            "motivo": (motivo or None) and motivo[:500],
-            "cambios": json.dumps(cambios, ensure_ascii=False) if cambios else None,
         }
 
     def registrar(self, **datos: Any) -> None:
