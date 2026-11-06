@@ -83,15 +83,14 @@ class AuditoriaRepository:
         return resultado
 
     # Titulares y beneficiarios con fecha de ingreso. Vencimiento = un anio
-    # despues de la ultima renovacion (o del ingreso si nunca ha renovado):
-    # misma regla que Renovaciones por mes (ver titulares_beneficiarios/repository.py).
+    # despues de FECHA_INGRESO: misma regla que Renovaciones por mes (ver titulares_beneficiarios/repository.py).
     _SQL_RENOVACIONES = """
         SELECT 'titular' AS TIPO, p.ID, p.NOMBRE1, p.NOMBRE2, p.APELLIDO1, p.APELLIDO2,
                p.DOCUMENTO, p.EMPRESA,
                NVL(tp.NOMBRE || CASE WHEN tp.CATEGORIA IS NOT NULL THEN ' - ' || tp.CATEGORIA END, p.TIPO_PLAN) AS PLAN,
                p.ESTADO, TRUNC(p.FECHA_INGRESO) AS FECHA_INGRESO, p.RENOVADO,
-               TRUNC(p.FECHA_RENOVADO) AS FECHA_RENOVADO,
-               TRUNC(ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12)) AS VENCIMIENTO,
+               NULL AS FECHA_RENOVADO,
+               TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12)) AS VENCIMIENTO,
                NULL AS TITULAR_ID, NULL AS T_NOMBRE1, NULL AS T_NOMBRE2, NULL AS T_APELLIDO1, NULL AS T_APELLIDO2
         FROM INTRANET_PLANLIGA p
         LEFT JOIN INTRANET_PLANLIGA_TIPO_PLAN tp ON tp.ID = p.TIPO_PLAN_ID
@@ -101,8 +100,8 @@ class AuditoriaRepository:
                b.DOCUMENTO, NVL(b.EMPRESA, p.EMPRESA),
                NVL(tp.NOMBRE || CASE WHEN tp.CATEGORIA IS NOT NULL THEN ' - ' || tp.CATEGORIA END,
                    NVL(TRIM(b.TIPO_PLAN), p.TIPO_PLAN)),
-               b.ESTADO, TRUNC(b.FECHA_INGRESO), b.RENOVADO, TRUNC(b.FECHA_RENOVADO),
-               TRUNC(ADD_MONTHS(NVL(b.FECHA_RENOVADO, b.FECHA_INGRESO), 12)),
+               b.ESTADO, TRUNC(b.FECHA_INGRESO), b.RENOVADO, NULL,
+               TRUNC(ADD_MONTHS(b.FECHA_INGRESO, 12)),
                p.ID, p.NOMBRE1, p.NOMBRE2, p.APELLIDO1, p.APELLIDO2
         FROM INTRANET_PLANLIGA_BENEFICIARIO b
         LEFT JOIN INTRANET_PLANLIGA p ON p.ID = b.PLANLIGA_ID

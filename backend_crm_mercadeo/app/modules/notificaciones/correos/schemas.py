@@ -32,7 +32,6 @@ class TitularPorVencer(BaseModel):
     EMPRESA: Optional[str] = None
     TIPO_PLAN: Optional[str] = None
     FECHA_INGRESO: Optional[date] = None
-    FECHA_RENOVADO: Optional[date] = None
     FECHA_FIN: Optional[date] = None
     DIAS: int
     FECHA_FIN_TXT: str

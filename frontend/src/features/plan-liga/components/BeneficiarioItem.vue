@@ -60,7 +60,7 @@ const emit = defineEmits<{
       <div v-if="beneficiario.fechaInscripcion || beneficiario.renovado" class="min-w-0">
         <div class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Renovado</div>
         <div v-if="beneficiario.renovado" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">
-          Sí<template v-if="beneficiario.fechaRenovado"> · {{ formatearFechaCorta(beneficiario.fechaRenovado) }}</template>
+          Sí
         </div>
         <div v-else class="text-[11px] text-slate-400 dark:text-slate-500 truncate">No</div>
       </div>

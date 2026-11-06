@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Edit2, Loader2, ToggleLeft, ToggleRight, Users, ClipboardList, RefreshCw, CalendarClock } from 'lucide-vue-next'
 import type { Titular } from '../types/plan-liga'
-import { estadoTitularStyle, planStyle, cupoMaximoTitular, formatearFechaCorta } from '../constants/plan-liga.constants'
+import { estadoTitularStyle, planStyle, cupoMaximoTitular } from '../constants/plan-liga.constants'
 import PersonaAvatar from '../components/PersonaAvatar.vue'
 import CuposIndicador from '../components/CuposIndicador.vue'
 
@@ -81,9 +81,8 @@ const cuposTitular = (t: Titular, activosLocal: number) => ({
             </td>
             <td class="px-3 py-3.5 align-top text-[11px] text-slate-500 dark:text-slate-400">
               <div>{{ t.fechaInscripcion }}</div>
-              <div v-if="t.renovado" class="mt-1 leading-tight" :title="t.fechaRenovado ? `Renovado el ${formatearFechaCorta(t.fechaRenovado)}` : 'Renovado'">
+              <div v-if="t.renovado" class="mt-1 leading-tight">
                 <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Renovado</span>
-                <div v-if="t.fechaRenovado" class="text-[10px] text-slate-500 dark:text-slate-400">{{ formatearFechaCorta(t.fechaRenovado) }}</div>
               </div>
               <div v-else class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Sin renovar</div>
             </td>

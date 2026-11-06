@@ -192,10 +192,6 @@ watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value
           <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Fecha inscripción</label>
           <FechaInput v-model="draft.fechaInscripcion" disabled placeholder="Se hereda del titular" title="Se hereda automáticamente de la fecha de ingreso del titular" />
         </div>
-        <div v-if="draft.fechaRenovado || draft.renovado">
-          <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Fecha renovación</label>
-          <FechaInput :model-value="draft.fechaRenovado ?? ''" disabled placeholder="Renovado" />
-        </div>
       </div>
     </div>
   </div>

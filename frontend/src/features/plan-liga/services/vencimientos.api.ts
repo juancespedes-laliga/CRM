@@ -12,8 +12,6 @@ export interface TitularPorVencer {
   EMPRESA: string | null
   TIPO_PLAN: string | null
   FECHA_INGRESO: string | null
-  // Ultima renovacion; FECHA_FIN se calcula sobre FECHA_RENOVADO ?? FECHA_INGRESO.
-  FECHA_RENOVADO?: string | null
   FECHA_FIN: string | null
   DIAS: number
   FECHA_FIN_TXT: string

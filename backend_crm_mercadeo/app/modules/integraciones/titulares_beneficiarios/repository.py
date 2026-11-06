@@ -133,29 +133,6 @@ def _fecha_iso(valor) -> str | None:
     return str(valor)
 
 
-def _asignar_fecha(registro, fecha: date | None) -> None:
-    """Regla de fechas de PlanLiga (titular o beneficiario): la PRIMERA vez que
-    se le pone fecha va a FECHA_INGRESO; despues, cualquier cambio de fecha
-    (renovacion, reactivacion, cambio por grupo) va a FECHA_RENOVADO y
-    FECHA_INGRESO se conserva como la fecha original de entrada."""
-    if registro.fecha_ingreso is None:
-        registro.fecha_ingreso = fecha
-    else:
-        registro.fecha_renovado = fecha
-
-
-def _valores_fecha(modelo, fecha: date) -> dict:
-    """Misma regla que _asignar_fecha, para UPDATE masivos. En Oracle el lado
-    derecho del SET ve los valores ANTERIORES de la fila, asi que el CASE
-    evalua FECHA_INGRESO antes de que el COALESCE la llene."""
-    return {
-        "fecha_ingreso": func.coalesce(modelo.fecha_ingreso, fecha),
-        "fecha_renovado": case(
-            (modelo.fecha_ingreso.is_(None), modelo.fecha_renovado), else_=fecha
-        ),
-    }
-
-
 def _rango_fecha_nacimiento(edad: str, hoy: date) -> tuple[date | None, date | None]:
     edad_min, edad_max = RANGOS_EDAD[edad]
     fecha_nacimiento_max = hoy.replace(year=hoy.year - edad_min)
@@ -218,9 +195,6 @@ def _columnas_beneficiario() -> list[ColumnElement]:
         func.to_char(PlanLigaBeneficiario.fecha_ingreso, "DD/MM/YYYY").label(
             "FECHA_INGRESO"
         ),
-        func.to_char(PlanLigaBeneficiario.fecha_renovado, "DD/MM/YYYY").label(
-            "FECHA_RENOVADO"
-        ),
         PlanLigaBeneficiario.renovado.label("RENOVADO"),
         PlanLigaBeneficiario.empresa.label("EMPRESA"),
         # Si el beneficiario no tiene tipo_plan propio, se muestra el del titular.
@@ -265,7 +239,6 @@ class TitularesBeneficiariosRepository:
             PlanLiga.plan_nombre.label("PLAN_NOMBRE"),
             PlanLiga.estado.label("ESTADO"),
             func.to_char(PlanLiga.fecha_ingreso, "DD/MM/YYYY").label("FECHA_INGRESO"),
-            func.to_char(PlanLiga.fecha_renovado, "DD/MM/YYYY").label("FECHA_RENOVADO"),
             PlanLiga.renovado.label("RENOVADO"),
         )
 
@@ -297,12 +270,8 @@ class TitularesBeneficiariosRepository:
         return resultado
 
     def obtener_fecha_ingreso_titular(self, id_titular: int) -> date | None:
-        """Fecha vigente del titular (la de su ultima renovacion, o la de
-        ingreso si nunca ha renovado): es la que heredan sus beneficiarios."""
         titular = self.db.get(PlanLiga, id_titular)
-        if titular is None:
-            return None
-        return titular.fecha_renovado or titular.fecha_ingreso
+        return titular.fecha_ingreso if titular else None
 
     def listar_beneficiarios(self, id_titular: int, estado: str | None = None) -> list[dict]:
         condiciones = [PlanLigaBeneficiario.planliga_id == id_titular]
@@ -528,7 +497,6 @@ class TitularesBeneficiariosRepository:
                 PlanLiga.telefono.label("TELEFONO"),
                 PlanLiga.correo.label("CORREO"),
                 func.to_char(PlanLiga.fecha_ingreso, "DD/MM/YYYY").label("FECHA_INGRESO"),
-                func.to_char(PlanLiga.fecha_renovado, "DD/MM/YYYY").label("FECHA_RENOVADO"),
                 PlanLiga.renovado.label("RENOVADO"),
                 PlanLiga.estado.label("ESTADO"),
             )
@@ -554,9 +522,6 @@ class TitularesBeneficiariosRepository:
                 PlanLigaBeneficiario.correo.label("CORREO"),
                 func.to_char(PlanLigaBeneficiario.fecha_ingreso, "DD/MM/YYYY").label(
                     "FECHA_INGRESO"
-                ),
-                func.to_char(PlanLigaBeneficiario.fecha_renovado, "DD/MM/YYYY").label(
-                    "FECHA_RENOVADO"
                 ),
                 PlanLigaBeneficiario.renovado.label("RENOVADO"),
                 PlanLigaBeneficiario.estado.label("ESTADO"),
@@ -639,7 +604,6 @@ class TitularesBeneficiariosRepository:
                 PlanLiga.correo.label("EMAIL"),
                 PlanLiga.telefono.label("TELEFONO"),
                 func.to_char(PlanLiga.fecha_ingreso, "DD/MM/YYYY").label("INSCRIPCION"),
-                func.to_char(PlanLiga.fecha_renovado, "DD/MM/YYYY").label("FECHA_RENOVADO"),
                 PlanLiga.renovado.label("RENOVADO"),
                 PlanLiga.estado.label("ESTADO"),
             )
@@ -757,7 +721,6 @@ class TitularesBeneficiariosRepository:
             plan_nombre=anterior.plan_nombre,
             estado=ESTADO_ACTIVO,
             fecha_ingreso=anterior.fecha_ingreso,
-            fecha_renovado=anterior.fecha_renovado,
             fecha_registro=datetime.now(),
         )
         self.db.add(nuevo)
@@ -811,7 +774,6 @@ class TitularesBeneficiariosRepository:
             estado=ESTADO_ACTIVO,
             tipo_afiliado=anterior.tipo_afiliado,
             fecha_ingreso=anterior.fecha_ingreso,
-            fecha_renovado=anterior.fecha_renovado,
             fecha_registro=datetime.now(),
             renovado="N",  # ver comentario en crear_beneficiario: NOT NULL sin default aplicable si se manda NULL
         )
@@ -967,7 +929,7 @@ class TitularesBeneficiariosRepository:
         if beneficiario is None or beneficiario.planliga_id != id_titular:
             return False
         beneficiario.estado = ESTADO_ACTIVO
-        _asignar_fecha(beneficiario, fecha_ingreso)
+        beneficiario.fecha_ingreso = fecha_ingreso
         self.db.commit()
         return True
 
@@ -991,7 +953,7 @@ class TitularesBeneficiariosRepository:
         if titular is None:
             return False
         titular.estado = ESTADO_ACTIVO
-        _asignar_fecha(titular, fecha_ingreso)
+        titular.fecha_ingreso = fecha_ingreso
         titular.renovado = "S"
         if cambiar_plan:
             titular.tipo_plan = tipo_plan
@@ -1004,7 +966,7 @@ class TitularesBeneficiariosRepository:
             update(PlanLigaBeneficiario)
             .where(PlanLigaBeneficiario.planliga_id == id_titular)
             .values(
-                **_valores_fecha(PlanLigaBeneficiario, fecha_ingreso),
+                fecha_ingreso=fecha_ingreso,
                 renovado="S",
             )
         )
@@ -1085,7 +1047,7 @@ class TitularesBeneficiariosRepository:
         )
         return total_titulares or 0, total_beneficiarios or 0
 
-    # Cambia la fecha (FECHA_RENOVADO, ver _valores_fecha) a todos los titulares ACTIVOS del grupo (por EMPRESA
+    # Cambia FECHA_INGRESO a todos los titulares ACTIVOS del grupo (por EMPRESA
     # o por TIPO_PLAN, coincidencia exacta -- ver _condicion_grupo) y a los
     # beneficiarios ACTIVOS de esos titulares.
     #
@@ -1102,7 +1064,7 @@ class TitularesBeneficiariosRepository:
         stmt_titulares = (
             update(PlanLiga)
             .where(condicion, PlanLiga.estado == ESTADO_ACTIVO)
-            .values(**_valores_fecha(PlanLiga, fecha_ingreso), renovado="S")
+            .values(fecha_ingreso=fecha_ingreso, renovado="S")
         )
         resultado_titulares = self.db.execute(stmt_titulares)
 
@@ -1112,7 +1074,7 @@ class TitularesBeneficiariosRepository:
                 self._condicion_beneficiarios_grupo(empresa, tipo_plan),
                 PlanLigaBeneficiario.estado == ESTADO_ACTIVO,
             )
-            .values(**_valores_fecha(PlanLigaBeneficiario, fecha_ingreso), renovado="S")
+            .values(fecha_ingreso=fecha_ingreso, renovado="S")
         )
         resultado_beneficiarios = self.db.execute(stmt_beneficiarios)
 
@@ -1161,8 +1123,7 @@ class TitularesBeneficiariosRepository:
         return beneficiarios
 
     # ---------------------------------------------------------------------
-    # Renovaciones por mes: titulares cuya fecha vigente
-    # (NVL(FECHA_RENOVADO, FECHA_INGRESO)) cae en el mes
+    # Renovaciones por mes: titulares cuyo FECHA_INGRESO cae en el mes
     # consultado (se activaron o renovaron ese mes). RENOVADO distingue
     # renovacion ('S', ya existian) de alta nueva ('N', primera vez).
     # ---------------------------------------------------------------------
@@ -1182,8 +1143,7 @@ class TitularesBeneficiariosRepository:
         p.ESTADO,
         p.RENOVADO,
         TRUNC(p.FECHA_INGRESO) AS FECHA_INGRESO,
-        TRUNC(p.FECHA_RENOVADO) AS FECHA_RENOVADO,
-        TRUNC(ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12)) AS FECHA_FIN,
+        TRUNC(ADD_MONTHS(p.FECHA_INGRESO, 12)) AS FECHA_FIN,
         (
             SELECT MAX(b.FECHA)
             FROM MERCADEO_CRM_BITACORA b
@@ -1201,19 +1161,19 @@ class TitularesBeneficiariosRepository:
     LEFT JOIN MERCADEO_CRM_TITULAR_COLOR tc ON tc.TITULAR_ID = p.ID
     WHERE p.FECHA_INGRESO IS NOT NULL
       AND {filtro}
-    ORDER BY NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO) DESC, NOMBRE
+    ORDER BY p.FECHA_INGRESO DESC, NOMBRE
     """
 
     _FILTRO_INGRESO_MES = (
-        "EXTRACT(YEAR FROM NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO)) = :anio"
-        " AND EXTRACT(MONTH FROM NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO)) = :mes"
+        "EXTRACT(YEAR FROM p.FECHA_INGRESO) = :anio"
+        " AND EXTRACT(MONTH FROM p.FECHA_INGRESO) = :mes"
     )
     # Vencen ese mes: titulares ACTIVOS cuyo FECHA_FIN (ingreso + 12 meses, ver
     # SELECT) cae en el mes consultado y que todavia no han renovado.
     _FILTRO_VENCE_MES = (
         "p.ESTADO = 'A'"
-        " AND EXTRACT(YEAR FROM ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12)) = :anio"
-        " AND EXTRACT(MONTH FROM ADD_MONTHS(NVL(p.FECHA_RENOVADO, p.FECHA_INGRESO), 12)) = :mes"
+        " AND EXTRACT(YEAR FROM ADD_MONTHS(p.FECHA_INGRESO, 12)) = :anio"
+        " AND EXTRACT(MONTH FROM ADD_MONTHS(p.FECHA_INGRESO, 12)) = :mes"
     )
 
     def listar_renovaciones_mes(self, anio: int, mes: int) -> list[dict]:
@@ -1230,7 +1190,6 @@ class TitularesBeneficiariosRepository:
         for fila in filas:
             datos = {clave.upper(): valor for clave, valor in fila.items()}
             datos["FECHA_INGRESO"] = _fecha_iso(datos["FECHA_INGRESO"])
-            datos["FECHA_RENOVADO"] = _fecha_iso(datos["FECHA_RENOVADO"])
             datos["FECHA_FIN"] = _fecha_iso(datos["FECHA_FIN"])
             datos["ULTIMO_CONTACTO_FECHA"] = _fecha_iso(datos["ULTIMO_CONTACTO_FECHA"])
             resultado.append(datos)

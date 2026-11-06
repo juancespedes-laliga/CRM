@@ -69,9 +69,7 @@ class TitularDetalle(BaseModel):
     PLAN_NOMBRE: Optional[str] = None
     ESTADO: Optional[str] = None
     FECHA_INGRESO: Optional[str] = None
-    # FECHA_INGRESO es la de entrada original y no cambia; FECHA_RENOVADO es la
-    # de la ultima renovacion (None si nunca ha renovado). RENOVADO: 'S'/'N'.
-    FECHA_RENOVADO: Optional[str] = None
+    # RENOVADO: 'S'/'N'.
     RENOVADO: Optional[str] = None
 
 
@@ -90,7 +88,6 @@ class ListadoTitulares(BaseModel):
     TIPO_PLAN: Optional[str] = None
     BENEFICIARIOS: Optional[str] = None
     INSCRIPCION: Optional[str] = None
-    FECHA_RENOVADO: Optional[str] = None
     RENOVADO: Optional[str] = None
     ESTADO: str
 
@@ -272,8 +269,7 @@ class RenovacionMesItem(BaseModel):
     # 'S' = fue una renovacion (ya existia antes); 'N' = alta nueva ese mes.
     RENOVADO: Optional[str] = None
     FECHA_INGRESO: str
-    FECHA_RENOVADO: Optional[str] = None
-    # Fecha vigente (FECHA_RENOVADO o, si no ha renovado, FECHA_INGRESO) + 12 meses.
+    # FECHA_INGRESO + 12 meses.
     FECHA_FIN: str
     ULTIMO_CONTACTO_FECHA: Optional[str] = None
     ULTIMO_CONTACTO_DESC: Optional[str] = None
@@ -330,7 +326,6 @@ class BeneficiarioDetalle(BaseModel):
     CORREO: Optional[str] = None
     TELEFONO: Optional[str] = None
     FECHA_INGRESO: Optional[str] = None
-    FECHA_RENOVADO: Optional[str] = None
     RENOVADO: Optional[str] = None
     EMPRESA: Optional[str] = None
     TIPO_PLAN: Optional[str] = None

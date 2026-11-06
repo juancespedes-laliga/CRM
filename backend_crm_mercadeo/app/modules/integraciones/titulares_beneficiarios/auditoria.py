@@ -38,7 +38,6 @@ ETIQUETAS = {
     "PLAN_SALUD": "Plan de salud",
     "PLAN_NOMBRE": "Nombre del plan",
     "FECHA_INGRESO": "Fecha de ingreso",
-    "FECHA_RENOVADO": "Fecha de renovación",
     "RENOVADO": "Renovado",
 }
 
@@ -114,7 +113,6 @@ class AuditoriaPlanLiga:
             estado_despues=estado_despues or estado(actual),
             fecha_ingreso=_fecha(actual.get("FECHA_INGRESO")),
             renovado=actual.get("RENOVADO"),
-            fecha_renovado=_fecha(actual.get("FECHA_RENOVADO")),
             motivo=motivo,
             cambios=cambios if cambios is not None else diferencias(anterior, actual),
             origen=origen,

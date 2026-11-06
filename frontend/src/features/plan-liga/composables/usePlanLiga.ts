@@ -227,13 +227,10 @@ export function usePlanLiga() {
   const nombrePlan = (tipoPlanId: number | null) =>
     tipoPlanId === null ? 'Estándar' : (planesServicio.value.find(p => p.id === tipoPlanId)?.nombre ?? '')
 
-  // Misma regla del backend (_asignar_fecha): la primera fecha va a la inscripción;
-  // si ya tenía una, la nueva fecha queda como fecha de renovación y la inscripción no cambia.
-  // fechaInscripcion del listado viene 'DD/MM/AAAA' (INSCRIPCION); fechaRenovado en 'AAAA-MM-DD'.
-  const fechaTrasRenovar = (t: Titular, fecha: string): Partial<Titular> =>
-    t.fechaInscripcion
-      ? { fechaRenovado: fecha, renovado: true }
-      : { fechaInscripcion: formatearFechaCorta(fecha), renovado: true }
+  // Al activar/renovar, la nueva fecha reemplaza la de inscripción (FECHA_INGRESO).
+  // fechaInscripcion del listado viene 'DD/MM/AAAA' (INSCRIPCION).
+  const fechaTrasRenovar = (_t: Titular, fecha: string): Partial<Titular> =>
+    ({ fechaInscripcion: formatearFechaCorta(fecha), renovado: true })
 
   const toggleEstadoTitular = async (
     t: Titular,

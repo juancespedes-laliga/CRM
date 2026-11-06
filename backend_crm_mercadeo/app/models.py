@@ -168,7 +168,6 @@ class PlanLiga(Base):
     plan_salud: Mapped[str | None] = mapped_column(String(100))
     plan_nombre: Mapped[str | None] = mapped_column(String(100))
     renovado: Mapped[str | None] = mapped_column(String(1))
-    fecha_renovado: Mapped[date | None] = mapped_column(Date)
 
     oportunidades: Mapped[list["Oportunidad"]] = relationship(back_populates="plan_liga_titular")
     bitacoras: Mapped[list["Bitacora"]] = relationship(back_populates="titular")
@@ -208,7 +207,6 @@ class PlanLigaBeneficiario(Base):
     factura: Mapped[str | None] = mapped_column(String(20))
     codigo_activacion: Mapped[str | None] = mapped_column(String(20))
     renovado: Mapped[str | None] = mapped_column(String(1))
-    fecha_renovado: Mapped[date | None] = mapped_column(Date)
 
 
 class TitularColor(Base):

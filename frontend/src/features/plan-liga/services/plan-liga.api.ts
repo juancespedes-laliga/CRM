@@ -419,7 +419,6 @@ function mapTitularListado(r: TitularListadoResponse): Titular {
     planSalud: '',
     planNombre: '',
     fechaInscripcion: r.INSCRIPCION,
-    fechaRenovado: fechaApiAIso(r.FECHA_RENOVADO),
     renovado: r.RENOVADO === 'S',
     estado: r.ESTADO === 'A' ? 'Activo' : 'Inactivo',
     factura: '',
@@ -457,7 +456,6 @@ function mapTitularDetalle(r: TitularDetalleResponse): Titular {
     planSalud: r.PLAN_SALUD ?? '',
     planNombre: r.PLAN_NOMBRE ?? '',
     fechaInscripcion: fechaApiAIso(r.FECHA_INGRESO),
-    fechaRenovado: fechaApiAIso(r.FECHA_RENOVADO ?? null),
     renovado: r.RENOVADO === 'S',
     estado: r.ESTADO === 'A' ? 'Activo' : 'Inactivo',
     factura: '',
@@ -491,7 +489,6 @@ function mapBeneficiarioListado(r: BeneficiarioListadoResponse, titularId: numbe
     planNombre: r.PLAN_NOMBRE ?? '',
     estado: r.ESTADO === 'A' ? 'Activo' : 'Inactivo',
     fechaInscripcion: fechaApiAIso(r.FECHA_INGRESO),
-    fechaRenovado: fechaApiAIso(r.FECHA_RENOVADO ?? null),
     renovado: r.RENOVADO === 'S',
   }
 }
@@ -603,7 +600,6 @@ function mapBeneficiarioDetalle(r: BeneficiarioDetalleResponse, titularId: numbe
     planNombre: '',
     estado: r.ESTADO === 'A' ? 'Activo' : 'Inactivo',
     fechaInscripcion: fechaApiAIso(r.FECHA_INGRESO),
-    fechaRenovado: fechaApiAIso(r.FECHA_RENOVADO ?? null),
     renovado: r.RENOVADO === 'S',
   }
 }
