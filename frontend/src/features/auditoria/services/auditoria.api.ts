@@ -56,8 +56,12 @@ interface CambioResponse {
   registro_nombre: string
   documento: string | null
   titular: { id: number; nombre: string; documento: string } | null
+  id_titular?: number | null
+  id_beneficiario?: number | null
   estado_antes: string | null
   estado_despues: string | null
+  fecha_inscripcion?: string | null
+  fecha_registro?: string | null
   fecha_ingreso: string | null
   renovado: boolean | null
   fecha_renovado: string | null
@@ -93,7 +97,7 @@ function mapCambio(r: CambioResponse): RegistroCambio {
     id: r.id,
     fecha: r.fecha,
     usuario: { id: r.usuario_id, usuario: r.usuario, nombre: r.nombre_usuario, rol: r.rol ?? '' },
-    ip: r.ip ?? '—',
+    ip: r.ip ?? '',
     accion: r.accion,
     origen: r.origen,
     loteId: r.lote_id,
@@ -102,8 +106,12 @@ function mapCambio(r: CambioResponse): RegistroCambio {
     registroNombre: r.registro_nombre,
     documento: r.documento ?? '',
     grupoTitular: r.titular,
+    idTitular: r.id_titular ?? null,
+    idBeneficiario: r.id_beneficiario ?? null,
     estadoAntes: r.estado_antes,
     estadoDespues: r.estado_despues,
+    fechaInscripcion: r.fecha_inscripcion ?? null,
+    fechaRegistro: r.fecha_registro ?? null,
     fechaIngreso: r.fecha_ingreso,
     renovado: r.renovado,
     fechaRenovado: r.fecha_renovado,

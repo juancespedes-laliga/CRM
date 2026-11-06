@@ -100,6 +100,7 @@ export function useCambiosAuditoria(modulo: Ref<ModuloSeleccion>) {
           c.registroNombre, c.documento, String(c.registroId), c.usuario.nombre, c.usuario.usuario,
           c.motivo, ACCION_LABEL[c.accion], ORIGEN_LABEL[c.origen], MODULO_POR_KEY[c.modulo].label,
           c.grupoTitular?.nombre ?? '', c.grupoTitular?.documento ?? '',
+          c.idTitular != null ? String(c.idTitular) : '', c.idBeneficiario != null ? String(c.idBeneficiario) : '',
         ].join(' '))
         if (!texto.includes(q)) return false
       }

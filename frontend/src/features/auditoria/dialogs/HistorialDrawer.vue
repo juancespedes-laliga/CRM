@@ -3,8 +3,8 @@ import { ref, watch } from 'vue'
 import { X, Loader2, AlertCircle, ArrowRight } from 'lucide-vue-next'
 import type { ObjetivoHistorial, RegistroCambio } from '../types/auditoria'
 import { getHistorial } from '../services/auditoria.api'
-import { ACCION_LABEL, CLASE_NEUTRA, MODULO_POR_KEY, ORIGEN_LABEL, claseEstado } from '../constants/auditoria.constants'
-import { formatoFechaHora } from '../utils/fechas'
+import { ACCION_LABEL, CLASE_NEUTRA, MODULO_POR_KEY, ORIGEN_LABEL, claseEstado, claseRenovado } from '../constants/auditoria.constants'
+import { formatoFecha, formatoFechaHora } from '../utils/fechas'
 import CamposCambiados from '../components/CamposCambiados.vue'
 
 const props = defineProps<{ objetivo: ObjetivoHistorial | null }>()
@@ -69,6 +69,11 @@ watch(() => [visible.value, props.objetivo] as const, async ([abierto, obj]) => 
                 <span :class="claseEstado(e.estadoAntes)">{{ e.estadoAntes }}</span>
                 <ArrowRight :size="10" class="text-slate-400 dark:text-slate-500" />
                 <span :class="claseEstado(e.estadoDespues)">{{ e.estadoDespues }}</span>
+              </p>
+              <p v-if="(e.modulo === 'titulares' || e.modulo === 'beneficiarios') && e.fechaIngreso" class="text-[10px] text-muted mt-0.5 tabular-nums">
+                Vigencia {{ formatoFecha(e.fechaIngreso) }} → {{ formatoFecha(e.vigenciaHasta) }}
+                · <span class="font-semibold" :class="claseRenovado(e.renovado)">{{ e.renovado ? 'Renovado' : 'No renovado' }}</span>
+                <template v-if="e.fechaInscripcion"> · Inscrito {{ formatoFecha(e.fechaInscripcion) }}</template>
               </p>
               <p v-if="e.motivo" class="text-[11px] text-subtle mt-0.5 italic">“{{ e.motivo }}”</p>
               <div v-if="e.campos.some(c => c.campo !== 'ESTADO')" class="mt-1.5">

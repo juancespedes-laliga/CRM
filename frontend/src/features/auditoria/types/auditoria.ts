@@ -68,13 +68,20 @@ export interface RegistroCambio {
   documento: string
   /** Solo para beneficiarios: el titular del grupo al que pertenece. */
   grupoTitular: GrupoTitular | null
+  /** Plan Liga: ID del titular (en beneficiarios, el titular de su grupo). */
+  idTitular: number | null
+  /** Plan Liga: ID del beneficiario (solo en beneficiarios). */
+  idBeneficiario: number | null
   estadoAntes: string | null
   estadoDespues: string | null
-  /** Solo Plan Liga (titulares y beneficiarios). */
+  /** Solo Plan Liga (titulares y beneficiarios). Fecha de inscripción: solo en altas nuevas. */
+  fechaInscripcion: string | null
+  /** Fecha en que se registró la persona en Plan Liga. */
+  fechaRegistro: string | null
   fechaIngreso: string | null
   renovado: boolean | null
   fechaRenovado: string | null
-  /** Vigencia del registro en el momento del cambio. */
+  /** Fin de la vigencia en ese momento (ingreso + 1 año). */
   vigenciaHasta: string | null
   motivo: string
   campos: CampoCambiado[]

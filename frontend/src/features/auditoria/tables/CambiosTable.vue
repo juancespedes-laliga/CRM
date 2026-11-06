@@ -17,6 +17,11 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ detalle: [c: RegistroCambio]; historial: [c: RegistroCambio] }>()
 
+const esPlanLiga = (c: RegistroCambio) => c.modulo === 'titulares' || c.modulo === 'beneficiarios'
+// ID que se muestra: en beneficiarios también el del titular de su grupo.
+const idsRegistro = (c: RegistroCambio) =>
+  c.modulo === 'beneficiarios' && c.idTitular ? `ID ${c.registroId} · Titular ${c.idTitular}` : `ID ${c.registroId}`
+
 const columnas = computed(() => 5 + (props.muestraPlanLiga ? 1 : 0))
 const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider'
 </script>
@@ -32,7 +37,7 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
             <th :class="th">Acción</th>
             <th :class="th">Registro afectado</th>
             <th :class="th">Estado</th>
-            <th v-if="muestraPlanLiga" :class="th">Ingreso / Renovación</th>
+            <th v-if="muestraPlanLiga" :class="th">Vigencia (ingreso → fin)</th>
             <th :class="th" class="text-right pr-5"><span class="sr-only">Historial</span></th>
           </tr>
         </thead>
@@ -60,7 +65,7 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
             <td class="px-4 py-3 align-top">
               <p class="text-[12px] font-semibold text-heading leading-tight">{{ c.registroNombre }}</p>
               <p class="text-[10px] text-muted mt-0.5">
-                <template v-if="muestraModulo">{{ MODULO_POR_KEY[c.modulo].label }} · </template>ID {{ c.registroId }}<template v-if="c.documento"> · {{ c.documento }}</template>
+                <template v-if="muestraModulo">{{ MODULO_POR_KEY[c.modulo].label }} · </template>{{ idsRegistro(c) }}<template v-if="c.documento"> · {{ c.documento }}</template>
               </p>
               <p v-if="c.grupoTitular" class="text-[10px] text-subtle mt-0.5 truncate max-w-[240px]" :title="`Grupo de ${c.grupoTitular.nombre}`">
                 Grupo de {{ c.grupoTitular.nombre }}
@@ -76,10 +81,15 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
               <span v-else class="text-[11px] text-muted">—</span>
             </td>
             <td v-if="muestraPlanLiga" class="px-4 py-3 align-top whitespace-nowrap">
-              <template v-if="c.renovado !== null">
-                <p class="text-[11px] text-body">Ingreso {{ formatoFecha(c.fechaIngreso) }}</p>
-                <p class="text-[10px] font-semibold mt-0.5" :class="claseRenovado(c.renovado)">
-                  {{ c.renovado ? `Renovado ${formatoFecha(c.fechaRenovado)}` : 'No renovado' }}
+              <template v-if="esPlanLiga(c) && (c.fechaIngreso || c.renovado !== null)">
+                <p class="text-[11px] text-body tabular-nums">
+                  {{ formatoFecha(c.fechaIngreso) }}
+                  <ArrowRight :size="10" class="inline text-slate-400 dark:text-slate-500 mx-0.5" />
+                  {{ formatoFecha(c.vigenciaHasta) }}
+                </p>
+                <p class="text-[10px] mt-0.5 flex items-center gap-1.5">
+                  <span class="font-semibold" :class="claseRenovado(c.renovado)">{{ c.renovado ? 'Renovado' : 'No renovado' }}</span>
+                  <span v-if="c.fechaInscripcion" class="text-muted">· Inscrito {{ formatoFecha(c.fechaInscripcion) }}</span>
                 </p>
               </template>
               <span v-else class="text-[11px] text-muted">—</span>

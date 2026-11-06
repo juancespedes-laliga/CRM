@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { X, Loader2, AlertCircle, History, ArrowRight } from 'lucide-vue-next'
 import type { RegistroCambio } from '../types/auditoria'
 import { getCambio } from '../services/auditoria.api'
@@ -30,6 +30,8 @@ watch(() => [visible.value, props.cambioId] as const, async ([abierto, id]) => {
     cargando.value = false
   }
 }, { immediate: true })
+
+const esPlanLiga = computed(() => cambio.value?.modulo === 'titulares' || cambio.value?.modulo === 'beneficiarios')
 
 const dt = 'text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider'
 </script>
@@ -79,35 +81,40 @@ const dt = 'text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase t
               <dt class="text-subtle font-semibold">Nombre</dt><dd class="text-body">{{ cambio.usuario.nombre }}</dd>
               <dt class="text-subtle font-semibold">Usuario</dt><dd class="text-body">{{ cambio.usuario.usuario }} · ID {{ cambio.usuario.id }}</dd>
               <dt class="text-subtle font-semibold">Rol</dt><dd class="text-body">{{ cambio.usuario.rol || '—' }}</dd>
-              <dt class="text-subtle font-semibold">IP</dt><dd class="text-body tabular-nums">{{ cambio.ip }}</dd>
+              <template v-if="cambio.ip"><dt class="text-subtle font-semibold">IP</dt><dd class="text-body tabular-nums">{{ cambio.ip }}</dd></template>
             </dl>
           </section>
 
-          <!-- Motivo -->
-          <section>
+          <!-- Motivo (solo registros antiguos que lo tengan) -->
+          <section v-if="cambio.motivo">
             <h4 :class="dt" class="mb-1.5">Motivo</h4>
-            <p class="text-[12px] text-body">{{ cambio.motivo || 'Sin motivo registrado.' }}</p>
+            <p class="text-[12px] text-body">{{ cambio.motivo }}</p>
           </section>
 
-          <!-- Vigencia (Plan Liga) -->
-          <section v-if="cambio.vigenciaHasta || cambio.renovado !== null">
-            <h4 :class="dt" class="mb-1.5">Vigencia en ese momento</h4>
-            <dl class="surface-sunken rounded-xl px-3 py-2 grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
-              <dt class="text-subtle font-semibold">Ingreso</dt><dd class="text-body">{{ formatoFecha(cambio.fechaIngreso) }}</dd>
-              <dt class="text-subtle font-semibold">Renovado</dt>
-              <dd class="font-semibold" :class="claseRenovado(cambio.renovado)">{{ cambio.renovado ? `Sí, ${formatoFecha(cambio.fechaRenovado)}` : 'No' }}</dd>
-              <template v-if="cambio.vigenciaHasta">
-                <dt class="text-subtle font-semibold">Vence</dt>
-                <dd class="text-body">
-                  {{ formatoFecha(cambio.vigenciaHasta) }}
-                  <span class="font-semibold" :class="claseVigencia(vigenciaDe(cambio.vigenciaHasta))"> · {{ textoDiasRestantes(cambio.vigenciaHasta) }}</span>
-                </dd>
+          <!-- Plan Liga: lo que guarda la tabla de auditoría en ese momento -->
+          <section v-if="esPlanLiga">
+            <h4 :class="dt" class="mb-1.5">Plan Liga en ese momento</h4>
+            <dl class="surface-sunken rounded-xl px-3 py-2 grid grid-cols-[110px_1fr] gap-y-1 text-[11px]">
+              <dt class="text-subtle font-semibold">ID titular</dt><dd class="text-body tabular-nums">{{ cambio.idTitular ?? '—' }}</dd>
+              <template v-if="cambio.modulo === 'beneficiarios'">
+                <dt class="text-subtle font-semibold">ID beneficiario</dt><dd class="text-body tabular-nums">{{ cambio.idBeneficiario ?? cambio.registroId }}</dd>
               </template>
+              <dt class="text-subtle font-semibold">Inscripción</dt>
+              <dd class="text-body">{{ cambio.fechaInscripcion ? formatoFecha(cambio.fechaInscripcion) : (cambio.accion === 'creacion' ? '—' : 'Solo se guarda en altas nuevas') }}</dd>
+              <dt class="text-subtle font-semibold">Registro</dt><dd class="text-body">{{ formatoFecha(cambio.fechaRegistro) }}</dd>
+              <dt class="text-subtle font-semibold">Ingreso</dt><dd class="text-body">{{ formatoFecha(cambio.fechaIngreso) }}</dd>
+              <dt class="text-subtle font-semibold">Fin de vigencia</dt>
+              <dd class="text-body">
+                {{ formatoFecha(cambio.vigenciaHasta) }}
+                <span v-if="cambio.vigenciaHasta" class="font-semibold" :class="claseVigencia(vigenciaDe(cambio.vigenciaHasta))"> · {{ textoDiasRestantes(cambio.vigenciaHasta) }}</span>
+              </dd>
+              <dt class="text-subtle font-semibold">Renovado</dt>
+              <dd class="font-semibold" :class="claseRenovado(cambio.renovado)">{{ cambio.renovado === null ? '—' : cambio.renovado ? 'Sí' : 'No' }}</dd>
             </dl>
           </section>
 
-          <!-- Campos -->
-          <section>
+          <!-- Campos (solo registros antiguos que los tengan) -->
+          <section v-if="cambio.campos.length">
             <h4 :class="dt" class="mb-1.5">Campos modificados</h4>
             <CamposCambiados :campos="cambio.campos" />
           </section>
