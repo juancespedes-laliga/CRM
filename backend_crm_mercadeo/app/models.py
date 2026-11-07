@@ -566,7 +566,7 @@ class Auditoria(Base):
     estado_antes: Mapped[str | None] = mapped_column(String(20))
     estado_despues: Mapped[str | None] = mapped_column(String(20))
     fecha_inscripcion: Mapped[date | None] = mapped_column(Date)
-    fecha_registro: Mapped[date | None] = mapped_column(Date)
+    fecha_registro: Mapped[datetime | None] = mapped_column(DateTime)  # TIMESTAMP(6), con hora
     fecha_ingreso: Mapped[date | None] = mapped_column(Date)
     fecha_fin: Mapped[date | None] = mapped_column(
         Date, Computed("ADD_MONTHS(fecha_ingreso, 12)")

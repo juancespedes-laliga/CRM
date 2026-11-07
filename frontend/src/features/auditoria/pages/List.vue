@@ -53,7 +53,7 @@ const filtrosC = C.filtros
 const tarjetasCambios = computed<TarjetaResumen[]>(() => {
   const r = C.resumen.value
   const t: TarjetaResumen[] = [
-    { key: 'total', label: 'Total de cambios', valor: r.total, icono: ListChecks },
+    { key: 'total', label: 'Total de acciones', valor: r.total, icono: ListChecks },
     { key: 'usuarios', label: 'Usuarios', valor: r.usuarios, icono: Users, ayuda: 'que hicieron cambios' },
     { key: 'estado', label: 'Cambios de estado', valor: r.cambiosEstado, icono: ArrowLeftRight },
   ]

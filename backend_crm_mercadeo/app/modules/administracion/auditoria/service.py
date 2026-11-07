@@ -107,7 +107,7 @@ class AuditoriaService:
             estado_antes=ESTADOS.get(a.estado_antes, a.estado_antes),
             estado_despues=ESTADOS.get(a.estado_despues, a.estado_despues),
             fecha_inscripcion=_solo_fecha(a.fecha_inscripcion),
-            fecha_registro=_solo_fecha(a.fecha_registro),
+            fecha_registro=a.fecha_registro,
             fecha_ingreso=fecha_ingreso,
             renovado=(a.renovado == "S") if es_plan_liga and a.renovado else None,
             fecha_renovado=None,

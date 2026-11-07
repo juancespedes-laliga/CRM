@@ -198,7 +198,7 @@ def _columnas_beneficiario() -> list[ColumnElement]:
         func.to_char(PlanLigaBeneficiario.fecha_inscripcion, "DD/MM/YYYY").label(
             "FECHA_INSCRIPCION"
         ),
-        func.to_char(PlanLigaBeneficiario.fecha_registro, "DD/MM/YYYY").label(
+        func.to_char(PlanLigaBeneficiario.fecha_registro, "DD/MM/YYYY HH24:MI:SS").label(
             "FECHA_REGISTRO"
         ),
         PlanLigaBeneficiario.renovado.label("RENOVADO"),
@@ -247,7 +247,7 @@ class TitularesBeneficiariosRepository:
             PlanLiga.estado.label("ESTADO"),
             func.to_char(PlanLiga.fecha_ingreso, "DD/MM/YYYY").label("FECHA_INGRESO"),
             func.to_char(PlanLiga.fecha_inscripcion, "DD/MM/YYYY").label("FECHA_INSCRIPCION"),
-            func.to_char(PlanLiga.fecha_registro, "DD/MM/YYYY").label("FECHA_REGISTRO"),
+            func.to_char(PlanLiga.fecha_registro, "DD/MM/YYYY HH24:MI:SS").label("FECHA_REGISTRO"),
             PlanLiga.renovado.label("RENOVADO"),
         )
 

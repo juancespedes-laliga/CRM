@@ -70,6 +70,23 @@ def _fecha(valor) -> date | None:
     return None
 
 
+def _fecha_hora(valor) -> datetime | None:
+    """Como _fecha, pero conserva la hora (FECHA_REGISTRO viene 'DD/MM/YYYY HH24:MI:SS')."""
+    if valor is None or valor == "":
+        return None
+    if isinstance(valor, datetime):
+        return valor
+    if isinstance(valor, date):
+        return datetime(valor.year, valor.month, valor.day)
+    texto = str(valor).strip()
+    for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(texto[:19], fmt)
+        except ValueError:
+            continue
+    return None
+
+
 def estado(fila: dict | None) -> str | None:
     """Estado crudo A/I (como en intranet_planliga)."""
     if not fila:
@@ -142,7 +159,7 @@ class AuditoriaPlanLiga:
             estado_antes=estado(anterior),
             estado_despues=(estado_despues or estado(actual)),
             fecha_inscripcion=fecha_inscripcion,
-            fecha_registro=_fecha(actual.get("FECHA_REGISTRO")),
+            fecha_registro=_fecha_hora(actual.get("FECHA_REGISTRO")),
             fecha_ingreso=_fecha(actual.get("FECHA_INGRESO")),
             renovado=actual.get("RENOVADO"),
             origen=origen,

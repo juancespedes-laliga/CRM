@@ -101,7 +101,7 @@ const dt = 'text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase t
               </template>
               <dt class="text-subtle font-semibold">Inscripción</dt>
               <dd class="text-body">{{ cambio.fechaInscripcion ? formatoFecha(cambio.fechaInscripcion) : (cambio.accion === 'creacion' ? '—' : 'Solo se guarda en altas nuevas') }}</dd>
-              <dt class="text-subtle font-semibold">Registro</dt><dd class="text-body">{{ formatoFecha(cambio.fechaRegistro) }}</dd>
+              <dt class="text-subtle font-semibold">Registro</dt><dd class="text-body">{{ formatoFechaHora(cambio.fechaRegistro) }}</dd>
               <dt class="text-subtle font-semibold">Ingreso</dt><dd class="text-body">{{ formatoFecha(cambio.fechaIngreso) }}</dd>
               <dt class="text-subtle font-semibold">Fin de vigencia</dt>
               <dd class="text-body">

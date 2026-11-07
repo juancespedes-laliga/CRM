@@ -68,7 +68,7 @@ class RegistradorAuditoria:
         estado_antes: str | None = None,
         estado_despues: str | None = None,
         fecha_inscripcion: date | None = None,
-        fecha_registro: date | None = None,
+        fecha_registro: datetime | None = None,
         fecha_ingreso: date | None = None,
         renovado: str | None = None,
         origen: str | None = None,

@@ -30,7 +30,7 @@ export function exportarCambiosExcel(cambios: RegistroCambio[], modulo: ModuloSe
         'ID beneficiario': c.idBeneficiario ?? '',
         'Grupo (titular)': c.grupoTitular ? `${c.grupoTitular.nombre} (${c.grupoTitular.documento})` : '',
         'Fecha inscripción': c.fechaInscripcion ? formatoFecha(c.fechaInscripcion) : '',
-        'Fecha registro': c.fechaRegistro ? formatoFecha(c.fechaRegistro) : '',
+        'Fecha registro': c.fechaRegistro ? formatoFechaHora(c.fechaRegistro) : '',
         'Fecha ingreso': c.fechaIngreso ? formatoFecha(c.fechaIngreso) : '',
         'Fin de vigencia': c.vigenciaHasta ? formatoFecha(c.vigenciaHasta) : '',
         'Renovado': siNo(c.renovado),
