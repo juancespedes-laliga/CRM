@@ -12,8 +12,9 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
 
 <template>
   <div class="surface-card rounded-2xl shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[1000px]">
+    <!-- Sin ancho mínimo ni scroll horizontal: las celdas se acomodan en varias líneas. -->
+    <div class="overflow-x-hidden">
+      <table class="w-full">
         <thead class="surface-header border-b border-default">
           <tr>
             <th :class="th" class="pl-5">Persona</th>

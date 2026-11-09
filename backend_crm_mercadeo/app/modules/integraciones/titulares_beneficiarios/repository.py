@@ -14,7 +14,7 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.models import PlanLiga, PlanLigaBeneficiario, PlanLigaTipoPlan, TitularColor, Usuario
 
@@ -450,13 +450,27 @@ class TitularesBeneficiariosRepository:
                 literal_column("' +'"),
                 literal_column("' '"),
             )
+            # No se busca en CORREO: un texto corto (ej. "CYP") aparece dentro
+            # de correos que no tienen nada que ver ("nanCYPelaez@...") y metia
+            # titulares de otras empresas/planes en el conteo.
+            # Nombre del plan contratado (catalogo), igual que se muestra en la
+            # tabla. Alias propio: listar_titulares ya hace outerjoin con
+            # PlanLigaTipoPlan y sin alias la subconsulta se correlacionaria.
+            tp = aliased(PlanLigaTipoPlan)
+            nombre_plan_tp = tp.nombre + case(
+                (tp.categoria.isnot(None), literal_column("' - '") + tp.categoria),
+                else_=literal_column("''"),
+            )
+            plan_contratado = PlanLiga.tipo_plan_id.in_(
+                select(tp.id).where(func.upper(nombre_plan_tp).like(termino))
+            )
             condiciones.append(
                 or_(
                     func.upper(nombre_completo).like(termino),
                     func.upper(func.coalesce(PlanLiga.documento, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.empresa, "")).like(termino),
-                    func.upper(func.coalesce(PlanLiga.correo, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.tipo_plan, "")).like(termino),
+                    plan_contratado,
                     select(PlanLigaBeneficiario.id)
                     .where(
                         PlanLigaBeneficiario.planliga_id == PlanLiga.id,
@@ -465,7 +479,7 @@ class TitularesBeneficiariosRepository:
                             func.upper(func.coalesce(PlanLigaBeneficiario.documento, "")).like(
                                 termino
                             ),
-                            func.upper(func.coalesce(PlanLigaBeneficiario.correo, "")).like(
+                            func.upper(func.coalesce(PlanLigaBeneficiario.empresa, "")).like(
                                 termino
                             ),
                             func.upper(func.coalesce(PlanLigaBeneficiario.tipo_plan, "")).like(

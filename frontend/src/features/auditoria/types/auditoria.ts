@@ -103,6 +103,8 @@ export interface RenovacionRegistro {
   documento: string
   empresa: string
   plan: string
+  /** Texto libre TIPO_PLAN (ej. 'CYP'); `plan` es el nombre del catálogo. */
+  tipoPlan: string
   estado: string
   fechaIngreso: string
   renovado: boolean

@@ -235,7 +235,10 @@ const refrescarVistaActual = () => {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-[#F8FAFC] dark:bg-slate-900 font-[Inter,system-ui,sans-serif]">
+  <!-- relative: los elementos absolute sin otro ancestro posicionado (p. ej. los sr-only
+       de las tablas) quedan dentro de este contenedor y su overflow-hidden los recorta;
+       si no, se ubican respecto a la ventana y estiran la página con un segundo scroll. -->
+  <div class="relative flex h-screen overflow-hidden bg-[#F8FAFC] dark:bg-slate-900 font-[Inter,system-ui,sans-serif]">
 
     <!-- Fondo oscuro tras el sidebar cuando está abierto como drawer en móvil -->
     <div

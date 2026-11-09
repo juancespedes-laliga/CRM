@@ -18,6 +18,12 @@ export function formatoFechaHora(v: string | null | undefined): string {
   return `${fecha} ${hora}`
 }
 
+/** ISO con hora → '14:32'. */
+export function formatoHora(v: string | null | undefined): string {
+  if (!v) return ''
+  return aFecha(v).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 export function hoyISO(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

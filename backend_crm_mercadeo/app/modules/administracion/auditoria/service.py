@@ -3,36 +3,49 @@ from datetime import date, datetime, time, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.modules.administracion.auditoria.repository import LIMITE_CAMBIOS, AuditoriaRepository
+from app.modules.administracion.auditoria.repository import (
+    LIMITE_CAMBIOS,
+    AuditoriaRepository,
+    FiltrosCambios,
+)
 from app.modules.administracion.auditoria.schemas import (
     Cambio,
     ListadoCambios,
     Renovacion,
     RenovadoPor,
+    ResumenCambios,
     ResumenModulo,
     TitularGrupo,
     TitularRef,
+    UsuarioCambio,
 )
 
 # Colombia no tiene horario de verano: UTC-5 fijo (evita depender de tzdata en Windows).
 ZONA_LOCAL = timezone(timedelta(hours=-5))
 
 ESTADOS = {"A": "Activo", "I": "Inactivo"}
+ESTADOS_CODIGO = {v: k for k, v in ESTADOS.items()}
 
 
 def _nombre(*partes: str | None) -> str:
     return " ".join(p.strip() for p in partes if p and p.strip())
 
 
-def _a_utc_naive(dia: date, fin: bool = False) -> datetime:
-    """Limite de un dia LOCAL convertido a UTC (asi se guarda la fecha en la tabla)."""
+# FECHA_ACTUALIZACION la pone el trigger con SYSTIMESTAMP del servidor Oracle,
+# que esta en hora de Colombia (-05:00), y la columna es TIMESTAMP sin zona:
+# lo guardado es hora LOCAL, no UTC.
+
+
+def _limite_local(dia: date, fin: bool = False) -> datetime:
+    """Limite de un dia LOCAL, comparable con la columna (hora local sin zona)."""
     if fin:
         dia = dia + timedelta(days=1)
-    return datetime.combine(dia, time.min, tzinfo=ZONA_LOCAL).astimezone(timezone.utc).replace(tzinfo=None)
+    return datetime.combine(dia, time.min)
 
 
-def _fecha_utc(valor: datetime) -> datetime:
-    return valor if valor.tzinfo else valor.replace(tzinfo=timezone.utc)
+def _fecha_local(valor: datetime) -> datetime:
+    """Marca la hora guardada como hora de Colombia para que el front la muestre bien."""
+    return valor if valor.tzinfo else valor.replace(tzinfo=ZONA_LOCAL)
 
 
 def _solo_fecha(valor) -> date | None:
@@ -85,7 +98,7 @@ class AuditoriaService:
         es_plan_liga = a.modulo in ("titulares", "beneficiarios")
         return Cambio(
             id=a.id,
-            fecha=_fecha_utc(a.fecha_actualizacion),
+            fecha=_fecha_local(a.fecha_actualizacion),
             usuario_id=a.id_usuario or 0,
             usuario=fila.login or "sistema",
             nombre_usuario=fila.nombres or (
@@ -119,26 +132,76 @@ class AuditoriaService:
     @staticmethod
     def _rango(desde: date | None, hasta: date | None) -> tuple[datetime | None, datetime | None]:
         return (
-            _a_utc_naive(desde) if desde else None,
-            _a_utc_naive(hasta, fin=True) if hasta else None,
+            _limite_local(desde) if desde else None,
+            _limite_local(hasta, fin=True) if hasta else None,
         )
 
     def resumen_modulos(self, desde: date | None, hasta: date | None) -> list[ResumenModulo]:
         ini, fin = self._rango(desde, hasta)
         return [
-            ResumenModulo(modulo=m, total=t, ultimo_cambio=_fecha_utc(u) if u else None)
+            ResumenModulo(modulo=m, total=t, ultimo_cambio=_fecha_local(u) if u else None)
             for m, t, u in self.repository.resumen_por_modulo(ini, fin)
         ]
 
     def listar_cambios(
-        self, modulo: str | None, desde: date | None, hasta: date | None
+        self,
+        modulo: str | None,
+        desde: date | None,
+        hasta: date | None,
+        *,
+        submodulo: str | None = None,
+        buscar: str | None = None,
+        accion: str | None = None,
+        usuario: int | None = None,
+        origen: str | None = None,
+        estado: str | None = None,
+        renovado: bool | None = None,
+        pagina: int = 1,
+        por_pagina: int = 20,
     ) -> ListadoCambios:
         modulos = [m.strip() for m in modulo.split(",") if m.strip()] if modulo else None
         ini, fin = self._rango(desde, hasta)
-        filas = self.repository.listar_cambios(modulos, ini, fin)
-        truncado = len(filas) > LIMITE_CAMBIOS
-        items = [self._mapear(f) for f in filas[:LIMITE_CAMBIOS]]
-        return ListadoCambios(items=items, total=len(items), truncado=truncado)
+        base = FiltrosCambios(modulos=modulos, desde=ini, hasta=fin)
+        # Submodulo: uno puntual dentro de la vista (p. ej. solo beneficiarios en Plan Liga).
+        if submodulo and (modulos is None or submodulo in modulos):
+            modulos = [submodulo]
+        filtros = FiltrosCambios(
+            modulos=modulos,
+            desde=ini,
+            hasta=fin,
+            buscar=buscar,
+            accion=accion,
+            origen=origen,
+            usuario=usuario,
+            estado=ESTADOS_CODIGO.get(estado, estado) if estado else None,
+            renovado=renovado,
+        )
+        por_pagina = max(1, min(por_pagina, LIMITE_CAMBIOS))
+        pagina = max(1, pagina)
+        resumen = self.repository.resumen_cambios(filtros)
+        items = [self._mapear(f) for f in self.repository.listar_cambios(filtros, pagina, por_pagina)]
+        usuarios = sorted(
+            (
+                UsuarioCambio(
+                    id=uid or 0,
+                    usuario=login or "sistema",
+                    nombre=nombres or ("Proceso automático" if uid is None else f"Usuario {uid}"),
+                )
+                for uid, login, nombres in self.repository.usuarios_cambios(base)
+            ),
+            key=lambda u: u.nombre.lower(),
+        )
+        estados = sorted({ESTADOS.get(e, e) for e in self.repository.estados_cambios(base)})
+        return ListadoCambios(
+            items=items,
+            total=resumen["total"],
+            pagina=pagina,
+            por_pagina=por_pagina,
+            truncado=resumen["total"] > pagina * por_pagina and por_pagina == LIMITE_CAMBIOS,
+            resumen=ResumenCambios(**resumen),
+            usuarios=usuarios,
+            estados=estados,
+        )
 
     def obtener_cambio(self, id_cambio: int) -> Cambio:
         fila = self.repository.obtener_cambio(id_cambio)
@@ -169,6 +232,7 @@ class AuditoriaService:
                     documento=f["documento"] or "",
                     empresa=f["empresa"],
                     plan=f["plan"],
+                    tipo_plan=f.get("tipo_plan"),
                     estado=ESTADOS.get(f["estado"], f["estado"] or ""),
                     fecha_ingreso=_solo_fecha(f["fecha_ingreso"]),
                     renovado=f["renovado"] == "S",

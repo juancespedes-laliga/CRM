@@ -190,7 +190,8 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
 
     <UsoMensualMailerTurbo ref="usoMensual" />
 
-    <div class="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-4 items-start">
+    <!-- Mitad listas, mitad campañas (se apilan solo en pantallas angostas). -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <!-- Listas -->
       <div class="surface-card rounded-2xl shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-default flex items-center justify-between gap-2">
@@ -275,8 +276,19 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
 
         <div v-if="errorCampanas" class="px-4 py-3 text-[12px] text-red-600 dark:text-red-400">{{ errorCampanas }}</div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-[12px]">
+        <!-- Ancho fijo por columna: todo cabe en la tarjeta, sin scroll horizontal;
+             el nombre y el asunto se recortan con "…" (texto completo al pasar el mouse). -->
+        <div class="overflow-x-hidden">
+          <table class="w-full table-fixed text-[12px]">
+            <colgroup>
+              <col />
+              <col class="w-[88px]" />
+              <col class="w-[64px]" />
+              <col class="w-[76px]" />
+              <col class="w-[60px]" />
+              <col class="w-[76px]" />
+              <col class="w-[26px]" />
+            </colgroup>
             <thead>
               <tr class="border-b border-default text-left text-[10px] uppercase tracking-wide text-subtle">
                 <th class="px-4 py-2.5 font-semibold">Campaña</th>
@@ -284,15 +296,14 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
                 <th class="px-3 py-2.5 font-semibold text-right">Envíos</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Aperturas</th>
                 <th class="px-3 py-2.5 font-semibold text-right">Clics</th>
-                <th class="px-3 py-2.5 font-semibold text-right">Rebotes</th>
-                <th class="px-3 py-2.5 font-semibold text-right">Bajas</th>
-                <th class="w-8" />
+                <th class="px-3 py-2.5 font-semibold text-right" title="Rebotes / Bajas">Reb. / Bajas</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               <template v-if="cargandoCampanas">
                 <tr v-for="n in Math.min(porPagina, 6)" :key="n" class="border-b border-slate-100 dark:border-slate-800">
-                  <td colspan="8" class="px-4 py-3"><div class="h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse" /></td>
+                  <td colspan="7" class="px-4 py-3"><div class="h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse" /></td>
                 </tr>
               </template>
               <template v-else>
@@ -304,13 +315,13 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
                   @click="verCampana(c.id)"
                   @keydown.enter="verCampana(c.id)"
                 >
-                  <td class="px-4 py-2.5 min-w-[220px] max-w-[320px]">
+                  <td class="px-4 py-2.5 min-w-0">
                     <div class="font-semibold text-heading truncate group-hover:text-[#2447F9]" :title="c.nombre">{{ c.nombre }}</div>
                     <div class="text-[11px] text-muted truncate" :title="c.asunto || ''">{{ c.asunto || 'Sin asunto' }}</div>
-                    <div class="text-[10px] text-subtle mt-0.5 truncate">#{{ c.id }} · {{ fmtFecha(c.fecha) }}<template v-if="c.listas"> · {{ c.listas }}</template></div>
+                    <div class="text-[10px] text-subtle mt-0.5 truncate" :title="c.listas || ''">#{{ c.id }} · {{ fmtFecha(c.fecha) }}<template v-if="c.listas"> · {{ c.listas }}</template></div>
                   </td>
-                  <td class="px-3 py-2.5 whitespace-nowrap">
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md" :class="claseEstado(c.estado)">{{ c.estado }}</span>
+                  <td class="px-3 py-2.5">
+                    <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md leading-tight" :class="claseEstado(c.estado)">{{ c.estado }}</span>
                   </td>
                   <td class="px-3 py-2.5 text-right tabular-nums font-semibold text-heading">{{ nf.format(c.totalEnvios) }}</td>
                   <td class="px-3 py-2.5 text-right tabular-nums">
@@ -321,12 +332,14 @@ const onEnviada = () => { void cargarCampanas(1); void usoMensual.value?.cargar(
                     <div class="text-body">{{ nf.format(c.totalClicks) }}</div>
                     <div class="text-[10px] text-muted">{{ fmtPct(c.porcentajeClicks) }}</div>
                   </td>
-                  <td class="px-3 py-2.5 text-right tabular-nums text-body">{{ nf.format(c.totalRebotes) }}</td>
-                  <td class="px-3 py-2.5 text-right tabular-nums text-body">{{ nf.format(c.totalSalidas) }}</td>
-                  <td class="pr-3 py-2.5 text-muted group-hover:text-[#2447F9]"><ChevronRight :size="15" /></td>
+                  <td class="px-3 py-2.5 text-right tabular-nums">
+                    <div class="text-body" title="Rebotes">{{ nf.format(c.totalRebotes) }}</div>
+                    <div class="text-[10px] text-muted" title="Bajas">{{ nf.format(c.totalSalidas) }} bajas</div>
+                  </td>
+                  <td class="pr-2 py-2.5 text-muted group-hover:text-[#2447F9]"><ChevronRight :size="14" /></td>
                 </tr>
                 <tr v-if="!campanas.length && !errorCampanas">
-                  <td colspan="8" class="px-4 py-10 text-center text-muted">{{ busquedaCampana ? 'Ninguna campaña coincide con la búsqueda.' : 'No hay campañas.' }}</td>
+                  <td colspan="7" class="px-4 py-10 text-center text-muted">{{ busquedaCampana ? 'Ninguna campaña coincide con la búsqueda.' : 'No hay campañas.' }}</td>
                 </tr>
               </template>
             </tbody>

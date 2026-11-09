@@ -47,8 +47,8 @@ export function useRenovacionesAuditoria() {
       if (filtros.estado !== 'todos' && r.estado !== filtros.estado) return false
       if (q) {
         // Igual que en Titulares y Beneficiarios: por cédula, nombre o empresa
-        // (también encuentra por plan y por el titular del grupo).
-        const texto = normalizar([r.documento, r.nombre, r.empresa, String(r.id), r.plan, r.titular?.nombre ?? ''].join(' '))
+        // (también encuentra por plan, tipo de plan —ej. 'CYP'— y por el titular del grupo).
+        const texto = normalizar([r.documento, r.nombre, r.empresa, String(r.id), r.plan, r.tipoPlan, r.titular?.nombre ?? ''].join(' '))
         if (!texto.includes(q)) return false
       }
       return true

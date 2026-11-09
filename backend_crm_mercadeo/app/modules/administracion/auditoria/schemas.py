@@ -46,11 +46,32 @@ class Cambio(BaseModel):
     campos: list[CampoCambiado] = []
 
 
+class ResumenCambios(BaseModel):
+    total: int = 0
+    usuarios: int = 0
+    cambios_estado: int = 0
+    renovaciones: int = 0
+    masivos: int = 0
+
+
+class UsuarioCambio(BaseModel):
+    id: int  # 0 = proceso automatico
+    usuario: str
+    nombre: str
+
+
 class ListadoCambios(BaseModel):
     items: list[Cambio]
+    # Total de cambios que cumplen los filtros (todas las paginas).
     total: int
-    # True si se llego al tope de filas: conviene acotar el rango de fechas.
+    pagina: int = 1
+    por_pagina: int = 20
+    # True si no cupieron todos en la pagina pedida (solo pasa al exportar con el tope).
     truncado: bool = False
+    resumen: ResumenCambios = ResumenCambios()
+    # Opciones de los filtros Usuario y Estado dentro del modulo y rango de fechas.
+    usuarios: list[UsuarioCambio] = []
+    estados: list[str] = []
 
 
 class ResumenModulo(BaseModel):
@@ -76,6 +97,8 @@ class Renovacion(BaseModel):
     documento: str
     empresa: str | None = None
     plan: str | None = None
+    # Texto libre TIPO_PLAN (ej. 'CYP'); 'plan' es el nombre del catalogo.
+    tipo_plan: str | None = None
     estado: str
     fecha_ingreso: date
     renovado: bool

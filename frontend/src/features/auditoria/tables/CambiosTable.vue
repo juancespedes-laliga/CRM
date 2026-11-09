@@ -5,7 +5,7 @@ import type { RegistroCambio } from '../types/auditoria'
 import {
   ACCION_LABEL, CLASE_NEUTRA, MODULO_POR_KEY, ORIGEN_LABEL, claseEstado, claseRenovado, esOrigenMasivo,
 } from '../constants/auditoria.constants'
-import { formatoFecha, formatoFechaHora } from '../utils/fechas'
+import { formatoFecha, formatoHora } from '../utils/fechas'
 
 const props = defineProps<{
   rows: RegistroCambio[]
@@ -28,8 +28,9 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
 
 <template>
   <div class="surface-card rounded-2xl shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full" :class="muestraPlanLiga ? 'min-w-[1040px]' : 'min-w-[860px]'">
+    <!-- Sin ancho mínimo ni scroll horizontal: las celdas se acomodan en varias líneas. -->
+    <div class="overflow-x-hidden">
+      <table class="w-full">
         <thead class="surface-header border-b border-default">
           <tr>
             <th :class="th" class="pl-5">Fecha</th>
@@ -48,8 +49,9 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
             @click="emit('detalle', c)"
             class="surface-hover transition-colors cursor-pointer group"
           >
-            <td class="pl-5 pr-4 py-3 align-top whitespace-nowrap">
-              <span class="text-[11px] font-semibold text-heading tabular-nums">{{ formatoFechaHora(c.fecha) }}</span>
+            <td class="pl-5 pr-4 py-3 align-top">
+              <p class="text-[11px] font-semibold text-heading tabular-nums whitespace-nowrap">{{ formatoFecha(c.fecha) }}</p>
+              <p class="text-[10px] text-muted tabular-nums mt-0.5">{{ formatoHora(c.fecha) }}</p>
             </td>
             <td class="px-4 py-3 align-top">
               <p class="text-[12px] font-semibold text-heading leading-tight">{{ c.usuario.nombre }}</p>
@@ -62,7 +64,7 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
                 {{ ORIGEN_LABEL[c.origen] }}
               </p>
             </td>
-            <td class="px-4 py-3 align-top">
+            <td class="px-4 py-3 align-top break-words">
               <p class="text-[12px] font-semibold text-heading leading-tight">{{ c.registroNombre }}</p>
               <p class="text-[10px] text-muted mt-0.5">
                 <template v-if="muestraModulo">{{ MODULO_POR_KEY[c.modulo].label }} · </template>{{ idsRegistro(c) }}<template v-if="c.documento"> · {{ c.documento }}</template>
@@ -80,16 +82,16 @@ const th = 'text-left px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-s
               <span v-else-if="c.estadoDespues" class="text-[11px] font-semibold" :class="claseEstado(c.estadoDespues)">{{ c.estadoDespues }}</span>
               <span v-else class="text-[11px] text-muted">—</span>
             </td>
-            <td v-if="muestraPlanLiga" class="px-4 py-3 align-top whitespace-nowrap">
+            <td v-if="muestraPlanLiga" class="px-4 py-3 align-top">
               <template v-if="esPlanLiga(c) && (c.fechaIngreso || c.renovado !== null)">
                 <p class="text-[11px] text-body tabular-nums">
-                  {{ formatoFecha(c.fechaIngreso) }}
+                  <span class="whitespace-nowrap">{{ formatoFecha(c.fechaIngreso) }}</span>
                   <ArrowRight :size="10" class="inline text-slate-400 dark:text-slate-500 mx-0.5" />
-                  {{ formatoFecha(c.vigenciaHasta) }}
+                  <span class="whitespace-nowrap">{{ formatoFecha(c.vigenciaHasta) }}</span>
                 </p>
-                <p class="text-[10px] mt-0.5 flex items-center gap-1.5">
-                  <span class="font-semibold" :class="claseRenovado(c.renovado)">{{ c.renovado ? 'Renovado' : 'No renovado' }}</span>
-                  <span v-if="c.fechaInscripcion" class="text-muted">· Inscrito {{ formatoFecha(c.fechaInscripcion) }}</span>
+                <p class="text-[10px] mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                  <span class="font-semibold whitespace-nowrap" :class="claseRenovado(c.renovado)">{{ c.renovado ? 'Renovado' : 'No renovado' }}</span>
+                  <span v-if="c.fechaInscripcion" class="text-muted whitespace-nowrap">· Inscrito {{ formatoFecha(c.fechaInscripcion) }}</span>
                 </p>
               </template>
               <span v-else class="text-[11px] text-muted">—</span>

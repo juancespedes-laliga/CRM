@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, requiere_permiso
+from app.modules.administracion.auditoria.repository import LIMITE_CAMBIOS
 from app.modules.administracion.auditoria.schemas import (
     Cambio,
     ListadoCambios,
@@ -36,15 +37,40 @@ def resumen_modulos(
 @router.get(
     "/cambios",
     response_model=ListadoCambios,
-    summary="Log de cambios. modulo acepta varios separados por coma (ej. titulares,beneficiarios).",
+    summary=(
+        "Log de cambios paginado y filtrado en el servidor. modulo acepta varios separados por coma "
+        "(ej. titulares,beneficiarios); buscar compara documento, nombre, IDs y usuario."
+    ),
 )
 def listar_cambios(
     modulo: str | None = None,
     desde: date | None = None,
     hasta: date | None = None,
+    submodulo: str | None = None,
+    buscar: str | None = None,
+    accion: str | None = None,
+    usuario: int | None = Query(None, description="0 = proceso automatico (sin usuario)."),
+    origen: str | None = None,
+    estado: str | None = None,
+    renovado: bool | None = None,
+    pagina: int = Query(1, ge=1),
+    por_pagina: int = Query(20, ge=1, le=LIMITE_CAMBIOS),
     service: AuditoriaService = Depends(get_auditoria_service),
 ) -> ListadoCambios:
-    return service.listar_cambios(modulo, desde, hasta)
+    return service.listar_cambios(
+        modulo,
+        desde,
+        hasta,
+        submodulo=submodulo,
+        buscar=buscar,
+        accion=accion,
+        usuario=usuario,
+        origen=origen,
+        estado=estado,
+        renovado=renovado,
+        pagina=pagina,
+        por_pagina=por_pagina,
+    )
 
 
 @router.get("/cambios/{id_cambio}", response_model=Cambio)

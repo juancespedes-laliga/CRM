@@ -1,9 +1,13 @@
 import { computed, reactive, ref, watch, type Ref } from 'vue'
-import { getCambios } from '../services/auditoria.api'
-import {
-  ACCION_LABEL, MODULO_POR_KEY, ORIGEN_LABEL, POR_PAGINA, accionesDeModulo, esOrigenMasivo, incluyePlanLiga, modulosDeVista,
-} from '../constants/auditoria.constants'
+import { getCambios, LIMITE_CAMBIOS, type ConsultaCambios, type ResumenCambios } from '../services/auditoria.api'
+import { accionesDeModulo, incluyePlanLiga, modulosDeVista } from '../constants/auditoria.constants'
 import type { FiltrosCambios, ModuloSeleccion, RegistroCambio, UsuarioAuditoria } from '../types/auditoria'
+
+/** Filas por página del registro de cambios. */
+export const POR_PAGINA_CAMBIOS = 20
+
+/** Espera al escribir en el buscador antes de consultar (ms). */
+const ESPERA_BUSQUEDA = 350
 
 const filtrosVacios = (): FiltrosCambios => ({
   buscar: '',
@@ -17,39 +21,24 @@ const filtrosVacios = (): FiltrosCambios => ({
   hasta: '',
 })
 
-const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const resumenVacio = (): ResumenCambios => ({ total: 0, usuarios: 0, cambiosEstado: 0, renovaciones: 0, masivos: 0 })
 
 /**
- * Registro de cambios acotado al módulo seleccionado. Al cambiar de módulo se
- * recarga desde el API y se limpian los filtros que no aplican a ese módulo
- * (p. ej. "Renovado" fuera de Plan Liga, o una acción que el módulo no tiene).
+ * Registro de cambios acotado al módulo seleccionado, paginado en el servidor:
+ * la búsqueda (cédula, nombre, ID, usuario), los filtros y los totales de las
+ * tarjetas los resuelve el backend sobre toda la tabla; aquí solo llega la página.
  */
 export function useCambiosAuditoria(modulo: Ref<ModuloSeleccion>) {
   const cambios = ref<RegistroCambio[]>([])
-  const truncado = ref(false)
+  const total = ref(0)
+  const resumen = ref<ResumenCambios>(resumenVacio())
+  const usuarios = ref<UsuarioAuditoria[]>([])
+  const estados = ref<string[]>([])
   const cargando = ref(false)
   const error = ref<string | null>(null)
 
   const filtros = reactive<FiltrosCambios>(filtrosVacios())
   const pagina = ref(1)
-
-  let peticion = 0
-  async function cargar() {
-    const id = ++peticion
-    cargando.value = true
-    error.value = null
-    try {
-      const data = await getCambios(modulo.value, { desde: filtros.desde, hasta: filtros.hasta })
-      if (id === peticion) {
-        cambios.value = data.items
-        truncado.value = data.truncado
-      }
-    } catch (e) {
-      if (id === peticion) error.value = e instanceof Error ? e.message : 'No se pudo cargar el registro de cambios.'
-    } finally {
-      if (id === peticion) cargando.value = false
-    }
-  }
 
   const accionesDisponibles = computed(() => accionesDeModulo(modulo.value))
   const muestraPlanLiga = computed(() => incluyePlanLiga(modulo.value))
@@ -57,72 +46,79 @@ export function useCambiosAuditoria(modulo: Ref<ModuloSeleccion>) {
   const submodulosDisponibles = computed(() => modulosDeVista(modulo.value))
   const variosModulos = computed(() => submodulosDisponibles.value.length > 1)
 
+  /** Filtros actuales traducidos a la consulta del API (sin página). */
+  function consulta(): ConsultaCambios {
+    return {
+      desde: filtros.desde || undefined,
+      hasta: filtros.hasta || undefined,
+      submodulo: filtros.submodulo === 'todos' ? undefined : filtros.submodulo,
+      buscar: filtros.buscar.trim() || undefined,
+      accion: filtros.accion === 'todas' ? undefined : filtros.accion,
+      usuario: filtros.usuario === 'todos' ? undefined : filtros.usuario,
+      origen: filtros.origen === 'todos' ? undefined : filtros.origen,
+      estado: filtros.estado === 'todos' ? undefined : filtros.estado,
+      renovado: filtros.renovado === 'todos' ? undefined : filtros.renovado === 'si',
+    }
+  }
+
+  let peticion = 0
+  async function cargar() {
+    const id = ++peticion
+    cargando.value = true
+    error.value = null
+    try {
+      const data = await getCambios(modulo.value, { ...consulta(), pagina: pagina.value, porPagina: POR_PAGINA_CAMBIOS })
+      if (id !== peticion) return
+      cambios.value = data.items
+      total.value = data.total
+      resumen.value = data.resumen
+      usuarios.value = data.usuarios
+      estados.value = data.estados
+      // Si la página quedó fuera de rango (p. ej. tras borrar registros), vuelve a la última.
+      const ultima = Math.max(1, Math.ceil(data.total / POR_PAGINA_CAMBIOS))
+      if (pagina.value > ultima) pagina.value = ultima
+    } catch (e) {
+      if (id === peticion) error.value = e instanceof Error ? e.message : 'No se pudo cargar el registro de cambios.'
+    } finally {
+      if (id === peticion) cargando.value = false
+    }
+  }
+
+  /** Todos los cambios que cumplen los filtros (para exportar), hasta el tope del backend. */
+  async function cargarTodos(): Promise<{ items: RegistroCambio[]; truncado: boolean }> {
+    const data = await getCambios(modulo.value, { ...consulta(), pagina: 1, porPagina: LIMITE_CAMBIOS })
+    return { items: data.items, truncado: data.truncado }
+  }
+
+  /** Vuelve a la página 1 y consulta; si ya estaba en la 1, el watch de página no dispara. */
+  function recargarDesdeInicio() {
+    if (pagina.value !== 1) pagina.value = 1
+    else cargar()
+  }
+
   // Al cambiar de módulo: se limpian filtros que ya no aplican y se recarga.
   watch(modulo, () => {
     if (filtros.accion !== 'todas' && !accionesDisponibles.value.includes(filtros.accion)) filtros.accion = 'todas'
     if (!muestraPlanLiga.value) filtros.renovado = 'todos'
     filtros.usuario = 'todos'
     filtros.estado = 'todos'
-    pagina.value = 1
-    cargar()
+    filtros.submodulo = 'todos'
+    recargarDesdeInicio()
   })
 
-  // El rango de fechas se consulta en el servidor; el resto se filtra aquí.
-  watch(() => [filtros.desde, filtros.hasta], () => {
-    pagina.value = 1
-    cargar()
-  })
+  watch(pagina, () => cargar())
 
-  const usuarios = computed<UsuarioAuditoria[]>(() => {
-    const map = new Map<number, UsuarioAuditoria>()
-    for (const c of cambios.value) map.set(c.usuario.id, c.usuario)
-    return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre))
-  })
+  // Filtros de lista y fechas: consulta inmediata.
+  watch(
+    () => [filtros.submodulo, filtros.accion, filtros.usuario, filtros.origen, filtros.estado, filtros.renovado, filtros.desde, filtros.hasta],
+    () => recargarDesdeInicio(),
+  )
 
-  const estados = computed(() => {
-    const set = new Set<string>()
-    for (const c of cambios.value) if (c.estadoDespues) set.add(c.estadoDespues)
-    return [...set].sort()
-  })
-
-  const filtrados = computed(() => {
-    const q = normalizar(filtros.buscar.trim())
-    return cambios.value.filter(c => {
-      if (filtros.submodulo !== 'todos' && c.modulo !== filtros.submodulo) return false
-      if (filtros.accion !== 'todas' && c.accion !== filtros.accion) return false
-      if (filtros.usuario !== 'todos' && c.usuario.id !== filtros.usuario) return false
-      if (filtros.origen !== 'todos' && c.origen !== filtros.origen) return false
-      if (filtros.estado !== 'todos' && c.estadoDespues !== filtros.estado) return false
-      if (filtros.renovado === 'si' && c.renovado !== true) return false
-      if (filtros.renovado === 'no' && c.renovado !== false) return false
-      if (q) {
-        const texto = normalizar([
-          c.registroNombre, c.documento, String(c.registroId), c.usuario.nombre, c.usuario.usuario,
-          c.motivo, ACCION_LABEL[c.accion], ORIGEN_LABEL[c.origen], MODULO_POR_KEY[c.modulo].label,
-          c.grupoTitular?.nombre ?? '', c.grupoTitular?.documento ?? '',
-          c.idTitular != null ? String(c.idTitular) : '', c.idBeneficiario != null ? String(c.idBeneficiario) : '',
-        ].join(' '))
-        if (!texto.includes(q)) return false
-      }
-      return true
-    })
-  })
-
-  watch(() => [filtros.buscar, filtros.submodulo, filtros.accion, filtros.usuario, filtros.origen, filtros.estado, filtros.renovado], () => {
-    pagina.value = 1
-  })
-
-  const paginados = computed(() => filtrados.value.slice((pagina.value - 1) * POR_PAGINA, pagina.value * POR_PAGINA))
-
-  const resumen = computed(() => {
-    const lista = filtrados.value
-    return {
-      total: lista.length,
-      usuarios: new Set(lista.map(c => c.usuario.id)).size,
-      cambiosEstado: lista.filter(c => c.estadoAntes !== null && c.estadoAntes !== c.estadoDespues).length,
-      renovaciones: lista.filter(c => c.accion === 'renovacion').length,
-      masivos: lista.filter(c => esOrigenMasivo(c.origen)).length,
-    }
+  // Buscador: espera a que se deje de escribir.
+  let temporizador: ReturnType<typeof setTimeout> | undefined
+  watch(() => filtros.buscar, () => {
+    clearTimeout(temporizador)
+    temporizador = setTimeout(recargarDesdeInicio, ESPERA_BUSQUEDA)
   })
 
   const hayFiltros = computed(() => {
@@ -135,11 +131,11 @@ export function useCambiosAuditoria(modulo: Ref<ModuloSeleccion>) {
   }
 
   return {
-    cambios, truncado, cargando, error, cargar,
+    cambios, total, cargando, error, cargar, cargarTodos,
     filtros, limpiarFiltros, hayFiltros,
     accionesDisponibles, muestraPlanLiga, submodulosDisponibles, variosModulos,
     usuarios, estados,
-    filtrados, paginados, pagina,
+    pagina,
     resumen,
   }
 }

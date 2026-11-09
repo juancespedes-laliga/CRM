@@ -12,6 +12,8 @@ const props = defineProps<{
   disabled?: boolean
   invalid?: boolean
   valid?: boolean
+  /** Altura y texto de las barras de filtros (h-9, 11px) en vez de formulario (h-10, 12px). */
+  compacto?: boolean
 }>()
 const emit = defineEmits<{ blur: [] }>()
 // String 'YYYY-MM-DD' (o '' si no hay fecha), igual que el resto de los drafts de la app.
@@ -36,7 +38,7 @@ const maxDate = computed(() => (props.max ? aFecha(props.max) ?? undefined : und
 
 // Mismo formato visual que ActivarFechaDialog.vue (el diálogo de "Activar titular/beneficiario").
 const inputClass = computed(() =>
-  `w-full h-10 pl-4 pr-10 rounded-lg border bg-slate-50 dark:bg-slate-900 text-[12px] font-medium text-slate-700 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-800 transition-all `
+  `w-full ${props.compacto ? 'h-9 pl-3 pr-9 text-[11px]' : 'h-10 pl-4 pr-10 text-[12px]'} rounded-lg border bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-800 transition-all `
   + fieldStateClass(!!props.invalid, !!props.valid, 'border-slate-200 dark:border-slate-600 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/40'),
 )
 </script>

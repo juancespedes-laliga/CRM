@@ -8,12 +8,12 @@
 //    → [{ modulo, total, ultimo_cambio }]
 //
 // 2. GET /api/auditoria/cambios?modulo=titulares,beneficiarios&desde=…&hasta=…
-//    Log de cambios. "modulo" es opcional (sin él trae todos los módulos) y
-//    acepta varios separados por coma (Plan Liga = titulares + beneficiarios).
-//    El resto de filtros (acción, usuario, origen, estado, renovado,
-//    búsqueda) se aplican en el front sobre este resultado. Trae como
-//    máximo 5000 filas (truncado = true si había más: acotar fechas).
-//    → { items: CambioResponse[], total, truncado }
+//      &submodulo=&buscar=&accion=&usuario=&origen=&estado=&renovado=&pagina=1&por_pagina=20
+//    Log de cambios paginado: filtros, búsqueda (documento, nombre, IDs,
+//    usuario) y conteos se resuelven en el servidor. "modulo" es opcional
+//    (sin él trae todos) y acepta varios separados por coma.
+//    → { items: CambioResponse[] (la página), total, pagina, por_pagina, truncado,
+//        resumen, usuarios, estados }
 //
 // 3. GET /api/auditoria/cambios/{id}
 //    Un cambio con su detalle completo (campos antes → después).
@@ -34,7 +34,7 @@
 import { authHeader } from '@/features/auth/composables/useAuth'
 import type {
   AccionAuditoria, CampoCambiado, ModuloAuditoria, ModuloSeleccion, OrigenAuditoria,
-  RegistroCambio, RenovacionRegistro, ResumenModulo, TipoPersonaPlanLiga,
+  RegistroCambio, RenovacionRegistro, ResumenModulo, TipoPersonaPlanLiga, UsuarioAuditoria,
 } from '../types/auditoria'
 import { modulosDeVista } from '../constants/auditoria.constants'
 
@@ -77,6 +77,7 @@ interface RenovacionResponse {
   documento: string
   empresa: string | null
   plan: string | null
+  tipo_plan?: string | null
   estado: string
   fecha_ingreso: string
   renovado: boolean
@@ -129,6 +130,7 @@ function mapRenovacion(r: RenovacionResponse): RenovacionRegistro {
     documento: r.documento,
     empresa: r.empresa ?? '',
     plan: r.plan ?? '',
+    tipoPlan: r.tipo_plan ?? '',
     estado: r.estado,
     fechaIngreso: r.fecha_ingreso,
     renovado: r.renovado,
@@ -164,18 +166,83 @@ export async function getResumenModulos(rango: RangoFechas = {}): Promise<Resume
 }
 
 // 2
-export interface ListadoCambios {
-  items: RegistroCambio[]
-  /** Había más cambios que el tope del backend: conviene acotar el rango de fechas. */
-  truncado: boolean
+export interface ResumenCambios {
+  total: number
+  usuarios: number
+  cambiosEstado: number
+  renovaciones: number
+  masivos: number
 }
 
-export async function getCambios(modulo: ModuloSeleccion, rango: RangoFechas = {}): Promise<ListadoCambios> {
-  const data = await getJson<{ items: CambioResponse[]; total: number; truncado?: boolean }>(
-    `/api/auditoria/cambios${query({ modulo: modulo === 'todos' ? undefined : modulosDeVista(modulo).join(','), desde: rango.desde, hasta: rango.hasta })}`,
+export interface ListadoCambios {
+  /** Solo la página pedida. */
+  items: RegistroCambio[]
+  /** Total de cambios que cumplen los filtros (todas las páginas). */
+  total: number
+  /** No cupieron todos en una sola petición (solo al exportar con el tope del backend). */
+  truncado: boolean
+  resumen: ResumenCambios
+  /** Opciones de los filtros Usuario y Estado dentro del módulo y rango de fechas. */
+  usuarios: UsuarioAuditoria[]
+  estados: string[]
+}
+
+/** Filtros y página que se resuelven en el servidor. */
+export interface ConsultaCambios extends RangoFechas {
+  submodulo?: ModuloAuditoria
+  buscar?: string
+  accion?: AccionAuditoria
+  /** 0 = proceso automático (sin usuario). */
+  usuario?: number
+  origen?: OrigenAuditoria
+  estado?: string
+  renovado?: boolean
+  pagina?: number
+  porPagina?: number
+}
+
+/** Tope de filas por petición del backend (se usa al exportar todo). */
+export const LIMITE_CAMBIOS = 20000
+
+export async function getCambios(modulo: ModuloSeleccion, c: ConsultaCambios = {}): Promise<ListadoCambios> {
+  const data = await getJson<{
+    items: CambioResponse[]
+    total: number
+    truncado?: boolean
+    resumen: { total: number; usuarios: number; cambios_estado: number; renovaciones: number; masivos: number }
+    usuarios: { id: number; usuario: string; nombre: string }[]
+    estados: string[]
+  }>(
+    `/api/auditoria/cambios${query({
+      modulo: modulo === 'todos' ? undefined : modulosDeVista(modulo).join(','),
+      desde: c.desde,
+      hasta: c.hasta,
+      submodulo: c.submodulo,
+      buscar: c.buscar?.trim() || undefined,
+      accion: c.accion,
+      usuario: c.usuario,
+      origen: c.origen,
+      estado: c.estado,
+      renovado: c.renovado === undefined ? undefined : String(c.renovado),
+      pagina: c.pagina,
+      por_pagina: c.porPagina,
+    })}`,
     'No se pudo cargar el registro de cambios.',
   )
-  return { items: data.items.map(mapCambio), truncado: !!data.truncado }
+  return {
+    items: data.items.map(mapCambio),
+    total: data.total,
+    truncado: !!data.truncado,
+    resumen: {
+      total: data.resumen.total,
+      usuarios: data.resumen.usuarios,
+      cambiosEstado: data.resumen.cambios_estado,
+      renovaciones: data.resumen.renovaciones,
+      masivos: data.resumen.masivos,
+    },
+    usuarios: data.usuarios.map(u => ({ ...u, rol: '' })),
+    estados: data.estados,
+  }
 }
 
 // 3

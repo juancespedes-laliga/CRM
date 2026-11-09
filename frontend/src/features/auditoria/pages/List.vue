@@ -12,11 +12,12 @@ import {
   ACCION_LABEL, DIAS_POR_VENCER, MODULO_POR_KEY, ORIGEN_LABEL, POR_PAGINA, VISTA_POR_KEY,
   esModuloValido, etiquetaModulo, incluyePlanLiga,
 } from '../constants/auditoria.constants'
-import { useCambiosAuditoria } from '../composables/useCambiosAuditoria'
+import { POR_PAGINA_CAMBIOS, useCambiosAuditoria } from '../composables/useCambiosAuditoria'
 import { useRenovacionesAuditoria } from '../composables/useRenovacionesAuditoria'
 import { exportarCambiosExcel } from '../utils/exportarAuditoriaExcel'
 // Mismo resumen que muestran las tarjetas de Titulares y Beneficiarios.
 import { exportarTitulares, getResumenTitulares } from '@/features/plan-liga/services/plan-liga.api'
+import FechaInput from '@/shared/components/FechaInput.vue'
 import AuditoriaTabs from '../components/AuditoriaTabs.vue'
 import ResumenCards from '../components/ResumenCards.vue'
 import Paginador from '../components/Paginador.vue'
@@ -138,8 +139,11 @@ const exportar = async () => {
   await new Promise(res => setTimeout(res, 50))
   try {
     if (tab.value === 'cambios') {
-      // Registro de cambios: Excel propio de auditoría (quién, qué, antes → después).
-      exportarCambiosExcel(C.filtrados.value, modulo.value)
+      // Registro de cambios: Excel propio de auditoría (quién, qué, antes → después),
+      // con todo lo que cumple los filtros (no solo la página visible).
+      const { items, truncado } = await C.cargarTodos()
+      exportarCambiosExcel(items, modulo.value)
+      if (truncado) errorExportar.value = `El archivo incluye solo los ${items.length.toLocaleString('es-CO')} cambios más recientes. Usa el rango de fechas para exportar los anteriores.`
     } else {
       // Renovaciones: el mismo Excel de titulares y beneficiarios que genera la
       // pantalla Titulares y Beneficiarios (lo arma el backend), con la búsqueda
@@ -160,7 +164,7 @@ const exportar = async () => {
   }
 }
 // En Renovaciones el Excel lo arma el backend con todos los titulares/beneficiarios que coincidan.
-const totalExportable = computed(() => (tab.value === 'cambios' ? C.filtrados.value.length : null))
+const totalExportable = computed(() => (tab.value === 'cambios' ? C.total.value : null))
 
 const subtitulo = computed(() => {
   if (modulo.value === 'todos') return 'Todo lo que se hace en el CRM, en todos los módulos'
@@ -169,7 +173,6 @@ const subtitulo = computed(() => {
 })
 
 const select = 'h-9 px-3 rounded-lg input-surface text-[11px] font-medium text-body outline-none cursor-pointer'
-const inputFecha = 'h-9 px-2.5 rounded-lg input-surface text-[11px] font-medium text-body outline-none'
 </script>
 
 <template>
@@ -258,9 +261,14 @@ const inputFecha = 'h-9 px-2.5 rounded-lg input-surface text-[11px] font-medium 
             <option value="no">No renovado</option>
           </select>
           <div class="flex items-center gap-1.5">
-            <input type="date" v-model="filtrosC.desde" :max="filtrosC.hasta || undefined" :class="inputFecha" aria-label="Desde" />
+            <!-- Mismo selector de fecha que Plan Liga (dd/mm/aaaa) -->
+            <div class="w-[150px]" aria-label="Desde">
+              <FechaInput v-model="filtrosC.desde" :max="filtrosC.hasta || undefined" placeholder="Desde" compacto />
+            </div>
             <span class="text-[11px] text-muted">a</span>
-            <input type="date" v-model="filtrosC.hasta" :min="filtrosC.desde || undefined" :class="inputFecha" aria-label="Hasta" />
+            <div class="w-[150px]" aria-label="Hasta">
+              <FechaInput v-model="filtrosC.hasta" :min="filtrosC.desde || undefined" placeholder="Hasta" compacto />
+            </div>
           </div>
           <button v-if="C.hayFiltros.value" type="button" @click="C.limpiarFiltros()" class="flex items-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold text-subtle hover:text-heading transition-colors">
             <X :size="12" /> Limpiar
@@ -268,21 +276,20 @@ const inputFecha = 'h-9 px-2.5 rounded-lg input-surface text-[11px] font-medium 
         </div>
         <div class="text-[11px] text-muted">
           <template v-if="C.cargando.value">Cargando cambios...</template>
-          <template v-else>Mostrando <strong class="text-body">{{ C.filtrados.value.length.toLocaleString('es-CO') }}</strong> cambios</template>
+          <template v-else><strong class="text-body">{{ C.total.value.toLocaleString('es-CO') }}</strong> cambios</template>
         </div>
         <p v-if="C.error.value" class="text-[11px] font-medium text-red-500 dark:text-red-400">{{ C.error.value }}</p>
-        <p v-if="C.truncado.value" class="text-[11px] font-medium text-amber-600 dark:text-amber-400">Se muestran solo los 5.000 cambios más recientes. Usa el rango de fechas para ver los anteriores.</p>
       </div>
 
       <CambiosTable
-        :rows="C.paginados.value"
+        :rows="C.cambios.value"
         :cargando="C.cargando.value"
         :muestra-modulo="C.variosModulos.value"
         :muestra-plan-liga="C.muestraPlanLiga.value"
         @detalle="abrirDetalle"
         @historial="abrirHistorialDeCambio"
       />
-      <Paginador v-model="C.pagina.value" :total="C.filtrados.value.length" :por-pagina="POR_PAGINA" />
+      <Paginador v-model="C.pagina.value" :total="C.total.value" :por-pagina="POR_PAGINA_CAMBIOS" />
     </template>
 
     <!-- ═══════════ Renovaciones ═══════════ -->
