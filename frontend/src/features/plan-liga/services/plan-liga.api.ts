@@ -137,7 +137,6 @@ export async function activarTitular(
   // Cambio de plan al renovar (opcional): cambiarPlan es el toggle explícito, ver
   // CAMBIAR_PLAN en schemas.py. tipoPlanId null es "Plan Estándar", una elección válida.
   cambiarPlan = false,
-  tipoPlan?: string | null,
   tipoPlanId?: number | null,
 ): Promise<void> {
   const body: Record<string, unknown> = {
@@ -145,10 +144,8 @@ export async function activarTitular(
     APLICAR_A_GRUPO: aplicarAGrupo,
     CAMBIAR_PLAN: cambiarPlan,
   }
-  if (cambiarPlan) {
-    body.TIPO_PLAN = tipoPlan ?? null
-    body.TIPO_PLAN_ID = tipoPlanId ?? null
-  }
+  // Solo se manda TIPO_PLAN_ID (plan contratado). TIPO_PLAN (grupo) no se toca al renovar.
+  if (cambiarPlan) body.TIPO_PLAN_ID = tipoPlanId ?? null
   const response = await fetch(`${API_URL}/api/titulares-beneficiarios/${idTitular}/activar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },

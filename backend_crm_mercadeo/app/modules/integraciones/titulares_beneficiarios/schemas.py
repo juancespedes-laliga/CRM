@@ -132,6 +132,8 @@ class TitularActivar(BaseModel):
     # planliga:elegir_plan (ver PERMISO_ELEGIR_PLAN en service.py); si el
     # usuario no lo tiene, CAMBIAR_PLAN se ignora aunque venga en True.
     CAMBIAR_PLAN: bool = False
+    # Obsoleto: se acepta por compatibilidad pero se ignora. Al renovar solo
+    # cambia TIPO_PLAN_ID; la columna de texto TIPO_PLAN (grupo) no se toca.
     TIPO_PLAN: Optional[str] = None
     TIPO_PLAN_ID: Optional[int] = None
 

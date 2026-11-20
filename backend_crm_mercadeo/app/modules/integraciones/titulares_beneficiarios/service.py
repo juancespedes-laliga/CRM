@@ -643,7 +643,6 @@ class TitularesBeneficiariosService:
         fecha_ingreso: date,
         aplicar_a_grupo: bool = True,
         cambiar_plan: bool = False,
-        tipo_plan: str | None = None,
         tipo_plan_id: int | None = None,
         username: str | None = None,
     ) -> ActivacionTitularResultado:
@@ -667,7 +666,7 @@ class TitularesBeneficiariosService:
         )
         beneficiarios_antes = self.repository.obtener_beneficiarios_por_ids(ids_beneficiarios)
         if not self.repository.activar_titular(
-            id_titular, fecha_ingreso, cambiar_plan, tipo_plan, tipo_plan_id
+            id_titular, fecha_ingreso, cambiar_plan, tipo_plan_id
         ):
             raise TitularNotFoundError(id_titular)
         num_beneficiarios = (

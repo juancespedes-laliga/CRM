@@ -373,7 +373,6 @@ def activar_titular(
         data.FECHA_INGRESO,
         data.APLICAR_A_GRUPO,
         data.CAMBIAR_PLAN,
-        data.TIPO_PLAN,
         data.TIPO_PLAN_ID,
         username,
     )

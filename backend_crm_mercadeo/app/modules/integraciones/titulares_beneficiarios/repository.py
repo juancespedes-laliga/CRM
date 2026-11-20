@@ -973,7 +973,6 @@ class TitularesBeneficiariosRepository:
         id_titular: int,
         fecha_ingreso: date,
         cambiar_plan: bool = False,
-        tipo_plan: str | None = None,
         tipo_plan_id: int | None = None,
     ) -> bool:
         titular = self.db.get(PlanLiga, id_titular)
@@ -982,8 +981,10 @@ class TitularesBeneficiariosRepository:
         titular.estado = ESTADO_ACTIVO
         titular.fecha_ingreso = fecha_ingreso
         titular.renovado = "S"
+        # Solo cambia el "Plan Contratado" (tipo_plan_id). La columna de texto
+        # tipo_plan es el grupo (PARTICULAR, MAGNETRON...) y NO se toca al renovar:
+        # antes se sobrescribia con el nombre del plan ('6 Beneficiarios - planliga').
         if cambiar_plan:
-            titular.tipo_plan = tipo_plan
             titular.tipo_plan_id = tipo_plan_id
         self.db.commit()
         return True

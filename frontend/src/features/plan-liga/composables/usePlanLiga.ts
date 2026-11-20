@@ -246,7 +246,7 @@ export function usePlanLiga() {
     errorGuardarTitular.value = null
     try {
       if (activando) {
-        await activarTitular(t.id, fechaIngreso!, aplicarAGrupo, cambiarPlan, nombrePlan(tipoPlanId), tipoPlanId)
+        await activarTitular(t.id, fechaIngreso!, aplicarAGrupo, cambiarPlan, tipoPlanId)
       } else {
         await desactivarTitular(t.id)
       }
@@ -256,7 +256,8 @@ export function usePlanLiga() {
           ...t,
           estado: nuevoEstado,
           ...(activando ? fechaTrasRenovar(t, fechaIngreso!) : {}),
-          ...(activando && cambiarPlan ? { tipoPlanId, tipoPlan: nombrePlan(tipoPlanId) } : {}),
+          // Solo cambia el plan contratado; tipoPlan (grupo: PARTICULAR, MAGNETRON...) se conserva.
+          ...(activando && cambiarPlan ? { tipoPlanId, planContratado: nombrePlan(tipoPlanId) } : {}),
         }
       }
       cargarResumen()
