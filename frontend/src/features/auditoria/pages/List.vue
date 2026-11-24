@@ -18,6 +18,7 @@ import { exportarCambiosExcel } from '../utils/exportarAuditoriaExcel'
 // Mismo resumen que muestran las tarjetas de Titulares y Beneficiarios.
 import { exportarTitulares, getResumenTitulares } from '@/features/plan-liga/services/plan-liga.api'
 import FechaInput from '@/shared/components/FechaInput.vue'
+import { descargarBlob } from '@/shared/utils/descargarBlob'
 import AuditoriaTabs from '../components/AuditoriaTabs.vue'
 import ResumenCards from '../components/ResumenCards.vue'
 import Paginador from '../components/Paginador.vue'
@@ -150,12 +151,7 @@ const exportar = async () => {
       // y el estado de aquí.
       const estado = filtrosR.estado === 'Activo' || filtrosR.estado === 'Inactivo' ? filtrosR.estado : undefined
       const blob = await exportarTitulares({ busqueda: filtrosR.buscar.trim() || undefined, estado })
-      const url = URL.createObjectURL(blob)
-      const enlace = document.createElement('a')
-      enlace.href = url
-      enlace.download = `titulares_beneficiarios_${new Date().toISOString().split('T')[0]}.xlsx`
-      enlace.click()
-      URL.revokeObjectURL(url)
+      descargarBlob(blob, `titulares_beneficiarios_${new Date().toISOString().split('T')[0]}.xlsx`)
     }
   } catch (e) {
     errorExportar.value = e instanceof Error ? e.message : 'No se pudo exportar el listado.'

@@ -439,14 +439,19 @@ class TitularesBeneficiariosRepository:
                 literal_column("' +'"),
                 literal_column("' '"),
             )
+            # Alias propio para la subconsulta de beneficiarios: la exportacion
+            # consulta PlanLigaBeneficiario en el FROM externo y, sin alias, el
+            # EXISTS se auto-correlacionaba con esa tabla y quedaba sin FROM
+            # (InvalidRequestError -> 500 / "Failed to fetch" al exportar con busqueda).
+            b = aliased(PlanLigaBeneficiario)
             nombre_completo_beneficiario = func.regexp_replace(
-                func.coalesce(PlanLigaBeneficiario.nombre1, "")
+                func.coalesce(b.nombre1, "")
                 + literal_column("' '")
-                + func.coalesce(PlanLigaBeneficiario.nombre2, "")
+                + func.coalesce(b.nombre2, "")
                 + literal_column("' '")
-                + func.coalesce(PlanLigaBeneficiario.apellido1, "")
+                + func.coalesce(b.apellido1, "")
                 + literal_column("' '")
-                + func.coalesce(PlanLigaBeneficiario.apellido2, ""),
+                + func.coalesce(b.apellido2, ""),
                 literal_column("' +'"),
                 literal_column("' '"),
             )
@@ -471,18 +476,18 @@ class TitularesBeneficiariosRepository:
                     func.upper(func.coalesce(PlanLiga.empresa, "")).like(termino),
                     func.upper(func.coalesce(PlanLiga.tipo_plan, "")).like(termino),
                     plan_contratado,
-                    select(PlanLigaBeneficiario.id)
+                    select(b.id)
                     .where(
-                        PlanLigaBeneficiario.planliga_id == PlanLiga.id,
+                        b.planliga_id == PlanLiga.id,
                         or_(
                             func.upper(nombre_completo_beneficiario).like(termino),
-                            func.upper(func.coalesce(PlanLigaBeneficiario.documento, "")).like(
+                            func.upper(func.coalesce(b.documento, "")).like(
                                 termino
                             ),
-                            func.upper(func.coalesce(PlanLigaBeneficiario.empresa, "")).like(
+                            func.upper(func.coalesce(b.empresa, "")).like(
                                 termino
                             ),
-                            func.upper(func.coalesce(PlanLigaBeneficiario.tipo_plan, "")).like(
+                            func.upper(func.coalesce(b.tipo_plan, "")).like(
                                 termino
                             ),
                         ),

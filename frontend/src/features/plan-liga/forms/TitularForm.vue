@@ -10,6 +10,7 @@ import { faltaApellido } from '@/shared/utils/nombreCompuesto'
 import { fieldStateClass } from '@/shared/utils/fieldStateClass'
 import { useUbicaciones } from '@/shared/composables/useUbicaciones'
 import { TIPOS_DOCUMENTO_OPCIONES } from '@/shared/constants/tiposDocumento'
+import { TIPOS_PLAN } from '../constants/tiposPlan.constants'
 import FieldError from '@/shared/components/FieldError.vue'
 import FechaInput from '@/shared/components/FechaInput.vue'
 
@@ -40,6 +41,14 @@ watch(() => draft.value.departamento, (nuevo, anterior) => {
 watch(() => draft.value.tipoPlanId, (id) => {
   draft.value.planContratado = id === null ? 'Estándar' : (props.planesServicio?.find(p => p.id === id)?.nombre ?? '')
 }, { immediate: true })
+
+// Tipo de plan (TIPO_PLAN): se elige de la lista fija TIPOS_PLAN, no se escribe a mano.
+// Si se edita un titular antiguo cuyo valor no está en la lista, se agrega a las
+// opciones para que el selector lo muestre y no se pierda al guardar.
+const opcionesTipoPlan = computed<string[]>(() => {
+  const actual = draft.value.tipoPlan?.trim()
+  return actual && !(TIPOS_PLAN as readonly string[]).includes(actual) ? [actual, ...TIPOS_PLAN] : [...TIPOS_PLAN]
+})
 
 // Elegir un plan distinto del Estándar está reservado al rol Comercial (Jefe y
 // Admin lo reciben por comodín). El resto de roles crea siempre en Estándar: se
@@ -167,7 +176,10 @@ watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value
     </div>
     <div>
       <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Tipo de plan *</label>
-      <input v-model="draft.tipoPlan" @blur="tocar('tipoPlan')" placeholder="Liga - Energia - Camara" class="w-full h-10 px-4 rounded-lg border bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:bg-white dark:focus:bg-slate-800 transition-all" :class="fieldStateClass(esVisible('tipoPlan') && !!errors.tipoPlan, esVisible('tipoPlan') && !errors.tipoPlan && !!draft.tipoPlan, 'border-slate-200 dark:border-slate-600 focus:border-[#EC4899]')" />
+      <Select v-model="draft.tipoPlan" @change="tocar('tipoPlan')" :options="opcionesTipoPlan"
+        filter filter-placeholder="Buscar tipo de plan..." placeholder="Selecciona un tipo de plan"
+        empty-filter-message="Sin resultados" class="w-full" input-class="h-10 text-[12px] flex items-center"
+        :class="fieldStateClass(esVisible('tipoPlan') && !!errors.tipoPlan, esVisible('tipoPlan') && !errors.tipoPlan && !!draft.tipoPlan, '')" />
       <FieldError :message="esVisible('tipoPlan') ? errors.tipoPlan : undefined" />
     </div>
     <div>

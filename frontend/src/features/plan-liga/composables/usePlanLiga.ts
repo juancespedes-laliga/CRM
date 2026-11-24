@@ -1,4 +1,5 @@
 import { ref, computed, onMounted, watch } from 'vue'
+import { descargarBlob } from '@/shared/utils/descargarBlob'
 import type {
   Beneficiario, BeneficiarioDraft, PlanServicio, Titular, TitularDraft,
   ReemplazoPersonaDraft, ReemplazoTitularResultado, ReemplazoBeneficiarioResultado,
@@ -109,12 +110,7 @@ export function usePlanLiga() {
     errorExportar.value = null
     try {
       const blob = await exportarTitulares(filtrosActivos.value)
-      const url = URL.createObjectURL(blob)
-      const enlace = document.createElement('a')
-      enlace.href = url
-      enlace.download = `titulares_beneficiarios_${new Date().toISOString().split('T')[0]}.xlsx`
-      enlace.click()
-      URL.revokeObjectURL(url)
+      descargarBlob(blob, `titulares_beneficiarios_${new Date().toISOString().split('T')[0]}.xlsx`)
     } catch (e) {
       errorExportar.value = e instanceof Error ? e.message : 'No se pudo exportar el listado.'
     } finally {
