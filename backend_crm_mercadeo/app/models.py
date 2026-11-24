@@ -585,6 +585,7 @@ class Auditoria(Base):
 # es AuthRepository.obtener_permisos() en app/modules/auth/repository.py.
 # ---------------------------------------------------------------------------
 
+##tablas permisos y roles
 
 class RolApp(Base):
     __tablename__ = "intranet_roles_app"
