@@ -140,7 +140,8 @@ watch(tienePlanSalud, (v) => { if (!v) { draft.value.planSalud = ''; draft.value
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Tipo de plan</label>
-          <input v-model="draft.tipoPlan" placeholder="Ej: Plan Familiar, Plan Individual" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-[12px] outline-none focus:border-[#EC4899] focus:bg-white dark:focus:bg-slate-800 transition-all" />
+          <input :value="draft.tipoPlan || '—'" disabled title="El beneficiario tiene siempre el tipo de plan de su titular" class="w-full h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[12px] outline-none cursor-not-allowed" />
+          <p class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Se toma del titular.</p>
         </div>
         <div>
           <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">EPS</label>

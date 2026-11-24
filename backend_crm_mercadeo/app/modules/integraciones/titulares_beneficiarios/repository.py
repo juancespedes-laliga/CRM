@@ -4,7 +4,6 @@ from typing import Iterator
 from sqlalchemy import (
     ColumnElement,
     String,
-    and_,
     case,
     cast,
     func,
@@ -203,11 +202,9 @@ def _columnas_beneficiario() -> list[ColumnElement]:
         ),
         PlanLigaBeneficiario.renovado.label("RENOVADO"),
         PlanLigaBeneficiario.empresa.label("EMPRESA"),
-        # Si el beneficiario no tiene tipo_plan propio, se muestra el del titular.
-        func.coalesce(
-            func.nullif(func.trim(PlanLigaBeneficiario.tipo_plan), ""),
-            PlanLiga.tipo_plan,
-        ).label("TIPO_PLAN"),
+        # El tipo de plan (grupo) del beneficiario es siempre el de su titular;
+        # la columna propia de INTRANET_PLANLIGA_BENEFICIARIO no se usa.
+        PlanLiga.tipo_plan.label("TIPO_PLAN"),
         PlanLigaBeneficiario.estado.label("ESTADO"),
         PlanLigaBeneficiario.planliga_id.label("ID_TITULAR"),
     ]
@@ -487,9 +484,6 @@ class TitularesBeneficiariosRepository:
                             func.upper(func.coalesce(b.empresa, "")).like(
                                 termino
                             ),
-                            func.upper(func.coalesce(b.tipo_plan, "")).like(
-                                termino
-                            ),
                         ),
                     )
                     .exists(),
@@ -545,7 +539,8 @@ class TitularesBeneficiariosRepository:
                 PlanLigaBeneficiario.apellido1.label("APELLIDO1"),
                 PlanLigaBeneficiario.apellido2.label("APELLIDO2"),
                 PlanLigaBeneficiario.empresa.label("EMPRESA"),
-                PlanLigaBeneficiario.tipo_plan.label("PLAN"),
+                # Plan del titular (mismo valor que la fila del titular).
+                _nombre_plan().label("PLAN"),
                 PlanLigaBeneficiario.telefono.label("TELEFONO"),
                 PlanLigaBeneficiario.correo.label("CORREO"),
                 func.to_char(PlanLigaBeneficiario.fecha_ingreso, "DD/MM/YYYY").label(
@@ -791,10 +786,12 @@ class TitularesBeneficiariosRepository:
             for campo, atributo in CAMPOS_BENEFICIARIO_EDITABLES.items()
             if campo != "ESTADO"
         }
+        titular = self.db.get(PlanLiga, id_titular)
         nuevo = PlanLigaBeneficiario(
             **campos_nuevos,
             planliga_id=id_titular,
-            tipo_plan=anterior.tipo_plan,
+            # El tipo de plan del beneficiario es el de su titular.
+            tipo_plan=titular.tipo_plan if titular is not None else anterior.tipo_plan,
             eps=anterior.eps,
             otraeps=anterior.otraeps,
             plan_salud=anterior.plan_salud,
@@ -1020,22 +1017,13 @@ class TitularesBeneficiariosRepository:
     def _condicion_beneficiarios_grupo(
         self, empresa: str | None, tipo_plan: str | None
     ) -> ColumnElement:
-        """Por EMPRESA: beneficiarios de los titulares activos de esa empresa.
-        Por TIPO_PLAN: el TIPO_PLAN propio del beneficiario
-        (INTRANET_PLANLIGA_BENEFICIARIO) o, si lo tiene vacio, el de su titular
-        activo -- mismo criterio con el que se muestra en el detalle."""
+        """Beneficiarios de los titulares activos del grupo (por EMPRESA o por
+        TIPO_PLAN). El tipo de plan del beneficiario es siempre el de su titular,
+        asi que no se mira la columna TIPO_PLAN propia del beneficiario."""
         ids_titulares = select(PlanLiga.id).where(
             self._condicion_grupo(empresa, tipo_plan), PlanLiga.estado == ESTADO_ACTIVO
         )
-        if not tipo_plan:
-            return PlanLigaBeneficiario.planliga_id.in_(ids_titulares)
-        return or_(
-            PlanLigaBeneficiario.tipo_plan == tipo_plan,
-            and_(
-                func.trim(PlanLigaBeneficiario.tipo_plan).is_(None),
-                PlanLigaBeneficiario.planliga_id.in_(ids_titulares),
-            ),
-        )
+        return PlanLigaBeneficiario.planliga_id.in_(ids_titulares)
 
     def ids_grupo_activo(
         self, empresa: str | None = None, tipo_plan: str | None = None
@@ -1121,7 +1109,8 @@ class TitularesBeneficiariosRepository:
         # Oracle trata '' como NULL: "trim(x) != ''" nunca es verdadero y
         # devolvia la lista vacia. TRIM de un texto en blanco ya da NULL.
         valores: set[str] = set()
-        for columna in (PlanLiga.tipo_plan, PlanLigaBeneficiario.tipo_plan):
+        # Solo titulares: el beneficiario usa el tipo de plan de su titular.
+        for columna in (PlanLiga.tipo_plan,):
             stmt = select(func.distinct(columna)).where(func.trim(columna).isnot(None))
             valores.update(valor for valor in self.db.scalars(stmt) if valor and valor.strip())
         return sorted(valores)

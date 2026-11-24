@@ -242,11 +242,11 @@ class AuditoriaRepository:
         SELECT 'beneficiario', b.ID, b.NOMBRE1, b.NOMBRE2, b.APELLIDO1, b.APELLIDO2,
                b.DOCUMENTO, NVL(b.EMPRESA, p.EMPRESA),
                NVL(tp.NOMBRE || CASE WHEN tp.CATEGORIA IS NOT NULL THEN ' - ' || tp.CATEGORIA END,
-                   NVL(TRIM(b.TIPO_PLAN), p.TIPO_PLAN)),
+                   p.TIPO_PLAN),
                b.ESTADO, TRUNC(b.FECHA_INGRESO), b.RENOVADO, NULL,
                TRUNC(ADD_MONTHS(b.FECHA_INGRESO, 12)),
                p.ID, p.NOMBRE1, p.NOMBRE2, p.APELLIDO1, p.APELLIDO2,
-               NVL(TRIM(b.TIPO_PLAN), p.TIPO_PLAN)
+               p.TIPO_PLAN
         FROM INTRANET_PLANLIGA_BENEFICIARIO b
         LEFT JOIN INTRANET_PLANLIGA p ON p.ID = b.PLANLIGA_ID
         LEFT JOIN INTRANET_PLANLIGA_TIPO_PLAN tp ON tp.ID = p.TIPO_PLAN_ID

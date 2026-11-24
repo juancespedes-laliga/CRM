@@ -212,7 +212,8 @@ const abrirNuevoBeneficiario = () => {
   errLimite.value = false
   modalBeneModo.value = 'nuevo'
   beneficiarioEditando.value = null
-  draftBene.value = { ...BENEFICIARIO_DRAFT_VACIO, fechaInscripcion: new Date().toISOString().split('T')[0] }
+  // El tipo de plan del beneficiario es siempre el de su titular (solo lectura en el formulario).
+  draftBene.value = { ...BENEFICIARIO_DRAFT_VACIO, fechaInscripcion: new Date().toISOString().split('T')[0], tipoPlan: titularSeleccionado.value.tipoPlan }
   modalBeneVisible.value = true
 }
 const abrirEditarBeneficiario = (b: Beneficiario) => {
@@ -220,7 +221,7 @@ const abrirEditarBeneficiario = (b: Beneficiario) => {
   errorGuardarBeneficiario.value = null
   modalBeneModo.value = 'editar'
   beneficiarioEditando.value = b
-  draftBene.value = { ...b }
+  draftBene.value = { ...b, tipoPlan: titularSeleccionado.value?.tipoPlan ?? b.tipoPlan }
   modalBeneVisible.value = true
 }
 const guardarBeneficiario = async (enviarCorreo = false) => {
